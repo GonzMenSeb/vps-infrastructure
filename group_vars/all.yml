@@ -55,6 +55,7 @@ github_repo_ssh_url: "git@github.com:GonzMenSeb/vps-infrastructure.git"
 
 # Zot registry (self-hosted OCI registry)
 zot_host: "registry.{{ web_subdomain }}"
+zot_registry_user: "ci"
 
 # Miplata
 miplata_host: "miplata.{{ web_subdomain }}"
