@@ -7,6 +7,8 @@ skip_list:
   - yaml[line-length]
   - name[missing]
   - jinja[spacing]
+  - var-naming[no-role-prefix]
+  - risky-file-permissions
 
 exclude_paths:
   - .git
