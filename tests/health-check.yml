@@ -74,16 +74,14 @@
 
     # ── Container health status ──
     - name: Check container health statuses
-      shell: docker ps --format "{% raw %}{{.Names}}: {{.Status}}{% endraw %}" | grep -i unhealthy
+      shell: docker ps --filter "health=unhealthy" --format "{% raw %}{{.Names}}{% endraw %}"
       register: unhealthy
       changed_when: false
-      failed_when: unhealthy.stdout_lines | length > 0
-      ignore_errors: true
 
     - name: Report unhealthy containers
       fail:
         msg: "Unhealthy containers found: {{ unhealthy.stdout }}"
-      when: unhealthy.stdout_lines | length > 0
+      when: unhealthy.stdout | length > 0
 
     # ── TLS ──
     - name: Verify Vaultwarden TLS is valid
