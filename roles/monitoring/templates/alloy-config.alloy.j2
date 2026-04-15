@@ -1,0 +1,27 @@
+// Phase 1: minimal Alloy config. Scrape configs (Docker SD, node_exporter,
+// cAdvisor, Traefik, Zot, exporters, miplata-api) are added in Phase 2.
+//
+// Alloy exposes its own metrics on :12345 and the /-/ready endpoint, which
+// the Ansible role waits on during apply (see tasks/main.yml).
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// Scrape Alloy's own metrics so we can observe the collector itself.
+prometheus.scrape "alloy_self" {
+  targets         = [{"__address__" = "localhost:12345", "job" = "alloy", "host" = "vps"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "15s"
+}
+
+// Write everything to the local Prometheus over the observability network.
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+  external_labels = {
+    env = "prod",
+  }
+}
