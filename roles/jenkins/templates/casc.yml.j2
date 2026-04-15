@@ -1,0 +1,70 @@
+jenkins:
+  systemMessage: "VPS Infrastructure CI/CD - Managed by Ansible"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: "{{ vault_jenkins_admin_password }}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
+              id: "github-ssh-key"
+              username: "git"
+              description: "GitHub deploy key"
+              privateKeySource:
+                directEntry:
+                  privateKey: |
+                    {{ vault_jenkins_github_ssh_key | indent(20) }}
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
+              id: "vps-ssh-key"
+              username: "ubuntu"
+              description: "VPS deploy key"
+              privateKeySource:
+                directEntry:
+                  privateKey: |
+                    {{ vault_jenkins_vps_ssh_key | indent(20) }}
+          - string:
+              scope: GLOBAL
+              id: "ansible-vault-pass"
+              secret: "{{ vault_ansible_vault_password }}"
+              description: "Ansible vault password"
+
+jobs:
+  - script: |
+      pipelineJob('vps-deploy') {
+        description('Deploy VPS infrastructure via Ansible')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ github_repo_ssh_url }}')
+                  credentials('github-ssh-key')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+
+unclassified:
+  location:
+    url: "https://{{ jenkins_host }}/"

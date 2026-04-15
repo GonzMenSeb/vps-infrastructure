@@ -47,3 +47,8 @@ grafana_image: "grafana/grafana:latest"
 loki_image: "grafana/loki:latest"
 promtail_image: "grafana/promtail:latest"
 prometheus_retention: "30d"
+
+# Jenkins
+jenkins_host: "jenkins.{{ web_subdomain }}"
+jenkins_image: "jenkins/jenkins:lts-jdk17"
+github_repo_ssh_url: "git@github.com:GonzMenSeb/vps-infrastructure.git"

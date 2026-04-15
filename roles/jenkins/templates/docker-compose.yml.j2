@@ -1,0 +1,23 @@
+networks:
+  proxy:
+    external: true
+
+volumes:
+  jenkins_data:
+
+services:
+  jenkins:
+    image: jenkins-ansible:latest
+    container_name: jenkins
+    restart: unless-stopped
+    networks: [proxy]
+    environment:
+      JENKINS_URL: "https://{{ jenkins_host }}"
+    volumes:
+      - {{ jenkins_data_dir }}:/var/jenkins_home
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jenkins.rule=Host(`{{ jenkins_host }}`)"
+      - "traefik.http.routers.jenkins.entrypoints=websecure"
+      - "traefik.http.routers.jenkins.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jenkins.loadbalancer.server.port=8080"

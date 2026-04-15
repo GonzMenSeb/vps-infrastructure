@@ -1,0 +1,86 @@
+---
+- name: Stop and disable systemd Jenkins (replaced by container)
+  systemd:
+    name: jenkins
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Create Jenkins directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+    owner: "1000"
+    group: "1000"
+  loop:
+    - "{{ jenkins_dir }}"
+    - "{{ jenkins_data_dir }}"
+    - "{{ jenkins_data_dir }}/.ssh"
+
+- name: Copy Dockerfile and plugins
+  copy:
+    src: "{{ item }}"
+    dest: "{{ jenkins_dir }}/{{ item }}"
+    mode: "0644"
+  loop:
+    - Dockerfile
+    - plugins.txt
+  register: jenkins_image_files
+
+- name: Build Jenkins image
+  community.docker.docker_image:
+    name: jenkins-ansible
+    tag: latest
+    source: build
+    build:
+      path: "{{ jenkins_dir }}"
+    force_source: "{{ jenkins_image_files.changed }}"
+
+- name: Deploy Jenkins GitHub SSH key
+  copy:
+    content: "{{ vault_jenkins_github_ssh_key }}"
+    dest: "{{ jenkins_data_dir }}/.ssh/github_key"
+    mode: "0600"
+    owner: "1000"
+    group: "1000"
+
+- name: Deploy Jenkins VPS SSH key
+  copy:
+    content: "{{ vault_jenkins_vps_ssh_key }}"
+    dest: "{{ jenkins_data_dir }}/.ssh/vps_key"
+    mode: "0600"
+    owner: "1000"
+    group: "1000"
+
+- name: Configure SSH known hosts for GitHub
+  shell: ssh-keyscan github.com > {{ jenkins_data_dir }}/.ssh/known_hosts 2>/dev/null
+  args:
+    creates: "{{ jenkins_data_dir }}/.ssh/known_hosts"
+
+- name: Set known_hosts permissions
+  file:
+    path: "{{ jenkins_data_dir }}/.ssh/known_hosts"
+    mode: "0644"
+    owner: "1000"
+    group: "1000"
+
+- name: Deploy JCasC config
+  template:
+    src: casc.yml.j2
+    dest: "{{ jenkins_data_dir }}/casc.yml"
+    mode: "0644"
+    owner: "1000"
+    group: "1000"
+  notify: restart jenkins
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ jenkins_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Start Jenkins stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ jenkins_dir }}"
+    state: present

@@ -10,3 +10,4 @@
     - dns
     - vaultwarden
     - monitoring
+    - { role: jenkins, tags: ['jenkins'] }
