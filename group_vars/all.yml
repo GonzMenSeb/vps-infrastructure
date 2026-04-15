@@ -31,21 +31,21 @@ traefik_dashboard_host: "traefik.{{ web_subdomain }}"
 traefik_dashboard_auth: "admin:$$2y$$05$$pvEIRx9O8AZhW2Cr6OFufeuwF09Y0xe3VArKdxPeWESSmGnPYCrAq"
 
 # DNS
-pdns_image: "powerdns/pdns-auth-49:latest"
-pdns_admin_image: "powerdnsadmin/pda-legacy:latest"
+pdns_image: "powerdns/pdns-auth-49:4.9.13"
+pdns_admin_image: "powerdnsadmin/pda-legacy:0.4.2"
 pdns_mariadb_image: "mariadb:10.11"
 pdns_admin_host: "dns.{{ web_subdomain }}"
 pdns_soa: "ns1.{{ domain }}. hostmaster.{{ domain }}. 0 10800 3600 604800 3600"
 
 # Vaultwarden
-vaultwarden_image: "vaultwarden/server:latest"
+vaultwarden_image: "vaultwarden/server:1.35.7"
 vaultwarden_host: "vault.{{ web_subdomain }}"
 
 # Monitoring
-prometheus_image: "prom/prometheus:latest"
-grafana_image: "grafana/grafana:latest"
-loki_image: "grafana/loki:latest"
-promtail_image: "grafana/promtail:latest"
+prometheus_image: "prom/prometheus:v3.11.2"
+grafana_image: "grafana/grafana:12.4.3"
+loki_image: "grafana/loki:3.6.10"
+promtail_image: "grafana/promtail:3.6.10"
 prometheus_retention: "30d"
 
 # Jenkins
