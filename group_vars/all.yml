@@ -46,7 +46,6 @@ prometheus_image: "prom/prometheus:v3.11.2"
 grafana_image: "grafana/grafana:12.4.3"
 loki_image: "grafana/loki:3.6.10"
 alloy_image: "grafana/alloy:v1.15.1"
-promtail_image: "grafana/promtail:3.6.10"
 prometheus_retention: "30d"
 loki_retention: "336h"  # 14 days
 
