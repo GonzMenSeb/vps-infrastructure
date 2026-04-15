@@ -13,3 +13,15 @@ vault_vaultwarden_admin_token: "CHANGE_ME"
 
 # Grafana
 vault_grafana_admin_password: "CHANGE_ME"
+
+# Jenkins
+vault_jenkins_admin_password: "CHANGE_ME"
+vault_ansible_vault_password: "CHANGE_ME"
+vault_jenkins_github_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  (GitHub deploy key private key)
+  -----END OPENSSH PRIVATE KEY-----
+vault_jenkins_vps_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  (VPS deploy key private key)
+  -----END OPENSSH PRIVATE KEY-----

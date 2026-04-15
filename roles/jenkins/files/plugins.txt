@@ -1,0 +1,11 @@
+configuration-as-code
+git
+github
+workflow-aggregator
+pipeline-stage-view
+credentials
+credentials-binding
+ssh-credentials
+ssh-agent
+ansicolor
+job-dsl

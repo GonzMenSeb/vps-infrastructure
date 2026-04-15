@@ -1,0 +1,144 @@
+---
+- name: Post-deploy health checks
+  hosts: vps
+  become: true
+  vars_files:
+    - ../vault.yml
+
+  tasks:
+    # ── CRITICAL: SSH still works ──
+    - name: Verify SSH is reachable
+      wait_for:
+        port: 22
+        host: "{{ ansible_host }}"
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    # ── Firewall ──
+    - name: Verify UFW is active
+      command: ufw status
+      register: ufw_status
+      changed_when: false
+      failed_when: "'Status: active' not in ufw_status.stdout"
+
+    - name: Verify UFW default deny
+      assert:
+        that: "'deny (incoming)' in ufw_status.stdout"
+        fail_msg: "UFW default incoming policy is not deny"
+
+    # ── fail2ban ──
+    - name: Verify fail2ban is running
+      command: fail2ban-client status sshd
+      register: f2b_status
+      changed_when: false
+      failed_when: f2b_status.rc != 0
+
+    # ── Docker daemon ──
+    - name: Verify Docker is running
+      command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: docker_info.rc != 0
+
+    # ── Core containers ──
+    - name: Get running container names
+      shell: docker ps --filter "status=running" --format "{% raw %}{{.Names}}{% endraw %}"
+      register: running_containers
+      changed_when: false
+
+    - name: Verify Traefik is running
+      assert:
+        that: "'traefik' in running_containers.stdout_lines"
+        fail_msg: "Traefik container is not running"
+
+    - name: Verify Vaultwarden is running
+      assert:
+        that: "'vaultwarden' in running_containers.stdout_lines"
+        fail_msg: "Vaultwarden container is not running"
+
+    - name: Verify PowerDNS is running
+      assert:
+        that: "'pdns' in running_containers.stdout_lines"
+        fail_msg: "PowerDNS container is not running"
+
+    - name: Verify PowerDNS DB is running
+      assert:
+        that: "'pdns-db' in running_containers.stdout_lines"
+        fail_msg: "PowerDNS MariaDB container is not running"
+
+    - name: Verify PowerDNS Admin is running
+      assert:
+        that: "'pdns-admin' in running_containers.stdout_lines"
+        fail_msg: "PowerDNS Admin container is not running"
+
+    # ── Container health status ──
+    - name: Check container health statuses
+      shell: docker ps --format "{% raw %}{{.Names}}: {{.Status}}{% endraw %}" | grep -i unhealthy
+      register: unhealthy
+      changed_when: false
+      failed_when: unhealthy.stdout_lines | length > 0
+      ignore_errors: true
+
+    - name: Report unhealthy containers
+      fail:
+        msg: "Unhealthy containers found: {{ unhealthy.stdout }}"
+      when: unhealthy.stdout_lines | length > 0
+
+    # ── TLS ──
+    - name: Verify Vaultwarden TLS is valid
+      uri:
+        url: "https://vault.web.vespiridion.org/alive"
+        status_code: 200
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify Traefik dashboard responds
+      uri:
+        url: "https://traefik.web.vespiridion.org"
+        status_code: [200, 401]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify PowerDNS Admin responds
+      uri:
+        url: "https://dns.web.vespiridion.org"
+        status_code: [200, 302]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    # ── DNS ──
+    - name: Verify DNS responds on port 53
+      command: dig @{{ vps_public_ip }} vespiridion.org SOA +short +timeout=5
+      delegate_to: localhost
+      become: false
+      register: dns_check
+      changed_when: false
+      failed_when: dns_check.rc != 0
+
+    # ── Ports ──
+    - name: Verify HTTP port is open
+      wait_for:
+        host: "{{ ansible_host }}"
+        port: 80
+        timeout: 5
+      delegate_to: localhost
+      become: false
+
+    - name: Verify HTTPS port is open
+      wait_for:
+        host: "{{ ansible_host }}"
+        port: 443
+        timeout: 5
+      delegate_to: localhost
+      become: false
+
+    - name: Health check summary
+      debug:
+        msg: "All {{ ansible_play_hosts | length }} health checks passed for {{ inventory_hostname }}"

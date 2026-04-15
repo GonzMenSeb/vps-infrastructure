@@ -1,5 +1,4 @@
 *.retry
 .vault_pass
-vault.yml
 *.swp
 *.swo

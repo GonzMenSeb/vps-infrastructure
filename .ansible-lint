@@ -1,0 +1,8 @@
+skip_list:
+  - yaml[line-length]
+  - name[missing]
+  - jinja[spacing]
+
+exclude_paths:
+  - .git
+  - roles/jenkins/files
