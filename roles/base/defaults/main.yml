@@ -1,0 +1,8 @@
+---
+base_packages:
+  - ufw
+  - fail2ban
+  - curl
+  - git
+  - htop
+  - unattended-upgrades

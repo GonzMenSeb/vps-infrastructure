@@ -1,0 +1,7 @@
+PermitRootLogin no
+MaxAuthTries {{ ssh_max_auth_tries }}
+LoginGraceTime 30
+X11Forwarding no
+AllowUsers {{ ssh_allowed_users }}
+ClientAliveInterval 300
+ClientAliveCountMax 2

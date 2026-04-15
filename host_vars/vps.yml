@@ -1,0 +1,3 @@
+---
+ansible_host: MAIN_VPS_IP
+vps_public_ip: MAIN_VPS_IP

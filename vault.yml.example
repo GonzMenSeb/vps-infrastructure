@@ -1,0 +1,15 @@
+---
+# Copy this to vault.yml and encrypt with: ansible-vault encrypt vault.yml
+# Decrypt to edit: ansible-vault edit vault.yml
+
+# DNS / PowerDNS
+vault_pdns_db_root_password: "CHANGE_ME"
+vault_pdns_db_password: "CHANGE_ME"
+vault_pdns_admin_secret_key: "CHANGE_ME"
+vault_pdns_api_key: "CHANGE_ME"
+
+# Vaultwarden
+vault_vaultwarden_admin_token: "CHANGE_ME"
+
+# Grafana
+vault_grafana_admin_password: "CHANGE_ME"
