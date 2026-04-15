@@ -8,12 +8,17 @@ pipeline {
 
     options {
         ansiColor('xterm')
-        timestamps()
         disableConcurrentBuilds()
         timeout(time: 15, unit: 'MINUTES')
     }
 
     stages {
+        stage('Setup') {
+            steps {
+                sh 'ansible-galaxy collection install -r requirements.yml'
+            }
+        }
+
         stage('Lint') {
             steps {
                 sh 'ansible-lint playbook.yml --exclude roles/jenkins'
