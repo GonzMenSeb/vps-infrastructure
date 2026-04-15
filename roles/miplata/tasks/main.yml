@@ -17,12 +17,16 @@
   template:
     src: env.j2
     dest: "{{ miplata_dir }}/.env"
-    mode: "0600"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0640"
 
 - name: Copy docker-compose file
   template:
     src: docker-compose.yml.j2
     dest: "{{ miplata_dir }}/docker-compose.yml"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
     mode: "0644"
 
 - name: Log in to the Zot registry so compose can pull private images

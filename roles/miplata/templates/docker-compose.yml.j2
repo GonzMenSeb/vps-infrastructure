@@ -43,7 +43,7 @@ services:
     networks: [internal]
     env_file: .env
     volumes:
-      - {{ miplata_uploads_dir }}:/app/uploads
+      - {{ miplata_uploads_dir }}:/app/apps/api/uploads
     depends_on:
       postgres:
         condition: service_healthy
