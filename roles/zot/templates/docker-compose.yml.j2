@@ -23,8 +23,3 @@ services:
       - "traefik.http.routers.zot.entrypoints=websecure"
       - "traefik.http.routers.zot.tls.certresolver=letsencrypt"
       - "traefik.http.services.zot.loadbalancer.server.port=5000"
-    healthcheck:
-      test: ["CMD", "/zot", "--help"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
