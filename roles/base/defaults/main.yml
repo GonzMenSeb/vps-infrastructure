@@ -6,3 +6,5 @@ base_packages:
   - git
   - htop
   - unattended-upgrades
+
+permit_root_login: "no"

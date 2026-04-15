@@ -1,0 +1,11 @@
+---
+permit_root_login: "yes"
+ssh_allowed_users: root
+ssh_max_auth_tries: 3
+
+ufw_allowed_ports:
+  - { port: 22, proto: tcp, comment: "SSH" }
+  - { port: 80, proto: tcp, comment: "HTTP" }
+  - { port: 443, proto: tcp, comment: "HTTPS" }
+
+traefik_dashboard_host: "traefik-ci.{{ web_subdomain }}"

@@ -3,3 +3,6 @@ all:
     vps:
       ansible_host: 148.113.172.15
       ansible_user: ubuntu
+    jenkins:
+      ansible_host: 178.105.0.118
+      ansible_user: root

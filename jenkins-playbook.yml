@@ -1,6 +1,6 @@
 ---
-- name: Configure VPS
-  hosts: vps
+- name: Configure Jenkins server
+  hosts: jenkins
   become: true
   vars_files:
     - vault.yml
@@ -9,6 +9,4 @@
     - base
     - docker
     - traefik
-    - dns
-    - vaultwarden
-    - monitoring
+    - jenkins
