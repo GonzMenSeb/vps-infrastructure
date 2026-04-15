@@ -21,7 +21,14 @@ pipeline {
 
         stage('Lint') {
             steps {
-                sh 'ansible-lint playbook.yml --exclude roles/jenkins'
+                withCredentials([string(credentialsId: 'ansible-vault-pass', variable: 'VAULT_PASS')]) {
+                    sh '''
+                        echo "$VAULT_PASS" > .vault_pass_tmp
+                        ANSIBLE_VAULT_PASSWORD_FILE=.vault_pass_tmp \
+                            ansible-lint playbook.yml --exclude roles/jenkins
+                        rm -f .vault_pass_tmp
+                    '''
+                }
             }
         }
 
