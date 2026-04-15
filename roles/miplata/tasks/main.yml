@@ -29,12 +29,21 @@
     group: "{{ ssh_allowed_users }}"
     mode: "0644"
 
-- name: Log in to the Zot registry so compose can pull private images
+- name: Log in to the Zot registry as root (for Ansible-driven pulls)
   community.docker.docker_login:
     registry_url: "https://{{ zot_host }}"
     username: "{{ zot_registry_user }}"
     password: "{{ vault_zot_registry_password }}"
     reauthorize: true
+
+- name: Log in to the Zot registry as {{ ssh_allowed_users }} (for Jenkins SSH deploys)
+  community.docker.docker_login:
+    registry_url: "https://{{ zot_host }}"
+    username: "{{ zot_registry_user }}"
+    password: "{{ vault_zot_registry_password }}"
+    reauthorize: true
+  become: true
+  become_user: "{{ ssh_allowed_users }}"
 
 - name: Ensure DNS A record for miplata
   command: >
