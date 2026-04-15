@@ -26,5 +26,11 @@ certificatesResolvers:
       httpChallenge:
         entryPoint: web
 
+experimental:
+  plugins:
+    apitokenmiddleware:
+      moduleName: "github.com/Aetherinox/traefik-api-token-middleware"
+      version: "v0.1.4"
+
 log:
   level: INFO
