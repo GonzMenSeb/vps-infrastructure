@@ -19,6 +19,7 @@ RUN apt-get update && \
     ln -s /opt/ansible-venv/bin/ansible-playbook /usr/local/bin/ansible-playbook && \
     ln -s /opt/ansible-venv/bin/ansible-vault /usr/local/bin/ansible-vault && \
     ln -s /opt/ansible-venv/bin/ansible-lint /usr/local/bin/ansible-lint && \
+    ln -s /opt/ansible-venv/bin/ansible-galaxy /usr/local/bin/ansible-galaxy && \
     rm -rf /var/lib/apt/lists/*
 
 USER jenkins
