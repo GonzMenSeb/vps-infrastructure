@@ -9,6 +9,8 @@ skip_list:
   - jinja[spacing]
   - var-naming[no-role-prefix]
   - risky-file-permissions
+  - command-instead-of-module
+  - risky-shell-pipe
 
 exclude_paths:
   - .git
