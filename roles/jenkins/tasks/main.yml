@@ -46,10 +46,18 @@
       path: "{{ jenkins_dir }}"
     force_source: "{{ jenkins_image_files.changed }}"
 
-- name: Deploy Jenkins GitHub SSH key
+- name: Deploy Jenkins GitHub SSH key (vps-infrastructure repo)
   copy:
     content: "{{ vault_jenkins_github_ssh_key }}"
     dest: "{{ jenkins_data_dir }}/.ssh/github_key"
+    mode: "0600"
+    owner: "1000"
+    group: "1000"
+
+- name: Deploy Jenkins GitHub SSH key (miplata repo)
+  copy:
+    content: "{{ vault_jenkins_miplata_ssh_key }}"
+    dest: "{{ jenkins_data_dir }}/.ssh/github_miplata_key"
     mode: "0600"
     owner: "1000"
     group: "1000"
