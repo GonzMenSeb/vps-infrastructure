@@ -34,8 +34,8 @@
 - name: Ensure DNS A record for registry
   command: >
     docker exec pdns pdnsutil replace-rrset
-    {{ domain }}
-    {{ zot_host }}.
+    {{ web_subdomain }}
+    registry
     A 3600 {{ vps_public_ip }}
   register: zot_dns
   changed_when: "'New rrset' in zot_dns.stdout or 'Current rrset' in zot_dns.stdout"

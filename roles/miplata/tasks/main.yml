@@ -35,8 +35,8 @@
 - name: Ensure DNS A record for miplata
   command: >
     docker exec pdns pdnsutil replace-rrset
-    {{ domain }}
-    {{ miplata_host }}.
+    {{ web_subdomain }}
+    miplata
     A 3600 {{ vps_public_ip }}
   register: miplata_dns
   changed_when: "'New rrset' in miplata_dns.stdout or 'Current rrset' in miplata_dns.stdout"
