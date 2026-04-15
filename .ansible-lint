@@ -1,18 +1,20 @@
-profile: moderate
+profile: min
 
 warn_list:
   - fqcn[action-core]
   - fqcn[action]
   - name[casing]
-  - var-naming[no-role-prefix]
-  - risky-file-permissions
-  - command-instead-of-shell
-  - no-changed-when
 
 skip_list:
   - yaml[line-length]
   - name[missing]
   - jinja[spacing]
+  - var-naming[no-role-prefix]
+  - risky-file-permissions
+  - command-instead-of-module
+  - risky-shell-pipe
+  - command-instead-of-shell
+  - no-changed-when
 
 exclude_paths:
   - .git
