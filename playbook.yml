@@ -2,6 +2,8 @@
 - name: Configure VPS
   hosts: vps
   become: true
+  vars_files:
+    - vault.yml
 
   roles:
     - base
