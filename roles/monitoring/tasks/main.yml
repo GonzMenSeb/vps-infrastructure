@@ -5,6 +5,12 @@
     state: directory
     mode: "0755"
 
+- name: Create Grafana provisioning subdirectory
+  file:
+    path: "{{ monitoring_dir }}/grafana-provisioning"
+    state: directory
+    mode: "0755"
+
 - name: Copy Prometheus config
   template:
     src: prometheus.yml.j2
@@ -12,12 +18,38 @@
     mode: "0644"
   notify: restart monitoring
 
-- name: Copy Promtail config
-  copy:
-    src: promtail.yml
-    dest: "{{ monitoring_dir }}/promtail.yml"
+- name: Copy Loki config
+  template:
+    src: loki-config.yml.j2
+    dest: "{{ monitoring_dir }}/loki-config.yml"
     mode: "0644"
   notify: restart monitoring
+
+- name: Copy Alloy config
+  template:
+    src: alloy-config.alloy.j2
+    dest: "{{ monitoring_dir }}/alloy-config.alloy"
+    mode: "0644"
+  notify: restart monitoring
+
+- name: Copy Grafana config
+  template:
+    src: grafana.ini.j2
+    dest: "{{ monitoring_dir }}/grafana.ini"
+    mode: "0640"
+  notify: restart monitoring
+
+- name: Copy Grafana datasource provisioning
+  template:
+    src: grafana-provisioning-datasources.yml.j2
+    dest: "{{ monitoring_dir }}/grafana-provisioning/datasources.yml"
+    mode: "0644"
+  notify: restart monitoring
+
+- name: Remove deprecated Promtail config (replaced by Alloy)
+  file:
+    path: "{{ monitoring_dir }}/promtail.yml"
+    state: absent
 
 - name: Copy docker-compose file
   template:
@@ -30,6 +62,15 @@
     project_src: "{{ monitoring_dir }}"
     state: present
     pull: missing
+
+- name: Wait for Alloy readiness
+  uri:
+    url: http://127.0.0.1:12345/-/ready
+    status_code: 200
+  register: alloy_ready
+  retries: 10
+  delay: 3
+  until: alloy_ready.status == 200
 
 # node_exporter (runs on the host, not in Docker)
 - name: Check if node_exporter binary exists
