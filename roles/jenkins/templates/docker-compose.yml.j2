@@ -13,8 +13,11 @@ services:
     networks: [proxy]
     environment:
       JENKINS_URL: "https://{{ jenkins_host }}"
+    group_add:
+      - "{{ jenkins_host_docker_gid }}"
     volumes:
       - {{ jenkins_data_dir }}:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jenkins.rule=Host(`{{ jenkins_host }}`)"

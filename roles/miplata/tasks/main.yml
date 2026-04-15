@@ -1,0 +1,69 @@
+---
+- name: Create Miplata directory
+  file:
+    path: "{{ miplata_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create Miplata uploads directory (owned by container nestjs user)
+  file:
+    path: "{{ miplata_uploads_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ miplata_container_uid }}"
+    group: "{{ miplata_container_gid }}"
+
+- name: Create Miplata .env file
+  template:
+    src: env.j2
+    dest: "{{ miplata_dir }}/.env"
+    mode: "0600"
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ miplata_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Log in to the Zot registry so compose can pull private images
+  community.docker.docker_login:
+    registry_url: "https://{{ zot_host }}"
+    username: "{{ zot_registry_user }}"
+    password: "{{ vault_zot_registry_password }}"
+    reauthorize: true
+
+- name: Ensure DNS A record for miplata
+  command: >
+    docker exec pdns pdnsutil replace-rrset
+    {{ domain }}
+    {{ miplata_host }}.
+    A 3600 {{ vps_public_ip }}
+  register: miplata_dns
+  changed_when: "'New rrset' in miplata_dns.stdout or 'Current rrset' in miplata_dns.stdout"
+
+# On first bootstrap the Zot registry has no miplata images yet — Jenkins hasn't
+# built them. We pull separately (tolerant of failure) and only call `up` when
+# the images are actually present, so the role is idempotent across bootstrap
+# and steady-state runs.
+- name: Pull miplata images (tolerant of empty registry on first bootstrap)
+  command: docker compose pull
+  args:
+    chdir: "{{ miplata_dir }}"
+  register: miplata_pull
+  failed_when: false
+  changed_when: "'Pulled' in miplata_pull.stdout"
+
+- name: Start Miplata stack (only if images were pulled successfully)
+  community.docker.docker_compose_v2:
+    project_src: "{{ miplata_dir }}"
+    state: present
+    pull: never
+  when: miplata_pull.rc == 0
+
+- name: Warn when miplata images are not yet in the registry
+  debug:
+    msg: >
+      Miplata images not yet available in {{ zot_host }} — skipping `up`.
+      Trigger the `miplata-deploy` Jenkins job so Jenkins builds and pushes them,
+      then re-run this playbook (or let Jenkins do the subsequent SSH deploy).
+  when: miplata_pull.rc != 0

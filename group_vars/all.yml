@@ -52,3 +52,12 @@ prometheus_retention: "30d"
 jenkins_host: "jenkins.{{ web_subdomain }}"
 jenkins_image: "jenkins/jenkins:lts-jdk17"
 github_repo_ssh_url: "git@github.com:GonzMenSeb/vps-infrastructure.git"
+
+# Zot registry (self-hosted OCI registry)
+zot_host: "registry.{{ web_subdomain }}"
+
+# Miplata
+miplata_host: "miplata.{{ web_subdomain }}"
+miplata_api_image: "{{ zot_host }}/miplata/api:latest"
+miplata_web_image: "{{ zot_host }}/miplata/web:latest"
+miplata_repo_ssh_url: "git@github.com:GonzMenSeb/miplata.git"

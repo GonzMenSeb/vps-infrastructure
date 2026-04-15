@@ -1,0 +1,5 @@
+---
+- name: restart zot
+  community.docker.docker_compose_v2:
+    project_src: "{{ zot_dir }}"
+    state: restarted

@@ -18,6 +18,15 @@
     - "{{ jenkins_data_dir }}"
     - "{{ jenkins_data_dir }}/.ssh"
 
+- name: Get host docker group GID
+  command: getent group docker
+  register: jenkins_docker_group
+  changed_when: false
+
+- name: Set docker GID fact for Jenkins container
+  set_fact:
+    jenkins_host_docker_gid: "{{ jenkins_docker_group.stdout.split(':')[2] }}"
+
 - name: Copy Dockerfile and plugins
   copy:
     src: "{{ item }}"

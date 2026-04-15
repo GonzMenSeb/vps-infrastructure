@@ -1,0 +1,9 @@
+---
+miplata_dir: /opt/miplata
+miplata_uploads_dir: "{{ miplata_dir }}/uploads"
+
+miplata_db_user: miplata
+miplata_db_name: miplata
+
+miplata_container_uid: 1001
+miplata_container_gid: 1001

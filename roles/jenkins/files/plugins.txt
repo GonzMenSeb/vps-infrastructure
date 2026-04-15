@@ -9,3 +9,5 @@ ssh-credentials
 ssh-agent
 ansicolor
 job-dsl
+docker-workflow
+junit

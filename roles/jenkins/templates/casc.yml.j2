@@ -38,6 +38,12 @@ credentials:
               id: "ansible-vault-pass"
               secret: "{{ vault_ansible_vault_password }}"
               description: "Ansible vault password"
+          - usernamePassword:
+              scope: GLOBAL
+              id: "zot-registry-creds"
+              username: "{{ zot_registry_user }}"
+              password: "{{ vault_zot_registry_password }}"
+              description: "Credentials for the self-hosted Zot registry"
 
 jobs:
   - script: |
@@ -64,6 +70,31 @@ jobs:
           disableConcurrentBuilds()
         }
       }
+  - script: |
+      pipelineJob('miplata-deploy') {
+        description('Build miplata, push to self-hosted Zot registry, deploy to VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ miplata_repo_ssh_url }}')
+                  credentials('github-ssh-key')
+                }
+                branches('*/master')
+              }
+            }
+            scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+
 
 unclassified:
   location:
