@@ -1,0 +1,65 @@
+networks:
+  dns_internal:
+    driver: bridge
+  proxy:
+    external: true
+
+volumes:
+  pdns_db_data:
+  pdns_admin_data:
+
+services:
+  pdns-db:
+    image: {{ pdns_mariadb_image }}
+    container_name: pdns-db
+    restart: unless-stopped
+    networks: [dns_internal]
+    env_file: .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: pdns
+      MYSQL_USER: pdns
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pdns_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  pdns:
+    image: {{ pdns_image }}
+    container_name: pdns
+    restart: unless-stopped
+    networks: [dns_internal]
+    ports:
+      - "{{ vps_public_ip }}:53:53/udp"
+      - "{{ vps_public_ip }}:53:53/tcp"
+    depends_on:
+      pdns-db:
+        condition: service_healthy
+    volumes:
+      - ./pdns.conf:/etc/powerdns/pdns.conf:ro
+
+  pdns-admin:
+    image: {{ pdns_admin_image }}
+    container_name: pdns-admin
+    restart: unless-stopped
+    networks: [dns_internal, proxy]
+    depends_on: [pdns]
+    env_file: .env
+    environment:
+      SECRET_KEY: ${ADMIN_SECRET_KEY}
+      SQLALCHEMY_DATABASE_URI: sqlite:////data/pdns-admin.db
+      PDNS_API_URL: http://pdns:8081/
+      PDNS_API_KEY: ${PDNS_API_KEY}
+      PDNS_VERSION: "4.9"
+    volumes:
+      - pdns_admin_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pdns-admin.rule=Host(`{{ pdns_admin_host }}`)"
+      - "traefik.http.routers.pdns-admin.entrypoints=websecure"
+      - "traefik.http.routers.pdns-admin.tls.certresolver=letsencrypt"
+      - "traefik.http.services.pdns-admin.loadbalancer.server.port=80"

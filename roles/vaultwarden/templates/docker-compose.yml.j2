@@ -1,0 +1,38 @@
+networks:
+  proxy:
+    external: true
+
+services:
+  vaultwarden:
+    image: {{ vaultwarden_image }}
+    container_name: vaultwarden
+    restart: unless-stopped
+    networks: [proxy]
+    env_file: .env
+    environment:
+      SIGNUPS_ALLOWED: "false"
+      INVITATIONS_ALLOWED: "false"
+      EMERGENCY_ACCESS_ALLOWED: "false"
+      ORG_CREATION_USERS: "none"
+      SHOW_PASSWORD_HINT: "false"
+      PASSWORD_HINTS_ALLOWED: "false"
+      SENDS_ALLOWED: "true"
+      WEBSOCKET_ENABLED: "true"
+      ROCKET_WORKERS: "4"
+      LOG_LEVEL: "warn"
+      EXTENDED_LOGGING: "true"
+      LOG_FILE: "/data/vaultwarden.log"
+    volumes:
+      - {{ vaultwarden_dir }}/data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vaultwarden.rule=Host(`{{ vaultwarden_host }}`)"
+      - "traefik.http.routers.vaultwarden.entrypoints=websecure"
+      - "traefik.http.routers.vaultwarden.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vaultwarden.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

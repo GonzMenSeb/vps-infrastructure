@@ -1,0 +1,12 @@
+---
+- name: Configure VPS
+  hosts: vps
+  become: true
+
+  roles:
+    - base
+    - docker
+    - traefik
+    - dns
+    - vaultwarden
+    - monitoring

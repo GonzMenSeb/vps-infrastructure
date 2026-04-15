@@ -1,0 +1,49 @@
+---
+domain: vespiridion.org
+web_subdomain: web.vespiridion.org
+acme_email: eurusaci@gmail.com
+
+# Docker networks (created once, shared across stacks)
+docker_networks:
+  - proxy
+
+# SSH
+ssh_allowed_users: ubuntu
+ssh_max_auth_tries: 3
+
+# fail2ban
+fail2ban_ssh_maxretry: 3
+fail2ban_ssh_bantime: 3h
+fail2ban_default_bantime: 1h
+fail2ban_default_findtime: 10m
+
+# UFW allowed ports
+ufw_allowed_ports:
+  - { port: 22, proto: tcp, comment: "SSH" }
+  - { port: 53, proto: tcp, comment: "DNS-TCP" }
+  - { port: 53, proto: udp, comment: "DNS-UDP" }
+  - { port: 80, proto: tcp, comment: "HTTP" }
+  - { port: 443, proto: tcp, comment: "HTTPS" }
+
+# Traefik
+traefik_version: "v3.4"
+traefik_dashboard_host: "traefik.{{ web_subdomain }}"
+traefik_dashboard_auth: "admin:$$2y$$05$$pvEIRx9O8AZhW2Cr6OFufeuwF09Y0xe3VArKdxPeWESSmGnPYCrAq"
+
+# DNS
+pdns_image: "powerdns/pdns-auth-49:latest"
+pdns_admin_image: "powerdnsadmin/pda-legacy:latest"
+pdns_mariadb_image: "mariadb:10.11"
+pdns_admin_host: "dns.{{ web_subdomain }}"
+pdns_soa: "ns1.{{ domain }}. hostmaster.{{ domain }}. 0 10800 3600 604800 3600"
+
+# Vaultwarden
+vaultwarden_image: "vaultwarden/server:latest"
+vaultwarden_host: "vault.{{ web_subdomain }}"
+
+# Monitoring
+prometheus_image: "prom/prometheus:latest"
+grafana_image: "grafana/grafana:latest"
+loki_image: "grafana/loki:latest"
+promtail_image: "grafana/promtail:latest"
+prometheus_retention: "30d"

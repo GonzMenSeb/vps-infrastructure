@@ -1,0 +1,80 @@
+---
+- name: Create monitoring directory
+  file:
+    path: "{{ monitoring_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Copy Prometheus config
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_dir }}/prometheus.yml"
+    mode: "0644"
+  notify: restart monitoring
+
+- name: Copy Promtail config
+  copy:
+    src: promtail.yml
+    dest: "{{ monitoring_dir }}/promtail.yml"
+    mode: "0644"
+  notify: restart monitoring
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Start monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_dir }}"
+    state: present
+    pull: missing
+
+# node_exporter (runs on the host, not in Docker)
+- name: Check if node_exporter binary exists
+  stat:
+    path: /usr/local/bin/node_exporter
+  register: node_exporter_bin
+
+- name: Download node_exporter
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v1.9.0/node_exporter-1.9.0.linux-amd64.tar.gz"
+    dest: /tmp/node_exporter.tar.gz
+  when: not node_exporter_bin.stat.exists
+
+- name: Extract node_exporter
+  unarchive:
+    src: /tmp/node_exporter.tar.gz
+    dest: /tmp/
+    remote_src: true
+  when: not node_exporter_bin.stat.exists
+
+- name: Install node_exporter binary
+  copy:
+    src: /tmp/node_exporter-1.9.0.linux-amd64/node_exporter
+    dest: /usr/local/bin/node_exporter
+    mode: "0755"
+    remote_src: true
+  when: not node_exporter_bin.stat.exists
+
+- name: Create node_exporter user
+  user:
+    name: node_exporter
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Install node_exporter systemd service
+  copy:
+    src: node_exporter.service
+    dest: /etc/systemd/system/node_exporter.service
+    mode: "0644"
+  notify: restart node_exporter
+
+- name: Enable node_exporter
+  systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+    daemon_reload: true

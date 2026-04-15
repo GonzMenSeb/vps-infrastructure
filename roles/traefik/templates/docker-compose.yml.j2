@@ -1,0 +1,39 @@
+networks:
+  proxy:
+    external: true
+  socket-proxy:
+    driver: bridge
+
+services:
+  docker-proxy:
+    image: nginx:alpine
+    container_name: docker-proxy
+    restart: unless-stopped
+    networks: [socket-proxy]
+    security_opt:
+      - apparmor=unconfined
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-docker-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+
+  traefik:
+    image: traefik:{{ traefik_version }}
+    container_name: traefik
+    restart: unless-stopped
+    depends_on: [docker-proxy]
+    networks: [proxy, socket-proxy]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./acme.json:/acme.json
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`{{ traefik_dashboard_host }}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users={{ traefik_dashboard_auth }}"
