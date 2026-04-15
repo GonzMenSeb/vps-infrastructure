@@ -16,16 +16,11 @@
       become: false
 
     # ── Firewall ──
-    - name: Verify UFW is active
-      command: ufw status
+    - name: Verify UFW is active with deny default
+      command: ufw status verbose
       register: ufw_status
       changed_when: false
-      failed_when: "'Status: active' not in ufw_status.stdout"
-
-    - name: Verify UFW default deny
-      assert:
-        that: "'deny (incoming)' in ufw_status.stdout"
-        fail_msg: "UFW default incoming policy is not deny"
+      failed_when: "'Status: active' not in ufw_status.stdout or 'deny (incoming)' not in ufw_status.stdout"
 
     # ── fail2ban ──
     - name: Verify fail2ban is running
