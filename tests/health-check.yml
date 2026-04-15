@@ -3,7 +3,7 @@
   hosts: vps
   become: true
   vars_files:
-    - ../vault.yml
+    - "{{ playbook_dir }}/../vault.yml"
 
   tasks:
     # ── CRITICAL: SSH still works ──
