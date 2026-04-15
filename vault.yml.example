@@ -25,3 +25,16 @@ vault_jenkins_vps_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   (VPS deploy key private key)
   -----END OPENSSH PRIVATE KEY-----
+
+# Miplata
+vault_miplata_db_password: "CHANGE_ME"
+vault_miplata_jwt_secret: "CHANGE_ME"
+vault_miplata_encryption_key: "CHANGE_ME_32_BYTE_HEX"
+vault_miplata_admin_password: "CHANGE_ME"
+
+# Zot registry
+# vault_zot_registry_password: plaintext password for the `ci` user (Jenkins + VPS pull)
+# vault_zot_htpasswd_hash: bcrypt hash of the above; generate with:
+#     python3 -c "import bcrypt; print(bcrypt.hashpw(b'<password>', bcrypt.gensalt(rounds=10)).decode())"
+vault_zot_registry_password: "CHANGE_ME"
+vault_zot_htpasswd_hash: "CHANGE_ME_$2b$10$..."

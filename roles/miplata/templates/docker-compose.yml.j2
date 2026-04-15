@@ -1,0 +1,66 @@
+networks:
+  proxy:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: miplata-postgres
+    restart: unless-stopped
+    networks: [internal]
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ miplata_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: miplata-redis
+    restart: unless-stopped
+    networks: [internal]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: {{ miplata_api_image }}
+    container_name: miplata-api
+    restart: unless-stopped
+    networks: [internal]
+    env_file: .env
+    volumes:
+      - {{ miplata_uploads_dir }}:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    image: {{ miplata_web_image }}
+    container_name: miplata-web
+    restart: unless-stopped
+    networks: [proxy, internal]
+    depends_on:
+      - api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.miplata.rule=Host(`{{ miplata_host }}`)"
+      - "traefik.http.routers.miplata.entrypoints=websecure"
+      - "traefik.http.routers.miplata.tls.certresolver=letsencrypt"
+      - "traefik.http.services.miplata.loadbalancer.server.port=80"

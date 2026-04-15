@@ -67,6 +67,43 @@
         that: "'pdns-admin' in running_containers.stdout_lines"
         fail_msg: "PowerDNS Admin container is not running"
 
+    - name: Verify Zot registry is running
+      assert:
+        that: "'zot' in running_containers.stdout_lines"
+        fail_msg: "Zot registry container is not running"
+
+    # Miplata containers only assert once the first Jenkins build has landed
+    # images in the registry. On fresh bootstrap the role tolerates missing
+    # images; this mirrors that behavior.
+    - name: Check whether miplata images are present locally
+      shell: docker images -q {{ miplata_api_image }}
+      register: miplata_image_check
+      changed_when: false
+
+    - name: Verify Miplata Postgres is running
+      assert:
+        that: "'miplata-postgres' in running_containers.stdout_lines"
+        fail_msg: "Miplata Postgres container is not running"
+      when: miplata_image_check.stdout | length > 0
+
+    - name: Verify Miplata Redis is running
+      assert:
+        that: "'miplata-redis' in running_containers.stdout_lines"
+        fail_msg: "Miplata Redis container is not running"
+      when: miplata_image_check.stdout | length > 0
+
+    - name: Verify Miplata API is running
+      assert:
+        that: "'miplata-api' in running_containers.stdout_lines"
+        fail_msg: "Miplata API container is not running"
+      when: miplata_image_check.stdout | length > 0
+
+    - name: Verify Miplata Web is running
+      assert:
+        that: "'miplata-web' in running_containers.stdout_lines"
+        fail_msg: "Miplata Web container is not running"
+      when: miplata_image_check.stdout | length > 0
+
     # ── Container health status ──
     - name: Check container health statuses
       shell: docker ps --filter "health=unhealthy" --format "{% raw %}{{.Names}}{% endraw %}"
@@ -105,6 +142,25 @@
         timeout: 10
       delegate_to: localhost
       become: false
+
+    - name: Verify Zot registry responds over TLS (unauth /v2/ should 401)
+      uri:
+        url: "https://{{ zot_host }}/v2/"
+        status_code: 401
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify Miplata responds over TLS
+      uri:
+        url: "https://{{ miplata_host }}"
+        status_code: [200, 301, 302]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+      when: miplata_image_check.stdout | length > 0
 
     # ── DNS ──
     - name: Verify DNS responds on port 53

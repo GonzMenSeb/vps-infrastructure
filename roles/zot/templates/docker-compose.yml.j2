@@ -1,0 +1,30 @@
+networks:
+  proxy:
+    external: true
+
+volumes:
+  zotdata:
+
+services:
+  zot:
+    image: {{ zot_image }}
+    container_name: zot
+    restart: unless-stopped
+    networks: [proxy]
+    volumes:
+      - zotdata:/var/lib/registry
+      - {{ zot_dir }}/config.json:/etc/zot/config.json:ro
+      - {{ zot_dir }}/htpasswd:/etc/zot/htpasswd:ro
+    command: ["serve", "/etc/zot/config.json"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.zot.rule=Host(`{{ zot_host }}`)"
+      - "traefik.http.routers.zot.entrypoints=websecure"
+      - "traefik.http.routers.zot.tls.certresolver=letsencrypt"
+      - "traefik.http.services.zot.loadbalancer.server.port=5000"
+    healthcheck:
+      test: ["CMD", "/zot", "--help"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
