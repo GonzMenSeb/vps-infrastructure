@@ -5,11 +5,10 @@ USER root
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         python3-full \
-        python3-pip \
-        python3-venv \
-        sshpass \
+        python3-pip-whl \
+        python3-setuptools-whl \
         openssh-client \
-        dnsutils \
+        bind9-dnsutils \
         curl && \
     python3 -m venv /opt/ansible-venv && \
     /opt/ansible-venv/bin/pip install --no-cache-dir \
