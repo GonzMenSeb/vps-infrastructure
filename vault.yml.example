@@ -19,7 +19,11 @@ vault_jenkins_admin_password: "CHANGE_ME"
 vault_ansible_vault_password: "CHANGE_ME"
 vault_jenkins_github_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
-  (GitHub deploy key private key)
+  (GitHub deploy key for vps-infrastructure)
+  -----END OPENSSH PRIVATE KEY-----
+vault_jenkins_miplata_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  (GitHub deploy key for the miplata repo)
   -----END OPENSSH PRIVATE KEY-----
 vault_jenkins_vps_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----

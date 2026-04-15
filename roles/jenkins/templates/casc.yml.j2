@@ -19,11 +19,20 @@ credentials:
               scope: GLOBAL
               id: "github-ssh-key"
               username: "git"
-              description: "GitHub deploy key"
+              description: "GitHub deploy key (vps-infrastructure)"
               privateKeySource:
                 directEntry:
                   privateKey: |
                     {{ vault_jenkins_github_ssh_key | indent(20) }}
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
+              id: "github-miplata-ssh-key"
+              username: "git"
+              description: "GitHub deploy key (miplata)"
+              privateKeySource:
+                directEntry:
+                  privateKey: |
+                    {{ vault_jenkins_miplata_ssh_key | indent(20) }}
           - basicSSHUserPrivateKey:
               scope: GLOBAL
               id: "vps-ssh-key"
@@ -79,7 +88,7 @@ jobs:
               git {
                 remote {
                   url('{{ miplata_repo_ssh_url }}')
-                  credentials('github-ssh-key')
+                  credentials('github-miplata-ssh-key')
                 }
                 branches('*/master')
               }
