@@ -14,6 +14,12 @@ vault_vaultwarden_admin_token: "CHANGE_ME"
 # Grafana
 vault_grafana_admin_password: "CHANGE_ME"
 
+# Observability (Phase 1)
+vault_observability_push_token: "CHANGE_ME_32_BYTE_HEX"
+vault_grafana_oauth_client_id: "CHANGE_ME_GITHUB_OAUTH_CLIENT_ID"
+vault_grafana_oauth_client_secret: "CHANGE_ME_GITHUB_OAUTH_CLIENT_SECRET"
+vault_grafana_secret_key: "CHANGE_ME_32_BYTE_HEX"
+
 # Jenkins
 vault_jenkins_admin_password: "CHANGE_ME"
 vault_ansible_vault_password: "CHANGE_ME"
