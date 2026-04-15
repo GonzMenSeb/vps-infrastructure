@@ -3,3 +3,6 @@ all:
     vps:
       ansible_host: MAIN_VPS_IP
       ansible_user: ubuntu
+    jenkins:
+      ansible_host: JENKINS_VPS_IP
+      ansible_user: root

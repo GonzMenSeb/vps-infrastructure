@@ -25,7 +25,7 @@ pipeline {
                     sh '''
                         echo "$VAULT_PASS" > .vault_pass_tmp
                         ANSIBLE_VAULT_PASSWORD_FILE=.vault_pass_tmp \
-                            ansible-lint playbook.yml --exclude roles/jenkins
+                            ansible-lint playbook.yml
                         rm -f .vault_pass_tmp
                     '''
                 }
@@ -57,7 +57,6 @@ pipeline {
                         ansible-playbook --check --diff \
                             --vault-password-file .vault_pass_tmp \
                             --private-key "$SSH_KEY" \
-                            --skip-tags jenkins \
                             playbook.yml
                         rm -f .vault_pass_tmp
                     '''
@@ -76,7 +75,6 @@ pipeline {
                         ansible-playbook \
                             --vault-password-file .vault_pass_tmp \
                             --private-key "$SSH_KEY" \
-                            --skip-tags jenkins \
                             playbook.yml
                         rm -f .vault_pass_tmp
                     '''
