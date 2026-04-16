@@ -3,6 +3,8 @@ networks:
     external: true
   {{ observability_network }}:
     external: true
+  miplata_db:
+    external: true
   internal:
     driver: bridge
 
@@ -15,7 +17,7 @@ services:
     image: postgres:16-alpine
     container_name: miplata-postgres
     restart: unless-stopped
-    networks: [internal]
+    networks: [internal, miplata_db]
     env_file: .env
     volumes:
       - pgdata:/var/lib/postgresql/data

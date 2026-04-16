@@ -1,0 +1,43 @@
+networks:
+  proxy:
+    external: true
+  miplata_db:
+    external: true
+  metabase_internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  metabase_pgdata:
+
+services:
+  metabase-db:
+    image: {{ metabase_postgres_image }}
+    container_name: metabase-db
+    restart: unless-stopped
+    networks: [metabase_internal]
+    env_file: .env
+    volumes:
+      - metabase_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ metabase_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  metabase:
+    image: {{ metabase_image }}
+    container_name: metabase
+    restart: unless-stopped
+    networks: [proxy, miplata_db, metabase_internal]
+    env_file: .env
+    depends_on:
+      metabase-db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.metabase.rule=Host(`{{ metabase_host }}`)"
+      - "traefik.http.routers.metabase.entrypoints=websecure"
+      - "traefik.http.routers.metabase.tls.certresolver=letsencrypt"
+      - "traefik.http.services.metabase.loadbalancer.server.port=3000"
