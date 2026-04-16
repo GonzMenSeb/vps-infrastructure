@@ -26,10 +26,21 @@
           ],
           "defaultPolicy": []
         }
+      },
+      "metrics": {
+        "users": ["{{ zot_registry_user }}"]
       }
     }
   },
   "log": {
     "level": "info"
+  },
+  "extensions": {
+    "metrics": {
+      "enable": true,
+      "prometheus": {
+        "path": "/metrics"
+      }
+    }
   }
 }

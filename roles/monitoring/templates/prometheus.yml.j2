@@ -1,33 +1,18 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  external_labels:
+    cluster: vespiridion
+    env: prod
 
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          host: vps
 
-  - job_name: 'node_exporter'
-    static_configs:
-      - targets: ['host.docker.internal:9100']
-
-  - job_name: 'jenkins'
-    metrics_path: /prometheus
-    static_configs:
-      - targets: ['host.docker.internal:8080']
-
-  # Miplata API — enable once the NestJS app exposes /metrics via prom-client.
-  # Requires: attach prometheus container to the `miplata_internal` network,
-  # or expose port 3000 on the host, then uncomment the block below.
-  # - job_name: 'miplata-api'
-  #   metrics_path: /metrics
-  #   static_configs:
-  #     - targets: ['miplata-api:3000']
-
-  # Zot registry — exposes OpenMetrics out of the box. Enable once the
-  # prometheus container is attached to the `proxy` network (or add
-  # Zot to the monitoring network in the zot role).
-  # - job_name: 'zot'
-  #   metrics_path: /metrics
-  #   static_configs:
-  #     - targets: ['zot:5000']
+# Local scrape targets (node_exporter, cAdvisor, Traefik, Zot, miplata-api, etc.)
+# are collected by Alloy (not declared here) and shipped via remote_write in Phase 2.
+# Cross-VPS metrics from the Jenkins host arrive via remote_write on the
+# `prom-push.web.vespiridion.org` endpoint in Phase 3.

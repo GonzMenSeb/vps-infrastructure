@@ -72,6 +72,43 @@
         that: "'zot' in running_containers.stdout_lines"
         fail_msg: "Zot registry container is not running"
 
+    # ── Observability stack (Phase 1) ──
+    - name: Verify Prometheus is running
+      assert:
+        that: "'prometheus' in running_containers.stdout_lines"
+        fail_msg: "Prometheus container is not running"
+
+    - name: Verify Loki is running
+      assert:
+        that: "'loki' in running_containers.stdout_lines"
+        fail_msg: "Loki container is not running"
+
+    - name: Verify Grafana is running
+      assert:
+        that: "'grafana' in running_containers.stdout_lines"
+        fail_msg: "Grafana container is not running"
+
+    - name: Verify Alloy is running
+      assert:
+        that: "'alloy' in running_containers.stdout_lines"
+        fail_msg: "Alloy container is not running"
+
+    - name: Verify Alloy is ready
+      uri:
+        url: http://127.0.0.1:12345/-/ready
+        status_code: 200
+        timeout: 5
+
+    - name: Verify cAdvisor is running
+      assert:
+        that: "'cadvisor' in running_containers.stdout_lines"
+        fail_msg: "cAdvisor container is not running"
+
+    - name: Verify blackbox-exporter is running
+      assert:
+        that: "'blackbox-exporter' in running_containers.stdout_lines"
+        fail_msg: "blackbox-exporter container is not running"
+
     # Miplata containers only assert once the first Jenkins build has landed
     # images in the registry. On fresh bootstrap the role tolerates missing
     # images; this mirrors that behavior.
@@ -102,6 +139,18 @@
       assert:
         that: "'miplata-web' in running_containers.stdout_lines"
         fail_msg: "Miplata Web container is not running"
+      when: miplata_image_check.stdout | length > 0
+
+    - name: Verify postgres-exporter is running
+      assert:
+        that: "'postgres-exporter' in running_containers.stdout_lines"
+        fail_msg: "postgres-exporter container is not running"
+      when: miplata_image_check.stdout | length > 0
+
+    - name: Verify redis-exporter is running
+      assert:
+        that: "'redis-exporter' in running_containers.stdout_lines"
+        fail_msg: "redis-exporter container is not running"
       when: miplata_image_check.stdout | length > 0
 
     # ── Container health status ──
@@ -161,6 +210,80 @@
       delegate_to: localhost
       become: false
       when: miplata_image_check.stdout | length > 0
+
+    # ── Observability TLS + auth ──
+    - name: Verify Grafana responds over TLS (login page)
+      uri:
+        url: "https://{{ grafana_host }}/login"
+        status_code: 200
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify Grafana health endpoint
+      uri:
+        url: "https://{{ grafana_host }}/api/health"
+        status_code: 200
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify loki-push rejects requests without bearer token
+      uri:
+        url: "https://{{ loki_push_host }}/ready"
+        status_code: [401, 403]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify loki-push accepts requests with bearer token
+      uri:
+        url: "https://{{ loki_push_host }}/ready"
+        status_code: 200
+        validate_certs: true
+        headers:
+          Authorization: "Bearer {{ vault_observability_push_token }}"
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify prom-push rejects requests without bearer token
+      uri:
+        url: "https://{{ prom_push_host }}/-/ready"
+        status_code: [401, 403]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify prom-push accepts requests with bearer token
+      uri:
+        url: "https://{{ prom_push_host }}/-/ready"
+        status_code: 200
+        validate_certs: true
+        headers:
+          Authorization: "Bearer {{ vault_observability_push_token }}"
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    # ── Observability scrape targets ──
+    - name: Wait for core Phase 2 scrape targets to be up
+      uri:
+        url: "http://127.0.0.1:9090/api/v1/query?query=up"
+        return_content: true
+      register: up_query
+      until: >
+        up_query.status == 200 and
+        (up_query.json.data.result
+          | selectattr('metric.job', 'in', ['alloy', 'cadvisor', 'traefik', 'node_exporter', 'zot'])
+          | selectattr('value.1', 'equalto', '1')
+          | list | length >= 5)
+      retries: 12
+      delay: 5
 
     # ── DNS ──
     - name: Verify DNS responds on port 53

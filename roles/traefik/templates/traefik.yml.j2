@@ -11,6 +11,15 @@ entryPoints:
           scheme: https
   websecure:
     address: ":443"
+  metrics:
+    address: ":8082"
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
 
 providers:
   docker:
@@ -25,6 +34,12 @@ certificatesResolvers:
       storage: /acme.json
       httpChallenge:
         entryPoint: web
+
+experimental:
+  plugins:
+    apitokenmiddleware:
+      moduleName: "github.com/Aetherinox/traefik-api-token-middleware"
+      version: "v0.1.4"
 
 log:
   level: INFO
