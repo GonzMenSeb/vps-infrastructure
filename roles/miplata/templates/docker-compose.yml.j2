@@ -1,6 +1,8 @@
 networks:
   proxy:
     external: true
+  {{ observability_network }}:
+    external: true
   internal:
     driver: bridge
 
@@ -40,7 +42,7 @@ services:
     image: {{ miplata_api_image }}
     container_name: miplata-api
     restart: unless-stopped
-    networks: [internal]
+    networks: [internal, {{ observability_network }}]
     env_file: .env
     volumes:
       - {{ miplata_uploads_dir }}:/app/apps/api/uploads
@@ -64,3 +66,25 @@ services:
       - "traefik.http.routers.miplata.entrypoints=websecure"
       - "traefik.http.routers.miplata.tls.certresolver=letsencrypt"
       - "traefik.http.services.miplata.loadbalancer.server.port=80"
+
+  postgres-exporter:
+    image: {{ postgres_exporter_image }}
+    container_name: postgres-exporter
+    restart: unless-stopped
+    networks: [internal, {{ observability_network }}]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_NAME: "postgresql://exporter:{{ vault_miplata_db_exporter_password }}@postgres:5432/{{ miplata_db_name }}?sslmode=disable"
+
+  redis-exporter:
+    image: {{ redis_exporter_image }}
+    container_name: redis-exporter
+    restart: unless-stopped
+    networks: [internal, {{ observability_network }}]
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_ADDR: "redis://redis:6379"
