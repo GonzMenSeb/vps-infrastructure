@@ -2,3 +2,4 @@
 .vault_pass
 *.swp
 *.swo
+.ansible_facts_cache/
