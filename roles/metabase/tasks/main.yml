@@ -66,7 +66,7 @@
   register: metabase_props
   when: metabase_compose_file.stat.exists
 
-- name: Complete Metabase initial setup
+- name: Complete Metabase initial setup (admin user)
   uri:
     url: "https://{{ metabase_host }}/api/setup"
     method: POST
@@ -80,16 +80,6 @@
         email: "{{ metabase_admin_email }}"
         password: "{{ vault_metabase_admin_password }}"
         site_name: "{{ metabase_site_name }}"
-      database:
-        engine: postgres
-        name: Miplata
-        details:
-          host: miplata-postgres
-          port: 5432
-          dbname: "{{ miplata_db_name }}"
-          user: "{{ miplata_ro_user }}"
-          password: "{{ vault_miplata_ro_password }}"
-          ssl: false
       prefs:
         site_name: "{{ metabase_site_name }}"
         site_locale: en
@@ -98,4 +88,29 @@
   delegate_to: localhost
   become: false
   no_log: true
+  register: metabase_setup_result
   when: metabase_compose_file.stat.exists and not metabase_props.json['has-user-setup']
+
+- name: Add Miplata database connection
+  uri:
+    url: "https://{{ metabase_host }}/api/database"
+    method: POST
+    validate_certs: true
+    body_format: json
+    headers:
+      X-Metabase-Session: "{{ metabase_setup_result.json.id }}"
+    body:
+      engine: postgres
+      name: Miplata
+      details:
+        host: miplata-postgres
+        port: 5432
+        dbname: "{{ miplata_db_name }}"
+        user: "{{ miplata_ro_user }}"
+        password: "{{ vault_miplata_ro_password }}"
+        ssl: false
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  no_log: true
+  when: metabase_setup_result is changed
