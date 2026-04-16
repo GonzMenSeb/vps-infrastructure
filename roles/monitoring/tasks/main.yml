@@ -53,6 +53,20 @@
     mode: "0644"
   notify: restart monitoring
 
+- name: Copy Grafana dashboard provisioning
+  template:
+    src: grafana-provisioning-dashboards.yml.j2
+    dest: "{{ monitoring_dir }}/grafana-provisioning/dashboards.yml"
+    mode: "0644"
+  notify: restart monitoring
+
+- name: Copy Grafana dashboards
+  copy:
+    src: dashboards/
+    dest: "{{ monitoring_dir }}/dashboards/"
+    mode: "0644"
+  notify: restart monitoring
+
 - name: Remove deprecated Promtail config (replaced by Alloy)
   file:
     path: "{{ monitoring_dir }}/promtail.yml"
