@@ -229,14 +229,18 @@
       become: false
       when: miplata_image_check.stdout | length > 0
 
-    - name: Verify Metabase responds over TLS
+    - name: Verify Metabase responds over TLS (JVM startup can take ~90s)
       uri:
         url: "https://{{ metabase_host }}"
         status_code: [200, 302]
         validate_certs: true
-        timeout: 30
+        timeout: 10
       delegate_to: localhost
       become: false
+      register: metabase_tls
+      until: metabase_tls.status in [200, 302]
+      retries: 12
+      delay: 10
       when: metabase_container_check.stdout | length > 0
 
     # ── Observability TLS + auth ──
