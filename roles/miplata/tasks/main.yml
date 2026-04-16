@@ -80,3 +80,27 @@
       Trigger the `miplata-deploy` Jenkins job so Jenkins builds and pushes them,
       then re-run this playbook (or let Jenkins do the subsequent SSH deploy).
   when: miplata_pull.rc != 0
+
+# Phase 2: read-only postgres role for postgres-exporter. Idempotent.
+# Runs only when the stack is up (otherwise the postgres container doesn't exist yet).
+- name: Provision postgres exporter role
+  shell: |
+    docker exec -i miplata-postgres psql -v ON_ERROR_STOP=1 \
+      -U {{ miplata_db_user }} -d {{ miplata_db_name }} <<'SQL'
+    DO $do$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'exporter') THEN
+        CREATE USER exporter WITH PASSWORD '{{ vault_miplata_db_exporter_password }}';
+      END IF;
+    END
+    $do$;
+    ALTER USER exporter WITH PASSWORD '{{ vault_miplata_db_exporter_password }}';
+    GRANT pg_monitor TO exporter;
+    SQL
+  register: exporter_provision
+  until: exporter_provision.rc == 0
+  retries: 5
+  delay: 3
+  changed_when: false
+  no_log: true
+  when: miplata_pull.rc == 0

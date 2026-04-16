@@ -1,0 +1,34 @@
+[server]
+root_url = https://{{ grafana_host }}
+serve_from_sub_path = false
+
+[security]
+admin_user = admin
+admin_password = {{ vault_grafana_admin_password }}
+secret_key = {{ vault_grafana_secret_key }}
+cookie_secure = true
+cookie_samesite = lax
+
+[users]
+allow_sign_up = false
+auto_assign_org_role = Viewer
+
+[auth]
+disable_login_form = false
+oauth_auto_login = false
+
+[auth.github]
+enabled = true
+allow_sign_up = true
+client_id = {{ vault_grafana_oauth_client_id }}
+client_secret = {{ vault_grafana_oauth_client_secret }}
+scopes = user:email,read:org
+auth_url = https://github.com/login/oauth/authorize
+token_url = https://github.com/login/oauth/access_token
+api_url = https://api.github.com/user
+role_attribute_path = login == '{{ grafana_github_admin_login }}' && 'Admin' || ''
+role_attribute_strict = true
+
+[analytics]
+reporting_enabled = false
+check_for_updates = false

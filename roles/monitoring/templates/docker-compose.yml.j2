@@ -1,20 +1,24 @@
 networks:
-  monitoring:
+  proxy:
+    external: true
+  {{ observability_network }}:
     driver: bridge
+    name: {{ observability_network }}
 
 volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  alloy_data:
 
 services:
   prometheus:
     image: {{ prometheus_image }}
     container_name: prometheus
     restart: unless-stopped
-    networks: [monitoring]
+    networks: [{{ observability_network }}, proxy]
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - prometheus_data:/prometheus
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -23,36 +27,107 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time={{ prometheus_retention }}'
       - '--web.enable-lifecycle'
-
-  grafana:
-    image: {{ grafana_image }}
-    container_name: grafana
-    restart: unless-stopped
-    networks: [monitoring]
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD={{ vault_grafana_admin_password }}
-      - GF_USERS_ALLOW_SIGN_UP=false
+      - '--web.enable-remote-write-receiver'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.promwrite.rule=Host(`{{ prom_push_host }}`)"
+      - "traefik.http.routers.promwrite.entrypoints=websecure"
+      - "traefik.http.routers.promwrite.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.promwrite.middlewares=obs-bearer@docker"
+      - "traefik.http.services.promwrite.loadbalancer.server.port=9090"
 
   loki:
     image: {{ loki_image }}
     container_name: loki
     restart: unless-stopped
-    networks: [monitoring]
-    ports:
-      - "3100:3100"
+    networks: [{{ observability_network }}, proxy]
     volumes:
       - loki_data:/loki
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.lokipush.rule=Host(`{{ loki_push_host }}`)"
+      - "traefik.http.routers.lokipush.entrypoints=websecure"
+      - "traefik.http.routers.lokipush.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.lokipush.middlewares=obs-bearer@docker"
+      - "traefik.http.services.lokipush.loadbalancer.server.port=3100"
+      # Bearer-auth middleware declaration (referenced by both push routers above).
+      - "traefik.http.middlewares.obs-bearer.plugin.apitokenmiddleware.bearerHeader=true"
+      - "traefik.http.middlewares.obs-bearer.plugin.apitokenmiddleware.bearerHeaderName=Authorization"
+      - "traefik.http.middlewares.obs-bearer.plugin.apitokenmiddleware.removeHeadersOnSuccess=false"
+      - "traefik.http.middlewares.obs-bearer.plugin.apitokenmiddleware.tokens[0]={{ vault_observability_push_token }}"
 
-  promtail:
-    image: {{ promtail_image }}
-    container_name: promtail
+  grafana:
+    image: {{ grafana_image }}
+    container_name: grafana
     restart: unless-stopped
-    networks: [monitoring]
+    networks: [{{ observability_network }}, proxy]
+    depends_on: [prometheus, loki]
     volumes:
-      - /var/log:/var/log:ro
-      - ./promtail.yml:/etc/promtail/config.yml:ro
+      - grafana_data:/var/lib/grafana
+      - ./grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./grafana-provisioning/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./grafana-provisioning/dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
+      - ./dashboards:/etc/grafana/dashboards:ro
+    environment:
+      - GF_PATHS_CONFIG=/etc/grafana/grafana.ini
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.grafana.rule=Host(`{{ grafana_host }}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  alloy:
+    image: {{ alloy_image }}
+    container_name: alloy
+    restart: unless-stopped
+    networks: [{{ observability_network }}, proxy]
+    depends_on: [prometheus, loki]
+    ports:
+      - "127.0.0.1:12345:12345"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - alloy_data:/var/lib/alloy/data
+      - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+
+  cadvisor:
+    image: {{ cadvisor_image }}
+    container_name: cadvisor
+    restart: unless-stopped
+    networks: [{{ observability_network }}]
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    command:
+      - '--housekeeping_interval=30s'
+      - '--docker_only=true'
+      - '--disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory,cpu_topology,resctrl'
+
+  blackbox-exporter:
+    image: {{ blackbox_exporter_image }}
+    container_name: blackbox-exporter
+    restart: unless-stopped
+    networks: [{{ observability_network }}]
+    volumes:
+      - ./blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    command: ["--config.file=/etc/blackbox_exporter/config.yml"]

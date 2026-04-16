@@ -1,0 +1,2 @@
+---
+observability_agent_host: "{{ inventory_hostname }}"
