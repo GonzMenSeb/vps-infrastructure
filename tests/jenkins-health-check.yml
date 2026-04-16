@@ -83,16 +83,11 @@
     # at least one series at value=1 (means Alloy on Jenkins is pushing successfully).
     - name: Verify Jenkins metrics are visible on the main VPS's Prometheus
       uri:
-        url: "http://127.0.0.1:9090/api/v1/query"
-        method: GET
+        url: 'http://127.0.0.1:9090/api/v1/query?query=up%7Bhost%3D%22jenkins%22%7D%3D%3D1'
         return_content: true
-        body_format: form-urlencoded
-        body:
-          query: 'up{host="jenkins"}==1'
       register: remote_up_query
-      delegate_to: MAIN_VPS_IP
-      remote_user: ubuntu
-      become: false
+      delegate_to: vps
+      become: true
       until: >
         remote_up_query.status == 200 and
         (remote_up_query.json.data.result | length > 0)
