@@ -30,8 +30,14 @@
   register: metabase_dns
   changed_when: "'New rrset' in metabase_dns.stdout or 'Current rrset' in metabase_dns.stdout"
 
+- name: Check if Metabase compose file exists (first deploy guard)
+  stat:
+    path: "{{ metabase_dir }}/docker-compose.yml"
+  register: metabase_compose_file
+
 - name: Start Metabase stack
   community.docker.docker_compose_v2:
     project_src: "{{ metabase_dir }}"
     state: present
     pull: always
+  when: metabase_compose_file.stat.exists

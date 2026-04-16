@@ -153,6 +153,24 @@
         fail_msg: "redis-exporter container is not running"
       when: miplata_image_check.stdout | length > 0
 
+    # ── Metabase ──
+    - name: Check whether metabase container exists
+      shell: docker ps -a --filter "name=^metabase$" --format "{% raw %}{{.Names}}{% endraw %}"
+      register: metabase_container_check
+      changed_when: false
+
+    - name: Verify Metabase DB is running
+      assert:
+        that: "'metabase-db' in running_containers.stdout_lines"
+        fail_msg: "Metabase DB container is not running"
+      when: metabase_container_check.stdout | length > 0
+
+    - name: Verify Metabase is running
+      assert:
+        that: "'metabase' in running_containers.stdout_lines"
+        fail_msg: "Metabase container is not running"
+      when: metabase_container_check.stdout | length > 0
+
     # ── Container health status ──
     - name: Check container health statuses
       shell: docker ps --filter "health=unhealthy" --format "{% raw %}{{.Names}}{% endraw %}"
@@ -210,6 +228,16 @@
       delegate_to: localhost
       become: false
       when: miplata_image_check.stdout | length > 0
+
+    - name: Verify Metabase responds over TLS
+      uri:
+        url: "https://{{ metabase_host }}"
+        status_code: [200, 302]
+        validate_certs: true
+        timeout: 30
+      delegate_to: localhost
+      become: false
+      when: metabase_container_check.stdout | length > 0
 
     # ── Observability TLS + auth ──
     - name: Verify Grafana responds over TLS (login page)
