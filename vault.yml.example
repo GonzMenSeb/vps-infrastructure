@@ -41,6 +41,7 @@ vault_miplata_db_password: "CHANGE_ME"
 vault_miplata_jwt_secret: "CHANGE_ME"
 vault_miplata_encryption_key: "CHANGE_ME_32_BYTE_HEX"
 vault_miplata_admin_password: "CHANGE_ME"
+vault_miplata_db_exporter_password: "CHANGE_ME_HEX"
 
 # Zot registry
 # vault_zot_registry_password: plaintext password for the `ci` user (Jenkins + VPS pull)
