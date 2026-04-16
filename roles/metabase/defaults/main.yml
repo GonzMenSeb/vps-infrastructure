@@ -1,0 +1,5 @@
+---
+metabase_dir: /opt/metabase
+
+metabase_db_user: metabase
+metabase_db_name: metabase

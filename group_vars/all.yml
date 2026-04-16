@@ -6,6 +6,7 @@ acme_email: eurusaci@gmail.com
 # Docker networks (created once, shared across stacks)
 docker_networks:
   - proxy
+  - miplata_db
 
 # SSH
 ssh_allowed_users: ubuntu
@@ -73,6 +74,12 @@ zot_registry_user: "ci"
 
 # Miplata
 miplata_host: "miplata.{{ web_subdomain }}"
+miplata_ro_user: metabase_ro
 miplata_api_image: "{{ zot_host }}/miplata/api:latest"
 miplata_web_image: "{{ zot_host }}/miplata/web:latest"
 miplata_repo_ssh_url: "git@github.com:GonzMenSeb/miplata.git"
+
+# Metabase
+metabase_image: "metabase/metabase:v0.59.6"
+metabase_postgres_image: "postgres:16-alpine"
+metabase_host: "metabase.{{ web_subdomain }}"
