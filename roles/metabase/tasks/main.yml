@@ -41,3 +41,61 @@
     state: present
     pull: always
   when: metabase_compose_file.stat.exists
+
+# ── Automated setup (runs once — skipped after initial setup) ──
+- name: Wait for Metabase API to be ready
+  uri:
+    url: "https://{{ metabase_host }}/api/health"
+    validate_certs: true
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  register: metabase_health
+  until: metabase_health.status == 200
+  retries: 18
+  delay: 10
+  when: metabase_compose_file.stat.exists
+
+- name: Check if Metabase setup is needed
+  uri:
+    url: "https://{{ metabase_host }}/api/session/properties"
+    validate_certs: true
+    return_content: true
+  delegate_to: localhost
+  become: false
+  register: metabase_props
+  when: metabase_compose_file.stat.exists
+
+- name: Complete Metabase initial setup
+  uri:
+    url: "https://{{ metabase_host }}/api/setup"
+    method: POST
+    validate_certs: true
+    body_format: json
+    body:
+      token: "{{ metabase_props.json['setup-token'] }}"
+      user:
+        first_name: "{{ metabase_admin_first_name }}"
+        last_name: "{{ metabase_admin_last_name }}"
+        email: "{{ metabase_admin_email }}"
+        password: "{{ vault_metabase_admin_password }}"
+        site_name: "{{ metabase_site_name }}"
+      database:
+        engine: postgres
+        name: Miplata
+        details:
+          host: miplata-postgres
+          port: 5432
+          dbname: "{{ miplata_db_name }}"
+          user: "{{ miplata_ro_user }}"
+          password: "{{ vault_miplata_ro_password }}"
+          ssl: false
+      prefs:
+        site_name: "{{ metabase_site_name }}"
+        site_locale: en
+        allow_tracking: false
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  no_log: true
+  when: metabase_compose_file.stat.exists and not metabase_props.json['has-user-setup']

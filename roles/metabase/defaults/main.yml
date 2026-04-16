@@ -3,3 +3,8 @@ metabase_dir: /opt/metabase
 
 metabase_db_user: metabase
 metabase_db_name: metabase
+
+metabase_admin_email: "{{ acme_email }}"
+metabase_admin_first_name: Sebastian
+metabase_admin_last_name: Mendoza
+metabase_site_name: Infra Analytics
