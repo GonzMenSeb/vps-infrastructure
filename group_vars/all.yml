@@ -58,6 +58,9 @@ loki_push_host: "loki-push.{{ web_subdomain }}"
 prom_push_host: "prom-push.{{ web_subdomain }}"
 grafana_github_admin_login: "GonzMenSeb"
 observability_network: "observability"
+observability_agent_dir: /opt/observability
+loki_push_url: "https://{{ loki_push_host }}/loki/api/v1/push"
+prom_push_url: "https://{{ prom_push_host }}/api/v1/write"
 
 # Jenkins
 jenkins_host: "jenkins.{{ web_subdomain }}"

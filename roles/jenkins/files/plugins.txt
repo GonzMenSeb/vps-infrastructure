@@ -11,3 +11,4 @@ ansicolor
 job-dsl
 docker-workflow
 junit
+prometheus

@@ -10,3 +10,4 @@
     - docker
     - traefik
     - jenkins
+    - observability_agent
