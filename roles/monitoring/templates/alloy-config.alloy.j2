@@ -121,6 +121,10 @@ prometheus.scrape "zot" {
   targets         = [{"__address__" = "zot:5000", "job" = "zot", "host" = "vps"}]
   forward_to      = [prometheus.remote_write.local.receiver]
   scrape_interval = "30s"
+  basic_auth {
+    username = "{{ zot_registry_user }}"
+    password = "{{ vault_zot_registry_password }}"
+  }
 }
 
 prometheus.scrape "postgres_exporter" {
