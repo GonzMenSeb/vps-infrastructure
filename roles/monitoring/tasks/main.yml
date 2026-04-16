@@ -32,6 +32,13 @@
     mode: "0644"
   notify: restart monitoring
 
+- name: Copy Blackbox config
+  template:
+    src: blackbox.yml.j2
+    dest: "{{ monitoring_dir }}/blackbox.yml"
+    mode: "0644"
+  notify: restart monitoring
+
 - name: Copy Grafana config
   template:
     src: grafana.ini.j2
