@@ -41,6 +41,18 @@
     comment: "{{ item.comment }}"
   loop: "{{ ufw_allowed_ports }}"
 
+# node_exporter runs on the host and is scraped by containerized Alloy.
+# Traffic from Docker bridge networks must be allowed to reach :9100 on
+# the host. We scope the rule to Docker's reserved 172.16.0.0/12 range so
+# this does not expose node_exporter to the public internet.
+- name: Allow node_exporter from Docker bridge subnets
+  ufw:
+    rule: allow
+    from_ip: 172.16.0.0/12
+    to_port: "9100"
+    proto: tcp
+    comment: "node_exporter from Docker bridges"
+
 - name: Enable UFW
   ufw:
     state: enabled
