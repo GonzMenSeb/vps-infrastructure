@@ -1,0 +1,104 @@
+---
+- name: Post-deploy health checks (Jenkins VPS)
+  hosts: jenkins
+  become: true
+  vars_files:
+    - ../vault.yml
+
+  tasks:
+    - name: Verify SSH is reachable
+      wait_for:
+        port: 22
+        host: "{{ ansible_host }}"
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    - name: Verify UFW is active with deny default
+      command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+      failed_when: "'Status: active' not in ufw_status.stdout or 'deny (incoming)' not in ufw_status.stdout"
+
+    - name: Verify fail2ban is running
+      command: fail2ban-client status sshd
+      register: f2b_status
+      changed_when: false
+      failed_when: f2b_status.rc != 0
+
+    - name: Verify Docker is running
+      command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: docker_info.rc != 0
+
+    - name: Get running container names
+      shell: docker ps --filter "status=running" --format "{% raw %}{{.Names}}{% endraw %}"
+      register: running_containers
+      changed_when: false
+
+    - name: Verify Traefik is running
+      assert:
+        that: "'traefik' in running_containers.stdout_lines"
+        fail_msg: "Traefik container is not running"
+
+    - name: Verify Jenkins is running
+      assert:
+        that: "'jenkins' in running_containers.stdout_lines"
+        fail_msg: "Jenkins container is not running"
+
+    - name: Verify Alloy is running
+      assert:
+        that: "'alloy' in running_containers.stdout_lines"
+        fail_msg: "Alloy container is not running"
+
+    - name: Verify cAdvisor is running
+      assert:
+        that: "'cadvisor' in running_containers.stdout_lines"
+        fail_msg: "cAdvisor container is not running"
+
+    - name: Verify node_exporter systemd unit is active
+      command: systemctl is-active node_exporter
+      register: node_exp_status
+      changed_when: false
+      failed_when: node_exp_status.stdout != "active"
+
+    - name: Verify Alloy is ready
+      uri:
+        url: http://127.0.0.1:12345/-/ready
+        status_code: 200
+        timeout: 5
+
+    - name: Verify Jenkins dashboard responds over TLS
+      uri:
+        url: "https://{{ jenkins_host }}"
+        status_code: [200, 403]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
+    # Confirm the cross-VPS push actually lands on the main VPS's Prometheus.
+    # Query the main VPS's local Prometheus for up{host="jenkins"} and require
+    # at least one series at value=1 (means Alloy on Jenkins is pushing successfully).
+    - name: Verify Jenkins metrics are visible on the main VPS's Prometheus
+      uri:
+        url: "http://127.0.0.1:9090/api/v1/query"
+        method: GET
+        return_content: true
+        body_format: form-urlencoded
+        body:
+          query: 'up{host="jenkins"}==1'
+      register: remote_up_query
+      delegate_to: MAIN_VPS_IP
+      remote_user: ubuntu
+      become: false
+      until: >
+        remote_up_query.status == 200 and
+        (remote_up_query.json.data.result | length > 0)
+      retries: 10
+      delay: 6
+
+    - name: Health check summary
+      debug:
+        msg: "All Jenkins-VPS health checks passed for {{ inventory_hostname }}"
