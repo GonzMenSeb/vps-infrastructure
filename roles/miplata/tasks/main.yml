@@ -73,6 +73,25 @@
     pull: never
   when: miplata_pull.rc == 0
 
+- name: Ensure read-only PostgreSQL user for external consumers
+  command: >
+    docker exec miplata-postgres psql -U {{ miplata_db_user }} -d {{ miplata_db_name }} -c "
+    DO \$\$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{ miplata_ro_user }}') THEN
+        CREATE USER {{ miplata_ro_user }} WITH PASSWORD '{{ vault_miplata_ro_password }}';
+      END IF;
+    END \$\$;
+    GRANT CONNECT ON DATABASE {{ miplata_db_name }} TO {{ miplata_ro_user }};
+    GRANT USAGE ON SCHEMA public TO {{ miplata_ro_user }};
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO {{ miplata_ro_user }};
+    ALTER DEFAULT PRIVILEGES FOR USER {{ miplata_db_user }} IN SCHEMA public
+      GRANT SELECT ON TABLES TO {{ miplata_ro_user }};
+    "
+  register: miplata_ro_user_result
+  changed_when: "'CREATE ROLE' in miplata_ro_user_result.stdout"
+  when: miplata_pull.rc == 0
+
 - name: Warn when miplata images are not yet in the registry
   debug:
     msg: >
