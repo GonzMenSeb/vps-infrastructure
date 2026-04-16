@@ -1,25 +1,184 @@
-// Phase 1: minimal Alloy config. Scrape configs (Docker SD, node_exporter,
-// cAdvisor, Traefik, Zot, exporters, miplata-api) are added in Phase 2.
-//
-// Alloy exposes its own metrics on :12345 and the /-/ready endpoint, which
-// the Ansible role waits on during apply (see tasks/main.yml).
+// Phase 2: full local coverage for the main VPS.
+// - Tails every Docker container's stdout/stderr via Docker SD.
+// - Ingests journald for system-level logs (sshd, fail2ban, UFW, systemd).
+// - Scrapes metrics from node_exporter, cAdvisor, Traefik, Zot, miplata exporters,
+//   miplata-api, and blackbox probes on all public endpoints.
 
 logging {
   level  = "info"
   format = "logfmt"
 }
 
-// Scrape Alloy's own metrics so we can observe the collector itself.
+////////////////////////////////////////////////////////////////////////////////
+// LOGS — Docker container discovery + tail
+////////////////////////////////////////////////////////////////////////////////
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.process.containers.receiver]
+  labels     = { host = "vps" }
+}
+
+// Best-effort JSON parse: extract `level` as a label; leave body intact.
+loki.process "containers" {
+  forward_to = [loki.write.local.receiver]
+
+  stage.json {
+    expressions = {
+      level = "level",
+    }
+  }
+
+  stage.labels {
+    values = { level = "" }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// LOGS — journald (system services)
+////////////////////////////////////////////////////////////////////////////////
+
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "system" {
+  forward_to    = [loki.write.local.receiver]
+  labels        = { host = "vps", compose_service = "systemd" }
+  max_age       = "12h"
+  path          = "/var/log/journal"
+  relabel_rules = loki.relabel.journal.rules
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// METRICS — static scrapes
+////////////////////////////////////////////////////////////////////////////////
+
 prometheus.scrape "alloy_self" {
   targets         = [{"__address__" = "localhost:12345", "job" = "alloy", "host" = "vps"}]
   forward_to      = [prometheus.remote_write.local.receiver]
   scrape_interval = "15s"
 }
 
-// Write everything to the local Prometheus over the observability network.
+prometheus.scrape "node_exporter" {
+  targets         = [{"__address__" = "host.docker.internal:9100", "job" = "node_exporter", "host" = "vps"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "15s"
+}
+
+prometheus.scrape "cadvisor" {
+  targets         = [{"__address__" = "cadvisor:8080", "job" = "cadvisor", "host" = "vps"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "15s"
+}
+
+prometheus.scrape "traefik" {
+  targets         = [{"__address__" = "traefik:8082", "job" = "traefik", "host" = "vps"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "15s"
+}
+
+prometheus.scrape "zot" {
+  targets         = [{"__address__" = "zot:5000", "job" = "zot", "host" = "vps"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+}
+
+prometheus.scrape "postgres_exporter" {
+  targets         = [{"__address__" = "postgres-exporter:9187", "job" = "postgres_exporter", "host" = "vps", "service" = "miplata"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "15s"
+}
+
+prometheus.scrape "redis_exporter" {
+  targets         = [{"__address__" = "redis-exporter:9121", "job" = "redis_exporter", "host" = "vps", "service" = "miplata"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "15s"
+}
+
+// miplata-api: expected up=0 until Phase 5 lands the /metrics endpoint.
+prometheus.scrape "miplata_api" {
+  targets         = [{"__address__" = "miplata-api:3000", "job" = "miplata_api", "host" = "vps", "service" = "miplata"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "15s"
+  metrics_path    = "/metrics"
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// METRICS — blackbox probes (public endpoints)
+////////////////////////////////////////////////////////////////////////////////
+
+prometheus.scrape "blackbox_probes" {
+  targets = [
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://miplata.web.vespiridion.org",            "instance" = "miplata",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://vault.web.vespiridion.org/alive",        "instance" = "vaultwarden",       "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://dns.web.vespiridion.org",                "instance" = "dns-admin",         "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://grafana.web.vespiridion.org/api/health", "instance" = "grafana",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://registry.web.vespiridion.org/v2/",       "instance" = "zot-registry",      "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://traefik.web.vespiridion.org",            "instance" = "traefik-dashboard", "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://jenkins.web.vespiridion.org",            "instance" = "jenkins",           "job" = "blackbox"},
+  ]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+  metrics_path    = "/probe"
+  params          = { module = ["http_any_ok"] }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// WRITES
+////////////////////////////////////////////////////////////////////////////////
+
 prometheus.remote_write "local" {
   endpoint {
     url = "http://prometheus:9090/api/v1/write"
+  }
+  external_labels = {
+    env = "prod",
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
   }
   external_labels = {
     env = "prod",
