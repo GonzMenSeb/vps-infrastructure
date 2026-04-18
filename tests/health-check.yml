@@ -185,7 +185,7 @@
     # ── TLS ──
     - name: Verify Vaultwarden TLS is valid
       uri:
-        url: "https://vault.web.example.com/alive"
+        url: "https://{{ vaultwarden_host }}/alive"
         status_code: 200
         validate_certs: true
         timeout: 10
@@ -194,7 +194,7 @@
 
     - name: Verify Traefik dashboard responds
       uri:
-        url: "https://traefik.web.example.com"
+        url: "https://{{ traefik_dashboard_host }}"
         status_code: [200, 401]
         validate_certs: true
         timeout: 10
@@ -203,7 +203,7 @@
 
     - name: Verify PowerDNS Admin responds
       uri:
-        url: "https://dns.web.example.com"
+        url: "https://{{ pdns_admin_host }}"
         status_code: [200, 302]
         validate_certs: true
         timeout: 10
@@ -319,7 +319,7 @@
 
     # ── DNS ──
     - name: Verify DNS responds on port 53
-      command: dig @{{ vps_public_ip }} example.com SOA +short +timeout=5
+      command: dig @{{ vps_public_ip }} {{ domain }} SOA +short +timeout=5
       delegate_to: localhost
       become: false
       register: dns_check

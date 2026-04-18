@@ -153,13 +153,13 @@ prometheus.scrape "miplata_api" {
 
 prometheus.scrape "blackbox_probes" {
   targets = [
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://miplata.web.example.com",            "instance" = "miplata",           "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://vault.web.example.com/alive",        "instance" = "vaultwarden",       "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://dns.web.example.com",                "instance" = "dns-admin",         "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://grafana.web.example.com/api/health", "instance" = "grafana",           "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://registry.web.example.com/v2/",       "instance" = "zot-registry",      "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://traefik.web.example.com",            "instance" = "traefik-dashboard", "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://jenkins.web.example.com",            "instance" = "jenkins",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ miplata_host }}",             "instance" = "miplata",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ vaultwarden_host }}/alive",   "instance" = "vaultwarden",       "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ pdns_admin_host }}",          "instance" = "dns-admin",         "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ grafana_host }}/api/health",  "instance" = "grafana",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ zot_host }}/v2/",             "instance" = "zot-registry",      "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ traefik_dashboard_host }}",   "instance" = "traefik-dashboard", "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ jenkins_host }}",             "instance" = "jenkins",           "job" = "blackbox"},
   ]
   forward_to      = [prometheus.remote_write.local.receiver]
   scrape_interval = "30s"

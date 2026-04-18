@@ -1,8 +1,8 @@
 all:
   hosts:
     vps:
-      ansible_host: MAIN_VPS_IP
+      ansible_host: "{{ vault_main_vps_ip }}"
       ansible_user: ubuntu
     jenkins:
-      ansible_host: JENKINS_VPS_IP
+      ansible_host: "{{ vault_jenkins_vps_ip }}"
       ansible_user: root

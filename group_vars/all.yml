@@ -1,7 +1,7 @@
 ---
-domain: example.com
-web_subdomain: web.example.com
-acme_email: admin@example.com
+domain: "{{ vault_domain }}"
+web_subdomain: "web.{{ vault_domain }}"
+acme_email: "{{ vault_acme_email }}"
 
 # Docker networks (created once, shared across stacks)
 docker_networks:

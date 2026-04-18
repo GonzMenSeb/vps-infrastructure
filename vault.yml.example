@@ -49,3 +49,14 @@ vault_miplata_db_exporter_password: "CHANGE_ME_HEX"
 #     python3 -c "import bcrypt; print(bcrypt.hashpw(b'<password>', bcrypt.gensalt(rounds=10)).decode())"
 vault_zot_registry_password: "CHANGE_ME"
 vault_zot_htpasswd_hash: "CHANGE_ME_$2b$10$..."
+
+# Metabase
+vault_metabase_db_password: "CHANGE_ME"
+vault_miplata_ro_password: "CHANGE_ME"
+vault_metabase_admin_password: "CHANGE_ME"
+
+# Identifying info (hidden in encrypted vault instead of plaintext repo files)
+vault_main_vps_ip: "CHANGE_ME"      # e.g. 203.0.113.10
+vault_jenkins_vps_ip: "CHANGE_ME"   # e.g. 203.0.113.11
+vault_domain: "CHANGE_ME"            # e.g. example.com
+vault_acme_email: "CHANGE_ME"       # email used for Let's Encrypt registration

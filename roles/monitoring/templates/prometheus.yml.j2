@@ -2,7 +2,7 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: infra
+    cluster: "{{ domain.split('.')[0] }}"
     env: prod
 
 scrape_configs:
@@ -12,7 +12,6 @@ scrape_configs:
         labels:
           host: vps
 
-# Local scrape targets (node_exporter, cAdvisor, Traefik, Zot, miplata-api, etc.)
-# are collected by Alloy (not declared here) and shipped via remote_write in Phase 2.
+# Local scrape targets are collected by Alloy and shipped via remote_write.
 # Cross-VPS metrics from the Jenkins host arrive via remote_write on the
-# `prom-push.web.example.com` endpoint in Phase 3.
+# prom-push endpoint.
