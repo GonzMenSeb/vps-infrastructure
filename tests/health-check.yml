@@ -281,6 +281,10 @@
         timeout: 10
       delegate_to: localhost
       become: false
+      register: loki_ready
+      until: loki_ready.status == 200
+      retries: 18
+      delay: 10
 
     - name: Verify prom-push rejects requests without bearer token
       uri:
@@ -301,6 +305,10 @@
         timeout: 10
       delegate_to: localhost
       become: false
+      register: prom_ready
+      until: prom_ready.status == 200
+      retries: 18
+      delay: 10
 
     # ── Observability scrape targets ──
     - name: Wait for core Phase 2 scrape targets to be up
