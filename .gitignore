@@ -1,6 +1,7 @@
 # Ansible
 *.retry
 .vault_pass
+.ansible/
 .ansible_facts_cache/
 
 # AI tooling
