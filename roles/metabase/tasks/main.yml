@@ -50,6 +50,7 @@
     status_code: 200
   delegate_to: localhost
   become: false
+  check_mode: false
   register: metabase_health
   until: metabase_health.status == 200
   retries: 18
@@ -63,6 +64,7 @@
     return_content: true
   delegate_to: localhost
   become: false
+  check_mode: false
   register: metabase_props
   when: metabase_compose_file.stat.exists
 
