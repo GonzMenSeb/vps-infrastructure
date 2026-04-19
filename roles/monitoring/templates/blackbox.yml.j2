@@ -17,6 +17,25 @@ modules:
       valid_status_codes: [200]
       fail_if_not_ssl: true
 
+  # Plain-HTTP variant for internal Docker-network health probes (llama-server).
+  http_2xx_plain:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: "ip4"
+      valid_status_codes: [200]
+      fail_if_not_ssl: false
+
+  # Authenticated probe for the categorizer /healthz. Token comes from vault.
+  http_categorizer_bearer:
+    prober: http
+    timeout: 5s
+    http:
+      preferred_ip_protocol: "ip4"
+      valid_status_codes: [200]
+      fail_if_not_ssl: true
+      bearer_token: "{{ vault_categorizer_api_token }}"
+
   tcp_connect:
     prober: tcp
     timeout: 5s

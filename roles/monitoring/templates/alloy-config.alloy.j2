@@ -147,24 +147,66 @@ prometheus.scrape "miplata_api" {
   metrics_path    = "/metrics"
 }
 
+// Self-hosted cascade categorizer: /metrics exposed by prometheus_client.
+// Scraped on the observability network directly, bypassing Traefik's bearer gate.
+prometheus.scrape "categorizer_api" {
+  targets         = [{"__address__" = "categorizer-api:{{ categorizer_app_port }}", "job" = "categorizer-api", "host" = "vps", "service" = "categorizer"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+  metrics_path    = "/metrics"
+}
+
+// llama.cpp server: /metrics enabled via LLAMA_ARG_ENDPOINT_METRICS=1.
+// Reachable because the llama-server container now joins the observability network.
+prometheus.scrape "llama_server" {
+  targets         = [{"__address__" = "llama-server:{{ llm_inference_port }}", "job" = "llama-server", "host" = "vps", "service" = "categorizer"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+  metrics_path    = "/metrics"
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // METRICS — blackbox probes (public endpoints)
 ////////////////////////////////////////////////////////////////////////////////
 
 prometheus.scrape "blackbox_probes" {
   targets = [
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ miplata_host }}",             "instance" = "miplata",           "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ vaultwarden_host }}/alive",   "instance" = "vaultwarden",       "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ pdns_admin_host }}",          "instance" = "dns-admin",         "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ grafana_host }}/api/health",  "instance" = "grafana",           "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ zot_host }}/v2/",             "instance" = "zot-registry",      "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ traefik_dashboard_host }}",   "instance" = "traefik-dashboard", "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ jenkins_host }}",             "instance" = "jenkins",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ miplata_host }}",              "instance" = "miplata-web",       "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ miplata_host }}/api/health",   "instance" = "miplata-api",       "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ vaultwarden_host }}/alive",    "instance" = "vaultwarden",       "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ pdns_admin_host }}",           "instance" = "dns-admin",         "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ grafana_host }}/api/health",   "instance" = "grafana",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ zot_host }}/v2/",              "instance" = "zot-registry",      "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ traefik_dashboard_host }}",    "instance" = "traefik-dashboard", "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ jenkins_host }}",              "instance" = "jenkins",           "job" = "blackbox"},
   ]
   forward_to      = [prometheus.remote_write.local.receiver]
   scrape_interval = "30s"
   metrics_path    = "/probe"
   params          = { module = ["http_any_ok"] }
+}
+
+// Categorizer /healthz behind Traefik bearer-auth: uses the dedicated
+// `http_categorizer_bearer` module whose token is baked into blackbox.yml.
+prometheus.scrape "blackbox_categorizer_healthz" {
+  targets = [
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ categorizer_host }}/healthz", "instance" = "categorizer-healthz", "job" = "blackbox"},
+  ]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+  metrics_path    = "/probe"
+  params          = { module = ["http_categorizer_bearer"] }
+}
+
+// llama-server /health on the internal observability network (not via Traefik).
+prometheus.scrape "blackbox_llama_health" {
+  targets = [
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "http://llama-server:{{ llm_inference_port }}/health", "instance" = "llama-server-health", "job" = "blackbox"},
+  ]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+  metrics_path    = "/probe"
+  params          = { module = ["http_2xx_plain"] }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -1,6 +1,8 @@
 networks:
   categorizer_net:
     external: true
+  {{ observability_network }}:
+    external: true
 
 services:
   llama-server:
@@ -9,7 +11,11 @@ services:
     image: {{ llm_inference_image }}
     container_name: llama-server
     restart: unless-stopped
-    networks: [categorizer_net]
+    # categorizer_net → serves /v1/chat/completions to categorizer-api
+    # {{ observability_network }} → scraped by Alloy for /metrics + /health
+    networks:
+      - categorizer_net
+      - {{ observability_network }}
     env_file: .env
     # --temp has no LLAMA_ARG_* env var so it goes here; --no-slots + --no-webui
     # complement LLAMA_ARG_ENDPOINT_SLOTS=0 as belt-and-suspenders.
