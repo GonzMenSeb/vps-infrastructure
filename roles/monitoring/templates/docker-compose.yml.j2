@@ -122,6 +122,21 @@ services:
       - --storage.path=/var/lib/alloy/data
       - /etc/alloy/config.alloy
 
+  process-exporter:
+    image: {{ process_exporter_image }}
+    container_name: process-exporter
+    restart: unless-stopped
+    privileged: true
+    networks: [{{ observability_network }}]
+    volumes:
+      - /proc:/host/proc:ro
+      - ./process-exporter.yml:/config/process-exporter.yml:ro
+    command:
+      - '--procfs'
+      - '/host/proc'
+      - '-config.path'
+      - '/config/process-exporter.yml'
+
   cadvisor:
     image: {{ cadvisor_image }}
     container_name: cadvisor
