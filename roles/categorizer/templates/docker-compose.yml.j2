@@ -1,0 +1,73 @@
+networks:
+  proxy:
+    external: true
+  categorizer_net:
+    external: true
+  miplata_db:
+    external: true
+  {{ observability_network }}:
+    external: true
+
+volumes:
+  categorizer_pgdata:
+
+services:
+  postgres:
+    image: {{ categorizer_postgres_image }}
+    container_name: categorizer-postgres
+    restart: unless-stopped
+    networks: [categorizer_net]
+    env_file: .env
+    volumes:
+      - categorizer_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ categorizer_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: {{ categorizer_image }}
+    container_name: categorizer-api
+    restart: unless-stopped
+    # proxy      → Traefik ingress
+    # categorizer_net → talks to llama-server + its own Postgres
+    # miplata_db  → read-only access to miplata.transactions for user-history tool
+    # {{ observability_network }} → scraped by Prometheus
+    networks:
+      - proxy
+      - categorizer_net
+      - miplata_db
+      - {{ observability_network }}
+    env_file: .env
+    volumes:
+      - {{ categorizer_dir }}/artifacts:/app/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+      # llama-server is in the llm_inference stack — we don't depends_on it here
+      # because Compose cross-stack deps aren't a thing; the app retries on startup.
+    mem_limit: {{ categorizer_mem_limit }}
+    cpuset: "{{ categorizer_cpuset }}"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(\"http://127.0.0.1:{{ categorizer_app_port }}/healthz\").status==200 else 1)' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.categorizer.rule=Host(`{{ categorizer_host }}`)"
+      - "traefik.http.routers.categorizer.entrypoints=websecure"
+      - "traefik.http.routers.categorizer.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.categorizer.middlewares=categorizer-bearer@docker"
+      - "traefik.http.services.categorizer.loadbalancer.server.port={{ categorizer_app_port }}"
+      # Bearer-token middleware (same plugin already loaded by the traefik role).
+      - "traefik.http.middlewares.categorizer-bearer.plugin.apitokenmiddleware.authenticationHeader=true"
+      - "traefik.http.middlewares.categorizer-bearer.plugin.apitokenmiddleware.authenticationHeaderName=X-API-Token"
+      - "traefik.http.middlewares.categorizer-bearer.plugin.apitokenmiddleware.bearerHeader=true"
+      - "traefik.http.middlewares.categorizer-bearer.plugin.apitokenmiddleware.bearerHeaderName=Authorization"
+      - "traefik.http.middlewares.categorizer-bearer.plugin.apitokenmiddleware.removeHeadersOnSuccess=false"
+      - "traefik.http.middlewares.categorizer-bearer.plugin.apitokenmiddleware.timingAttackMitigation=true"
+      - "traefik.http.middlewares.categorizer-bearer.plugin.apitokenmiddleware.tokens[0]={{ vault_categorizer_api_token }}"

@@ -1,0 +1,18 @@
+---
+categorizer_dir: /opt/categorizer
+
+categorizer_db_user: categorizer
+categorizer_db_name: categorizer
+
+# The FastAPI app runs as a non-root user inside the container — align UIDs so
+# volume-mounted state (artifacts/, logs/) has predictable ownership on the host.
+categorizer_container_uid: 1001
+categorizer_container_gid: 1001
+
+categorizer_app_port: 8000
+categorizer_app_threads: 2
+
+# Resource limits. The heavy tier (LLM) lives in a separate container;
+# this one handles normalization, rules, retrieval, tool calls, active-learning logging.
+categorizer_mem_limit: "1g"
+categorizer_cpuset: "0-5"

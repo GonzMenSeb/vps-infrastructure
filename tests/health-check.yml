@@ -243,6 +243,72 @@
       delay: 10
       when: metabase_container_check.stdout | length > 0
 
+    # ── LLM inference (llama-server) ──
+    # The GGUF model file must be present on disk or the container will not
+    # come up. Mirror miplata's "skip assertions when image not yet pulled" pattern.
+    - name: Check whether llama-server GGUF model file is present on the host
+      stat:
+        path: "/opt/llm_inference/models/Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+      register: llm_model_host_stat
+
+    - name: Verify llama-server is running
+      assert:
+        that: "'llama-server' in running_containers.stdout_lines"
+        fail_msg: "llama-server container is not running"
+      when: llm_model_host_stat.stat.exists
+
+    - name: Verify llama-server health endpoint responds on the internal network
+      command: docker exec llama-server curl -fsS http://127.0.0.1:8080/health
+      register: llama_health
+      changed_when: false
+      failed_when: llama_health.rc != 0
+      when: llm_model_host_stat.stat.exists
+
+    # ── Categorizer ──
+    - name: Check whether categorizer images are present locally
+      shell: docker images -q {{ categorizer_image }}
+      register: categorizer_image_check
+      changed_when: false
+
+    - name: Verify Categorizer Postgres is running
+      assert:
+        that: "'categorizer-postgres' in running_containers.stdout_lines"
+        fail_msg: "Categorizer Postgres container is not running"
+      when: categorizer_image_check.stdout | length > 0
+
+    - name: Verify Categorizer API is running
+      assert:
+        that: "'categorizer-api' in running_containers.stdout_lines"
+        fail_msg: "Categorizer API container is not running"
+      when: categorizer_image_check.stdout | length > 0
+
+    - name: Verify Categorizer rejects unauthenticated requests over TLS
+      uri:
+        url: "https://{{ categorizer_host }}/v1/categorize"
+        method: POST
+        status_code: [401, 403]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+      when: categorizer_image_check.stdout | length > 0
+
+    - name: Verify Categorizer accepts authenticated health probe over TLS
+      uri:
+        url: "https://{{ categorizer_host }}/healthz"
+        status_code: 200
+        validate_certs: true
+        headers:
+          Authorization: "Bearer {{ vault_categorizer_api_token }}"
+        timeout: 10
+      delegate_to: localhost
+      become: false
+      register: categorizer_health
+      until: categorizer_health.status == 200
+      retries: 6
+      delay: 5
+      when: categorizer_image_check.stdout | length > 0
+
     # ── Observability TLS + auth ──
     - name: Verify Grafana responds over TLS (login page)
       uri:
