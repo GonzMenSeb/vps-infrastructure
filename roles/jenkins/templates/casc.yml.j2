@@ -62,6 +62,11 @@ credentials:
               username: "{{ zot_registry_user }}"
               password: "{{ vault_zot_registry_password }}"
               description: "Credentials for the self-hosted Zot registry"
+          - string:
+              scope: GLOBAL
+              id: "categorizer-api-token"
+              description: "Bearer token for https://{{ categorizer_host }} - used by Eval Gate"
+              secret: "{{ vault_categorizer_api_token }}"
 
 jobs:
   - script: |
