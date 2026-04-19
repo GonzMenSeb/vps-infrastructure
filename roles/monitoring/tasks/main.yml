@@ -94,6 +94,21 @@
     mode: "0644"
   notify: restart monitoring
 
+# Remove legacy flat-layout dashboards superseded by Home/Fleet/Services/Logs/Meta.
+# ansible.builtin.copy doesn't delete orphaned destination files, so we scrub
+# explicitly. Safe to remove this block after a full deploy cycle has landed
+# on every host.
+- name: Remove legacy dashboards from previous layout
+  ansible.builtin.file:
+    path: "{{ monitoring_dir }}/dashboards/{{ item }}"
+    state: absent
+  loop:
+    - overview.json
+    - host-detail.json
+    - categorizer-health.json
+    - logs-explorer.json
+  notify: restart monitoring
+
 - name: Remove deprecated Promtail config (replaced by Alloy)
   file:
     path: "{{ monitoring_dir }}/promtail.yml"
