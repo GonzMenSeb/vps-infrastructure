@@ -1,0 +1,91 @@
+groups:
+  - name: categorizer
+    interval: 30s
+    rules:
+      - alert: CategorizerDown
+        expr: up{job="categorizer-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "categorizer-api scrape is failing"
+          description: "Prometheus cannot scrape categorizer-api:8000 (instance={{ '{{' }} $labels.instance {{ '}}' }})."
+
+      - alert: LlamaServerDown
+        expr: up{job="llama-server"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "llama-server scrape is failing"
+          description: "Prometheus cannot scrape llama-server:8080 (instance={{ '{{' }} $labels.instance {{ '}}' }})."
+
+      - alert: CategorizerRejectSpike
+        expr: |
+          (
+            sum(rate(categorizer_predictions_total{tier="reject"}[15m]))
+            /
+            clamp_min(sum(rate(categorizer_predictions_total[15m])), 0.0001)
+          ) > 0.25
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "categorizer reject rate > 25%"
+          description: "Too many transactions are falling through all tiers into reject."
+
+      - alert: CategorizerLatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(categorizer_latency_seconds_bucket[5m]))
+          ) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "categorizer p95 end-to-end latency > 30s"
+          description: "p95 total cascade latency exceeds 30s; LLM path is timing out into /think too often."
+
+      - alert: CategorizerEmbeddingSlow
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(categorizer_embedding_seconds_bucket[5m]))
+          ) > 1
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "categorizer embedding p95 > 1s"
+          description: "MiniLM encoding is slower than expected; check RAM pressure or cache warmth."
+
+  - name: blackbox
+    interval: 30s
+    rules:
+      - alert: BlackboxProbeFailing
+        expr: probe_success{job="blackbox"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Blackbox probe failing for {{ '{{' }} $labels.instance {{ '}}' }}"
+          description: "HTTP probe has been failing for 5m (job=blackbox)."
+
+      - alert: CategorizerHealthzFailing
+        expr: probe_success{job="blackbox",instance="categorizer-healthz"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "categorizer /healthz probe failing"
+          description: "External bearer-authenticated probe to categorizer /healthz has been failing for 5m."
+
+      - alert: LlamaServerHealthFailing
+        expr: probe_success{job="blackbox",instance="llama-server-health"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "llama-server /health probe failing"
+          description: "Internal probe to llama-server:8080/health has been failing for 5m."

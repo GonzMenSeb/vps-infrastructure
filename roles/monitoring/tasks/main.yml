@@ -18,6 +18,19 @@
     mode: "0644"
   notify: restart monitoring
 
+- name: Create Prometheus rules directory
+  file:
+    path: "{{ monitoring_dir }}/prometheus-rules"
+    state: directory
+    mode: "0755"
+
+- name: Copy Prometheus alert rules
+  template:
+    src: prometheus-rules.yml.j2
+    dest: "{{ monitoring_dir }}/prometheus-rules/alerts.yml"
+    mode: "0644"
+  notify: reload prometheus
+
 - name: Copy Loki config
   template:
     src: loki-config.yml.j2

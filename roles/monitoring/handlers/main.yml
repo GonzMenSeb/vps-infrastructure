@@ -9,3 +9,12 @@
     name: node_exporter
     state: restarted
     daemon_reload: true
+
+# Hot-reload Prometheus rules via its lifecycle endpoint (--web.enable-lifecycle).
+# Fails soft if Prometheus isn't up yet; the restart-monitoring handler covers cold start.
+- name: reload prometheus
+  uri:
+    url: http://127.0.0.1:9090/-/reload
+    method: POST
+    status_code: 200
+  failed_when: false
