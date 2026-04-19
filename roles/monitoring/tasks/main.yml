@@ -92,6 +92,12 @@
     path: "{{ monitoring_dir }}/promtail.yml"
     state: absent
 
+- name: Remove legacy Promtail container (superseded by Alloy)
+  community.docker.docker_container:
+    name: promtail
+    state: absent
+  failed_when: false
+
 - name: Copy docker-compose file
   template:
     src: docker-compose.yml.j2
