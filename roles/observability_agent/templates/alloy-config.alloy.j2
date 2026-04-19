@@ -119,9 +119,11 @@ prometheus.relabel "drop_noise" {
     regex         = "container_blkio_.*"
     action        = "drop"
   }
+  // Drop all container_fs_* except usage_bytes and limit_bytes. RE2 has no
+  // lookahead, so we enumerate the families to drop explicitly.
   rule {
     source_labels = ["__name__"]
-    regex         = "container_fs_(?!usage_bytes|limit_bytes).*"
+    regex         = "container_fs_(inodes_|io_|read|sector_|write)[a-z_]*"
     action        = "drop"
   }
 
