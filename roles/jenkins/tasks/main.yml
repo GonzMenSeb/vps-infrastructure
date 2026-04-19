@@ -101,3 +101,16 @@
   community.docker.docker_compose_v2:
     project_src: "{{ jenkins_dir }}"
     state: present
+
+- name: Install weekly docker prune cron on jenkins host
+  ansible.builtin.cron:
+    name: "jenkins-docker-weekly-prune"
+    minute: "0"
+    hour: "3"
+    weekday: "0"
+    user: root
+    job: >-
+      /usr/bin/docker system prune -af --filter "until=168h" >> /var/log/jenkins-docker-prune.log 2>&1 &&
+      /usr/bin/docker builder prune -af --filter "unused-for=168h" >> /var/log/jenkins-docker-prune.log 2>&1 &&
+      tail -c 100000 /var/log/jenkins-docker-prune.log > /var/log/jenkins-docker-prune.log.new &&
+      mv /var/log/jenkins-docker-prune.log.new /var/log/jenkins-docker-prune.log
