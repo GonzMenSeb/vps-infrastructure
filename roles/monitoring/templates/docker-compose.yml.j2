@@ -37,6 +37,7 @@ services:
       - "traefik.http.routers.promwrite.entrypoints=websecure"
       - "traefik.http.routers.promwrite.tls.certresolver=letsencrypt"
       - "traefik.http.routers.promwrite.middlewares=obs-bearer@docker"
+      - "traefik.http.routers.promwrite.service=promwrite"
       - "traefik.http.services.promwrite.loadbalancer.server.port=9090"
       - "traefik.http.routers.promui.rule=Host(`{{ prometheus_ui_host }}`)"
       - "traefik.http.routers.promui.entrypoints=websecure"
