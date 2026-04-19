@@ -17,3 +17,17 @@
     - metabase
     - llm_inference
     - categorizer
+
+  post_tasks:
+    # Textfile-collector deploy marker — annotates timeseries panels with a
+    # vertical line whenever Ansible successfully completes a run.
+    - name: Write Ansible deploy marker (textfile collector)
+      ansible.builtin.copy:
+        dest: /var/lib/node_exporter/textfile/ansible_deploy.prom
+        owner: node_exporter
+        group: node_exporter
+        mode: "0644"
+        content: |
+          # HELP vps_last_deploy_timestamp_seconds Unix timestamp of the last successful Ansible deploy.
+          # TYPE vps_last_deploy_timestamp_seconds gauge
+          vps_last_deploy_timestamp_seconds{playbook="playbook.yml",host="{{ inventory_hostname }}"} {{ ansible_date_time.epoch }}

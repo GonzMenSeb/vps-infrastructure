@@ -67,6 +67,14 @@
     shell: /usr/sbin/nologin
     create_home: false
 
+- name: Ensure node_exporter textfile directory exists
+  file:
+    path: /var/lib/node_exporter/textfile
+    state: directory
+    owner: node_exporter
+    group: node_exporter
+    mode: "0755"
+
 - name: Install node_exporter systemd service
   copy:
     src: node_exporter.service
