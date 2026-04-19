@@ -1,8 +1,7 @@
-// Phase 2: full local coverage for the main VPS.
-// - Tails every Docker container's stdout/stderr via Docker SD.
-// - Ingests journald for system-level logs (sshd, fail2ban, UFW, systemd).
-// - Scrapes metrics from node_exporter, cAdvisor, Traefik, Zot, miplata exporters,
-//   miplata-api, and blackbox probes on all public endpoints.
+// Main VPS observability agent.
+// Every metric scrape funnels through prometheus.relabel.drop_noise, which
+// strips high-cardinality / low-signal series before they hit Prometheus.
+// Adding a new scrape? forward_to = [prometheus.relabel.drop_noise.receiver].
 
 logging {
   level  = "info"
@@ -15,11 +14,19 @@ logging {
 
 discovery.docker "containers" {
   host             = "unix:///var/run/docker.sock"
-  refresh_interval = "30s"
+  refresh_interval = "60s"
 }
 
 discovery.relabel "containers" {
   targets = discovery.docker.containers.targets
+
+  // Drop log tailing for observability plane itself — self-referential noise
+  // that inflates Loki streams without adding operational value.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(cadvisor|blackbox-exporter|alloy|promtail|process-exporter|tempo)"
+    action        = "drop"
+  }
 
   rule {
     source_labels = ["__meta_docker_container_name"]
@@ -50,18 +57,26 @@ loki.source.docker "containers" {
   labels     = { host = "vps" }
 }
 
-// Best-effort JSON parse: extract `level` as a label; leave body intact.
+// JSON parse only runs for services we know emit JSON; plaintext containers
+// (nginx/postgres/redis) skip the allocator cost. Parsed fields land in
+// structured metadata (Loki 3) so they're queryable without fanning out streams.
 loki.process "containers" {
   forward_to = [loki.write.local.receiver]
 
-  stage.json {
-    expressions = {
-      level = "level",
-    }
-  }
+  stage.match {
+    selector = "{compose_service=~\"miplata-api|categorizer-api|llama-server\"}"
 
-  stage.labels {
-    values = { level = "" }
+    stage.json {
+      expressions = {
+        level    = "level",
+        trace_id = "trace_id",
+        span_id  = "span_id",
+      }
+    }
+
+    stage.structured_metadata {
+      values = { level = "", trace_id = "", span_id = "" }
+    }
   }
 }
 
@@ -90,43 +105,120 @@ loki.source.journal "system" {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// METRICS — cardinality filter (all scrapes funnel through this)
+////////////////////////////////////////////////////////////////////////////////
+
+prometheus.relabel "drop_noise" {
+  forward_to = [prometheus.remote_write.local.receiver]
+
+  // Ephemeral Docker interfaces churn series on every container restart.
+  rule {
+    source_labels = ["__name__", "device"]
+    regex         = "node_network_.*;(veth.+|br-.+|docker0|lo|dummy.+)"
+    action        = "drop"
+  }
+
+  // Non-real filesystems — every container spawns overlay mounts.
+  rule {
+    source_labels = ["__name__", "fstype"]
+    regex         = "node_filesystem_.*;(overlay|tmpfs|squashfs|nsfs|autofs|ramfs|fuse\\..*)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__", "mountpoint"]
+    regex         = "node_filesystem_.*;(/var/lib/docker/.+|/run/.+|/snap/.+)"
+    action        = "drop"
+  }
+
+  // cAdvisor low-signal families.
+  rule {
+    source_labels = ["__name__"]
+    regex         = "container_(tasks_state|sockets|threads_max)"
+    action        = "drop"
+  }
+  rule {
+    source_labels = ["__name__"]
+    regex         = "container_blkio_.*"
+    action        = "drop"
+  }
+  // Drop all container_fs_* except usage_bytes and limit_bytes. RE2 has no
+  // lookahead, so we enumerate the families to drop explicitly.
+  rule {
+    source_labels = ["__name__"]
+    regex         = "container_fs_(inodes_|io_|read|sector_|write)[a-z_]*"
+    action        = "drop"
+  }
+
+  // cAdvisor root-cgroup rollups (empty id AND empty name). Scoped to
+  // container_* metrics so we don't accidentally drop node_exporter / blackbox
+  // metrics which simply don't carry id/name labels.
+  rule {
+    source_labels = ["__name__", "id", "name"]
+    regex         = "container_.+;;"
+    action        = "drop"
+  }
+
+  // Traefik router-level fan-out — keep service + entrypoint only.
+  rule {
+    source_labels = ["__name__"]
+    regex         = "traefik_router_.*"
+    action        = "drop"
+  }
+
+  // Go runtime internals — keep go_goroutines, process_*, and heap_inuse only.
+  rule {
+    source_labels = ["__name__"]
+    regex         = "go_(gc_.*|sched_.*|sync_.*|memstats_(mspan_.*|mcache_.*|buck_.*|other_.*|gc_.*|next_gc_.*|last_gc_.*))"
+    action        = "drop"
+  }
+
+  // Blackbox: non-actionable probe metadata for HTTP probes.
+  rule {
+    source_labels = ["__name__", "job"]
+    regex         = "(probe_ip_addr_hash|probe_ip_protocol|probe_dns_lookup_time_seconds);blackbox"
+    action        = "drop"
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // METRICS — static scrapes
 ////////////////////////////////////////////////////////////////////////////////
 
 prometheus.scrape "alloy_self" {
   targets         = [{"__address__" = "localhost:12345", "job" = "alloy", "host" = "vps"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
 }
 
 prometheus.scrape "node_exporter" {
   targets         = [{"__address__" = "host.docker.internal:9100", "job" = "node_exporter", "host" = "vps"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
 prometheus.scrape "cadvisor" {
   targets         = [{"__address__" = "cadvisor:8080", "job" = "cadvisor", "host" = "vps"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
 prometheus.scrape "alertmanager" {
   targets         = [{"__address__" = "alertmanager:9093", "job" = "alertmanager", "host" = "vps"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "30s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
 }
 
 prometheus.scrape "traefik" {
   targets         = [{"__address__" = "traefik:8082", "job" = "traefik", "host" = "vps"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
 prometheus.scrape "zot" {
   targets         = [{"__address__" = "zot:5000", "job" = "zot", "host" = "vps"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "30s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
   basic_auth {
     username = "{{ zot_registry_user }}"
     password = "{{ vault_zot_registry_password }}"
@@ -135,41 +227,53 @@ prometheus.scrape "zot" {
 
 prometheus.scrape "postgres_exporter" {
   targets         = [{"__address__" = "postgres-exporter:9187", "job" = "postgres_exporter", "host" = "vps", "service" = "miplata"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
 prometheus.scrape "redis_exporter" {
   targets         = [{"__address__" = "redis-exporter:9121", "job" = "redis_exporter", "host" = "vps", "service" = "miplata"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
-// miplata-api: expected up=0 until Phase 5 lands the /metrics endpoint.
+// miplata-api: kept at 15s because it owns the RED latency histograms
+// that the Services dashboard renders at percentile resolution.
 prometheus.scrape "miplata_api" {
   targets         = [{"__address__" = "miplata-api:3000", "job" = "miplata_api", "host" = "vps", "service" = "miplata"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "15s"
   metrics_path    = "/metrics"
 }
 
 // Self-hosted cascade categorizer: /metrics exposed by prometheus_client.
-// Scraped on the observability network directly, bypassing Traefik's bearer gate.
 prometheus.scrape "categorizer_api" {
   targets         = [{"__address__" = "categorizer-api:{{ categorizer_app_port }}", "job" = "categorizer-api", "host" = "vps", "service" = "categorizer"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "30s"
   metrics_path    = "/metrics"
 }
 
-// llama.cpp server: /metrics enabled via LLAMA_ARG_ENDPOINT_METRICS=1.
-// Reachable because the llama-server container now joins the observability network.
 prometheus.scrape "llama_server" {
   targets         = [{"__address__" = "llama-server:{{ llm_inference_port }}", "job" = "llama-server", "host" = "vps", "service" = "categorizer"}]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "30s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
   metrics_path    = "/metrics"
 }
+
+prometheus.scrape "process_exporter" {
+  targets         = [{"__address__" = "process-exporter:9256", "job" = "process_exporter", "host" = "vps"}]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
+}
+
+{% if enable_tracing %}
+prometheus.scrape "tempo" {
+  targets         = [{"__address__" = "tempo:3200", "job" = "tempo", "host" = "vps"}]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
+}
+{% endif %}
 
 ////////////////////////////////////////////////////////////////////////////////
 // METRICS — blackbox probes (public endpoints)
@@ -186,34 +290,134 @@ prometheus.scrape "blackbox_probes" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ traefik_dashboard_host }}",    "instance" = "traefik-dashboard", "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ jenkins_host }}/login",        "instance" = "jenkins",           "job" = "blackbox"},
   ]
-  forward_to      = [prometheus.remote_write.local.receiver]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "30s"
   metrics_path    = "/probe"
   params          = { module = ["http_any_ok"] }
 }
 
-// Categorizer /healthz behind Traefik bearer-auth: uses the dedicated
-// `http_categorizer_bearer` module whose token is baked into blackbox.yml.
 prometheus.scrape "blackbox_categorizer_healthz" {
   targets = [
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ categorizer_host }}/healthz", "instance" = "categorizer-healthz", "job" = "blackbox"},
   ]
-  forward_to      = [prometheus.remote_write.local.receiver]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "30s"
   metrics_path    = "/probe"
   params          = { module = ["http_categorizer_bearer"] }
 }
 
-// llama-server /health on the internal observability network (not via Traefik).
 prometheus.scrape "blackbox_llama_health" {
   targets = [
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "http://llama-server:{{ llm_inference_port }}/health", "instance" = "llama-server-health", "job" = "blackbox"},
   ]
-  forward_to      = [prometheus.remote_write.local.receiver]
-  scrape_interval = "30s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
   metrics_path    = "/probe"
   params          = { module = ["http_2xx_plain"] }
 }
+
+// TLS cert expiry — tls_connect module on each public host.
+prometheus.scrape "blackbox_tls" {
+  targets = [
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ miplata_host }}:443",           "instance" = "miplata-tls",            "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ vaultwarden_host }}:443",       "instance" = "vaultwarden-tls",        "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ pdns_admin_host }}:443",        "instance" = "dns-admin-tls",          "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ grafana_host }}:443",           "instance" = "grafana-tls",            "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ zot_host }}:443",               "instance" = "zot-tls",                "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ traefik_dashboard_host }}:443", "instance" = "traefik-dashboard-tls",  "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ jenkins_host }}:443",           "instance" = "jenkins-tls",            "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ categorizer_host }}:443",       "instance" = "categorizer-tls",        "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ metabase_host }}:443",          "instance" = "metabase-tls",           "job" = "blackbox_tls"},
+  ]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "5m"
+  metrics_path    = "/probe"
+  params          = { module = ["tls_connect"] }
+}
+
+{% if enable_tracing %}
+////////////////////////////////////////////////////////////////////////////////
+// TRACES — OTLP in, tail-sampling, Tempo out
+////////////////////////////////////////////////////////////////////////////////
+
+otelcol.receiver.otlp "apps" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.traces.input]
+  }
+}
+
+otelcol.processor.batch "traces" {
+  timeout             = "2s"
+  send_batch_size     = 512
+  send_batch_max_size = 1024
+
+  output {
+    traces = [otelcol.processor.tail_sampling.policy.input]
+  }
+}
+
+// Tail sampling: policies OR together. Any match keeps the trace.
+// The 1% probabilistic baseline runs last as the default-drop fallthrough.
+otelcol.processor.tail_sampling "policy" {
+  decision_wait               = "10s"
+  num_traces                  = 5000
+  expected_new_traces_per_sec = 5
+
+  policy {
+    name = "keep-errors"
+    type = "status_code"
+    status_code {
+      status_codes = ["ERROR"]
+    }
+  }
+
+  policy {
+    name = "keep-slow"
+    type = "latency"
+    latency {
+      threshold_ms = 1000
+    }
+  }
+
+  policy {
+    name = "keep-5xx"
+    type = "numeric_attribute"
+    numeric_attribute {
+      key       = "http.response.status_code"
+      min_value = 500
+      max_value = 599
+    }
+  }
+
+  policy {
+    name = "baseline"
+    type = "probabilistic"
+    probabilistic {
+      sampling_percentage = 1
+    }
+  }
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+{% endif %}
 
 ////////////////////////////////////////////////////////////////////////////////
 // WRITES
@@ -222,6 +426,23 @@ prometheus.scrape "blackbox_llama_health" {
 prometheus.remote_write "local" {
   endpoint {
     url = "http://prometheus:9090/api/v1/write"
+
+    // Queue tuned for a loopback endpoint. Defaults (10k capacity, 50 shards)
+    // are sized for cloud backends with network latency.
+    queue_config {
+      capacity             = 2500
+      max_shards           = 5
+      min_shards           = 1
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+    }
+
+    metadata_config {
+      send = false
+    }
+
+    send_exemplars         = true
+    send_native_histograms = false
   }
   external_labels = {
     env = "prod",

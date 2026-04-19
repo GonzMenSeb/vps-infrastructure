@@ -1,9 +1,13 @@
 global:
   scrape_interval: 15s
-  evaluation_interval: 15s
+  evaluation_interval: 30s
   external_labels:
     cluster: "{{ domain.split('.')[0] }}"
     env: prod
+
+storage:
+  exemplars:
+    max_exemplars: 100000
 
 rule_files:
   - /etc/prometheus/rules/*.yml

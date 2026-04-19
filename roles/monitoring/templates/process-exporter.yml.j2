@@ -1,0 +1,25 @@
+process_names:
+  - name: "{{ '{{.Comm}}' }}"
+    cmdline:
+      - '.+'
+    exe:
+      - dockerd
+      - docker-proxy
+      - containerd
+      - containerd-shim-runc-v2
+      - sshd
+      - node_exporter
+      - systemd
+      - systemd-journald
+      - systemd-logind
+      - systemd-resolved
+      - systemd-networkd
+      - fail2ban-server
+      - pdns_server
+      - python3
+      - uvicorn
+      - node
+      - nginx
+      - postgres
+      - redis-server
+      - alloy

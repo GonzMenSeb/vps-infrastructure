@@ -52,6 +52,21 @@
     mode: "0644"
   notify: restart monitoring
 
+- name: Copy process-exporter config
+  template:
+    src: process-exporter.yml.j2
+    dest: "{{ monitoring_dir }}/process-exporter.yml"
+    mode: "0644"
+  notify: restart monitoring
+
+- name: Copy Tempo config
+  when: enable_tracing | default(false)
+  template:
+    src: tempo.yaml.j2
+    dest: "{{ monitoring_dir }}/tempo.yaml"
+    mode: "0644"
+  notify: restart monitoring
+
 - name: Copy Alertmanager config
   template:
     src: alertmanager.yml.j2
@@ -87,10 +102,31 @@
     mode: "0644"
   notify: restart monitoring
 
+# Remove legacy flat-layout dashboards superseded by Home/Fleet/Services/Logs/Meta.
+# ansible.builtin.copy doesn't delete orphaned destination files, so we scrub
+# explicitly. Safe to remove this block after a full deploy cycle has landed
+# on every host.
+- name: Remove legacy dashboards from previous layout
+  ansible.builtin.file:
+    path: "{{ monitoring_dir }}/dashboards/{{ item }}"
+    state: absent
+  loop:
+    - overview.json
+    - host-detail.json
+    - categorizer-health.json
+    - logs-explorer.json
+  notify: restart monitoring
+
 - name: Remove deprecated Promtail config (replaced by Alloy)
   file:
     path: "{{ monitoring_dir }}/promtail.yml"
     state: absent
+
+- name: Remove legacy Promtail container (superseded by Alloy)
+  community.docker.docker_container:
+    name: promtail
+    state: absent
+  failed_when: false
 
 - name: Copy docker-compose file
   template:
@@ -155,6 +191,17 @@
     system: true
     shell: /usr/sbin/nologin
     create_home: false
+
+# Textfile collector target. The --collector.textfile.directory flag on
+# node_exporter.service reads *.prom files from here; Ansible and other tools
+# drop metric files in as part of their post_tasks.
+- name: Ensure node_exporter textfile directory exists
+  file:
+    path: /var/lib/node_exporter/textfile
+    state: directory
+    owner: node_exporter
+    group: node_exporter
+    mode: "0755"
 
 - name: Install node_exporter systemd service
   copy:

@@ -32,3 +32,8 @@ role_attribute_strict = true
 [analytics]
 reporting_enabled = false
 check_for_updates = false
+
+[dashboards]
+# Home dashboard for the organization — set by uid via provisioning.
+# Users can still override in their profile; this is the default first view.
+default_home_dashboard_path = /etc/grafana/dashboards/home/home.json

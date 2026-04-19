@@ -57,6 +57,25 @@
   ufw:
     state: enabled
 
+# journald — cap disk usage and rotation so Alloy's journal reader and the
+# textfile collector target directory stay bounded.
+- name: Ensure journald drop-in directory exists
+  file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install journald observability drop-in
+  copy:
+    src: journald-observability.conf
+    dest: /etc/systemd/journald.conf.d/observability.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart journald
+
 # fail2ban
 - name: Configure fail2ban
   template:

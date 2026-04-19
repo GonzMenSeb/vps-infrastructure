@@ -39,3 +39,14 @@ modules:
   tcp_connect:
     prober: tcp
     timeout: 5s
+
+  # TLS probe — completes the handshake against the target host:port so we can
+  # read probe_ssl_earliest_cert_expiry and alert before Let's Encrypt silently
+  # fails to renew.
+  tls_connect:
+    prober: tcp
+    timeout: 10s
+    tcp:
+      tls: true
+      tls_config:
+        insecure_skip_verify: false

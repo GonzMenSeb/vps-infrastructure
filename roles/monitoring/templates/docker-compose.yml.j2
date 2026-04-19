@@ -11,6 +11,9 @@ volumes:
   loki_data:
   alloy_data:
   alertmanager_data:
+{% if enable_tracing %}
+  tempo_data:
+{% endif %}
 
 services:
   prometheus:
@@ -28,8 +31,10 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time={{ prometheus_retention }}'
+      - '--storage.tsdb.retention.size={{ prometheus_retention_size }}'
       - '--web.enable-lifecycle'
       - '--web.enable-remote-write-receiver'
+      - '--enable-feature=exemplar-storage'
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
@@ -102,6 +107,12 @@ services:
       - "127.0.0.1:12345:12345"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    environment:
+      # Cap Go heap so freed memory returns to the OS; defaults let RSS drift
+      # upward indefinitely on a host with steady Docker SD churn.
+      - GOMEMLIMIT=450MiB
+      - GOGC=75
+    mem_limit: 512m
     volumes:
       - alloy_data:/var/lib/alloy/data
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
@@ -113,6 +124,21 @@ services:
       - --server.http.listen-addr=0.0.0.0:12345
       - --storage.path=/var/lib/alloy/data
       - /etc/alloy/config.alloy
+
+  process-exporter:
+    image: {{ process_exporter_image }}
+    container_name: process-exporter
+    restart: unless-stopped
+    privileged: true
+    networks: [{{ observability_network }}]
+    volumes:
+      - /proc:/host/proc:ro
+      - ./process-exporter.yml:/config/process-exporter.yml:ro
+    command:
+      - '--procfs'
+      - '/host/proc'
+      - '-config.path'
+      - '/config/process-exporter.yml'
 
   cadvisor:
     image: {{ cadvisor_image }}
@@ -141,6 +167,27 @@ services:
     volumes:
       - ./blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     command: ["--config.file=/etc/blackbox_exporter/config.yml"]
+
+{% if enable_tracing %}
+  # Tempo single-binary — OTLP receiver on 4317/gRPC and 4318/HTTP, Alloy
+  # pushes tail-sampled traces here. Port 3200 is loopback-only; no Traefik
+  # ingress. Data is ephemeral (7d retention, not backed up).
+  tempo:
+    image: {{ tempo_image }}
+    container_name: tempo
+    restart: unless-stopped
+    networks: [{{ observability_network }}]
+    volumes:
+      - tempo_data:/var/tempo
+      - ./tempo.yaml:/etc/tempo/tempo.yaml:ro
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    ports:
+      - "127.0.0.1:3200:3200"
+    # Tempo's image is distroless — no shell / wget / curl. Rely on the
+    # restart policy + Prometheus self-scrape of tempo:3200/metrics for
+    # liveness signal (added to Alloy below once this lands).
+    mem_limit: 768m
+{% endif %}
 
   # Alertmanager is deployed but deliberately NON-CRITICAL — user has opted
   # out of external notification for now. Prometheus tolerates alertmanager

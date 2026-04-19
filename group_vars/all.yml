@@ -54,7 +54,17 @@ redis_exporter_image: "oliver006/redis_exporter:v1.82.0"
 blackbox_exporter_image: "prom/blackbox-exporter:v0.28.0"
 alertmanager_image: "prom/alertmanager:v0.32.0"
 prometheus_retention: "30d"
+prometheus_retention_size: "8GB"
 loki_retention: "336h"  # 14 days
+
+# Tempo + tracing (feature-flagged)
+enable_tracing: true
+tempo_image: "grafana/tempo:2.10.4"
+tempo_retention: "168h"       # 7 days
+tempo_max_block_bytes: 500000000
+
+# Extra observability exporters
+process_exporter_image: "ncabatoff/process-exporter:0.8.7"
 
 grafana_host: "grafana.{{ web_subdomain }}"
 loki_push_host: "loki-push.{{ web_subdomain }}"

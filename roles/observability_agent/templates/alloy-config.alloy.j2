@@ -1,5 +1,6 @@
-// Jenkins VPS observability agent. Collects metrics and logs locally
-// and pushes them to the main VPS over HTTPS with bearer-token auth.
+// Jenkins VPS observability agent. Mirrors the main-VPS hygiene:
+// every scrape funnels through drop_noise, docker SD is throttled,
+// own-logs are dropped, JSON parsing is gated on known JSON emitters.
 
 logging {
   level  = "info"
@@ -12,11 +13,17 @@ logging {
 
 discovery.docker "containers" {
   host             = "unix:///var/run/docker.sock"
-  refresh_interval = "30s"
+  refresh_interval = "60s"
 }
 
 discovery.relabel "containers" {
   targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(cadvisor|alloy|promtail)"
+    action        = "drop"
+  }
 
   rule {
     source_labels = ["__meta_docker_container_name"]
@@ -47,18 +54,10 @@ loki.source.docker "containers" {
   labels     = { host = "jenkins" }
 }
 
+// Jenkins containers aren't known JSON emitters; skip the parse step.
+// If that changes, add a stage.match block keyed on compose_service.
 loki.process "containers" {
   forward_to = [loki.write.remote.receiver]
-
-  stage.json {
-    expressions = {
-      level = "level",
-    }
-  }
-
-  stage.labels {
-    values = { level = "" }
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,36 +85,100 @@ loki.source.journal "system" {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// METRICS — cardinality filter
+////////////////////////////////////////////////////////////////////////////////
+
+prometheus.relabel "drop_noise" {
+  forward_to = [prometheus.remote_write.remote.receiver]
+
+  rule {
+    source_labels = ["__name__", "device"]
+    regex         = "node_network_.*;(veth.+|br-.+|docker0|lo|dummy.+)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__", "fstype"]
+    regex         = "node_filesystem_.*;(overlay|tmpfs|squashfs|nsfs|autofs|ramfs|fuse\\..*)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__", "mountpoint"]
+    regex         = "node_filesystem_.*;(/var/lib/docker/.+|/run/.+|/snap/.+)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__"]
+    regex         = "container_(tasks_state|sockets|threads_max)"
+    action        = "drop"
+  }
+  rule {
+    source_labels = ["__name__"]
+    regex         = "container_blkio_.*"
+    action        = "drop"
+  }
+  // Drop all container_fs_* except usage_bytes and limit_bytes. RE2 has no
+  // lookahead, so we enumerate the families to drop explicitly.
+  rule {
+    source_labels = ["__name__"]
+    regex         = "container_fs_(inodes_|io_|read|sector_|write)[a-z_]*"
+    action        = "drop"
+  }
+
+  // Scoped to container_* so we don't drop node_exporter/blackbox metrics
+  // which simply don't carry id/name labels.
+  rule {
+    source_labels = ["__name__", "id", "name"]
+    regex         = "container_.+;;"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__"]
+    regex         = "traefik_router_.*"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__"]
+    regex         = "go_(gc_.*|sched_.*|sync_.*|memstats_(mspan_.*|mcache_.*|buck_.*|other_.*|gc_.*|next_gc_.*|last_gc_.*))"
+    action        = "drop"
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // METRICS — static scrapes
 ////////////////////////////////////////////////////////////////////////////////
 
 prometheus.scrape "alloy_self" {
   targets         = [{"__address__" = "localhost:12345", "job" = "alloy", "host" = "jenkins"}]
-  forward_to      = [prometheus.remote_write.remote.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
 }
 
 prometheus.scrape "node_exporter" {
   targets         = [{"__address__" = "host.docker.internal:9100", "job" = "node_exporter", "host" = "jenkins"}]
-  forward_to      = [prometheus.remote_write.remote.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
 prometheus.scrape "cadvisor" {
   targets         = [{"__address__" = "cadvisor:8080", "job" = "cadvisor", "host" = "jenkins"}]
-  forward_to      = [prometheus.remote_write.remote.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
 prometheus.scrape "traefik" {
   targets         = [{"__address__" = "traefik:8082", "job" = "traefik", "host" = "jenkins"}]
-  forward_to      = [prometheus.remote_write.remote.receiver]
-  scrape_interval = "15s"
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
 }
 
 prometheus.scrape "jenkins" {
   targets         = [{"__address__" = "jenkins:8080", "job" = "jenkins", "host" = "jenkins"}]
-  forward_to      = [prometheus.remote_write.remote.receiver]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "30s"
   metrics_path    = "/prometheus"
   basic_auth {
@@ -130,8 +193,23 @@ prometheus.scrape "jenkins" {
 
 prometheus.remote_write "remote" {
   endpoint {
-    url = "{{ prom_push_url }}"
+    url          = "{{ prom_push_url }}"
     bearer_token = "{{ vault_observability_push_token }}"
+
+    queue_config {
+      capacity             = 2500
+      max_shards           = 5
+      min_shards           = 1
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+    }
+
+    metadata_config {
+      send = false
+    }
+
+    send_exemplars         = false
+    send_native_histograms = false
   }
   external_labels = {
     env = "prod",
@@ -140,7 +218,7 @@ prometheus.remote_write "remote" {
 
 loki.write "remote" {
   endpoint {
-    url = "{{ loki_push_url }}"
+    url          = "{{ loki_push_url }}"
     bearer_token = "{{ vault_observability_push_token }}"
   }
   external_labels = {

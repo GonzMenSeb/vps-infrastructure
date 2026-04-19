@@ -10,6 +10,11 @@ datasources:
     editable: false
     jsonData:
       timeInterval: 15s
+{% if enable_tracing %}
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+{% endif %}
 
   - name: Loki
     type: loki
@@ -19,3 +24,58 @@ datasources:
     editable: false
     jsonData:
       maxLines: 1000
+{% if enable_tracing %}
+      derivedFields:
+        # miplata-api (NestJS / Pino) emits JSON logs with trace_id as a string field.
+        - name: TraceID
+          datasourceUid: tempo
+          matcherRegex: '"trace_id"\s*:\s*"([a-f0-9]{32})"'
+          url: '${__value.raw}'
+          urlDisplayLabel: 'View in Tempo'
+        # categorizer (Python stdlib logging + LoggingInstrumentor) emits trace_id=...
+        - name: TraceIDPlain
+          datasourceUid: tempo
+          matcherRegex: 'trace_id=([a-f0-9]{32})'
+          url: '${__value.raw}'
+          urlDisplayLabel: 'View in Tempo'
+{% endif %}
+
+{% if enable_tracing %}
+  - name: Tempo
+    type: tempo
+    uid: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        tags:
+          - key: service.name
+            value: compose_service
+        filterByTraceID: true
+        filterBySpanID: false
+        customQuery: true
+        query: '{compose_service=~"miplata-api|categorizer-api"} |= "${__trace.traceId}"'
+      tracesToMetrics:
+        datasourceUid: prometheus
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        queries:
+          - name: 'Request rate'
+            query: 'sum(rate(traefik_service_requests_total[$__rate_interval]))'
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+      spanBar:
+        type: Duration
+{% endif %}
