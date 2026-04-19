@@ -89,3 +89,15 @@ groups:
         annotations:
           summary: "llama-server /health probe failing"
           description: "Internal probe to llama-server:8080/health has been failing for 5m."
+
+  - name: monitoring
+    interval: 30s
+    rules:
+      - alert: AlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Alertmanager is down"
+          description: "Alertmanager has been down for 10+ minutes. Alerts are still visible in the Prometheus UI but won't be routed externally. User has opted out of external alerting for now."

@@ -111,6 +111,12 @@ prometheus.scrape "cadvisor" {
   scrape_interval = "15s"
 }
 
+prometheus.scrape "alertmanager" {
+  targets         = [{"__address__" = "alertmanager:9093", "job" = "alertmanager", "host" = "vps"}]
+  forward_to      = [prometheus.remote_write.local.receiver]
+  scrape_interval = "30s"
+}
+
 prometheus.scrape "traefik" {
   targets         = [{"__address__" = "traefik:8082", "job" = "traefik", "host" = "vps"}]
   forward_to      = [prometheus.remote_write.local.receiver]

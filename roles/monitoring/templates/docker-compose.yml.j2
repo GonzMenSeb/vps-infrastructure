@@ -134,6 +134,10 @@ services:
       - ./blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     command: ["--config.file=/etc/blackbox_exporter/config.yml"]
 
+  # Alertmanager is deployed but deliberately NON-CRITICAL — user has opted
+  # out of external notification for now. Prometheus tolerates alertmanager
+  # downtime (just logs warnings); nothing else should hard-depend on it.
+  # A soft-severity `AlertmanagerDown` rule surfaces outages without paging.
   alertmanager:
     image: {{ alertmanager_image }}
     container_name: alertmanager
