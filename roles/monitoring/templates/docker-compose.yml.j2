@@ -32,7 +32,6 @@ services:
       - '--web.enable-lifecycle'
       - '--web.enable-remote-write-receiver'
       - '--enable-feature=exemplar-storage'
-      - '--storage.exemplars.exemplars-limit=100000'
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
