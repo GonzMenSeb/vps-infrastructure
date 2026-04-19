@@ -57,6 +57,39 @@
   ufw:
     state: enabled
 
+# journald — cap disk usage and rotation so Alloy's journal reader and the
+# textfile collector target directory stay bounded.
+- name: Ensure journald drop-in directory exists
+  file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install journald observability drop-in
+  copy:
+    src: journald-observability.conf
+    dest: /etc/systemd/journald.conf.d/observability.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart journald
+
+# node_exporter textfile collector target directory. The collector flag is set
+# in roles/monitoring/files/node_exporter.service (and the agent mirror on
+# Jenkins); this just ensures the scrape directory exists with correct perms.
+- name: Ensure node_exporter textfile directory exists
+  file:
+    path: /var/lib/node_exporter/textfile
+    state: directory
+    owner: node_exporter
+    group: node_exporter
+    mode: "0755"
+  # node_exporter user is created later by the monitoring/observability_agent
+  # role; this block is idempotent and the owner is set on first run post-user.
+  ignore_errors: true
+
 # fail2ban
 - name: Configure fail2ban
   template:
