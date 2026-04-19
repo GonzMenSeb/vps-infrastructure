@@ -28,7 +28,7 @@ ufw_allowed_ports:
   - { port: 443, proto: tcp, comment: "HTTPS" }
 
 # Traefik
-traefik_version: "v3.4"
+traefik_version: "v3.6.13"
 traefik_dashboard_host: "traefik.{{ web_subdomain }}"
 traefik_dashboard_auth: "admin:$$2y$$05$$pvEIRx9O8AZhW2Cr6OFufeuwF09Y0xe3VArKdxPeWESSmGnPYCrAq"
 
@@ -46,13 +46,13 @@ vaultwarden_host: "vault.{{ web_subdomain }}"
 # Monitoring
 prometheus_image: "prom/prometheus:v3.11.2"
 grafana_image: "grafana/grafana:12.4.3"
-loki_image: "grafana/loki:3.6.10"
+loki_image: "grafana/loki:3.7.1"
 alloy_image: "grafana/alloy:v1.15.1"
-cadvisor_image: "ghcr.io/google/cadvisor:v0.53.0"
-postgres_exporter_image: "prometheuscommunity/postgres-exporter:v0.15.0"
-redis_exporter_image: "oliver006/redis_exporter:v1.62.0"
-blackbox_exporter_image: "prom/blackbox-exporter:v0.26.0"
-alertmanager_image: "prom/alertmanager:v0.28.1"
+cadvisor_image: "ghcr.io/google/cadvisor:0.56.2"
+postgres_exporter_image: "prometheuscommunity/postgres-exporter:v0.19.1"
+redis_exporter_image: "oliver006/redis_exporter:v1.82.0"
+blackbox_exporter_image: "prom/blackbox-exporter:v0.28.0"
+alertmanager_image: "prom/alertmanager:v0.32.0"
 prometheus_retention: "30d"
 loki_retention: "336h"  # 14 days
 
@@ -68,7 +68,7 @@ prom_push_url: "https://{{ prom_push_host }}/api/v1/write"
 
 # Jenkins
 jenkins_host: "jenkins.{{ web_subdomain }}"
-jenkins_image: "jenkins/jenkins:lts-jdk17"
+jenkins_image: "jenkins/jenkins:lts-jdk21"
 github_repo_ssh_url: "git@github.com:GonzMenSeb/vps-infrastructure.git"
 
 # Zot registry (self-hosted OCI registry)
@@ -83,7 +83,7 @@ miplata_web_image: "{{ zot_host }}/miplata/web:latest"
 miplata_repo_ssh_url: "git@github.com:GonzMenSeb/miplata.git"
 
 # Metabase
-metabase_image: "metabase/metabase:v0.59.6"
+metabase_image: "metabase/metabase:v0.60.1"
 metabase_postgres_image: "postgres:16-alpine"
 metabase_host: "metabase.{{ web_subdomain }}"
 
