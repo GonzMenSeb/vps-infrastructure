@@ -178,7 +178,7 @@ prometheus.scrape "blackbox_probes" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ grafana_host }}/api/health",   "instance" = "grafana",           "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ zot_host }}/v2/",              "instance" = "zot-registry",      "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ traefik_dashboard_host }}",    "instance" = "traefik-dashboard", "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ jenkins_host }}",              "instance" = "jenkins",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ jenkins_host }}/login",        "instance" = "jenkins",           "job" = "blackbox"},
   ]
   forward_to      = [prometheus.remote_write.local.receiver]
   scrape_interval = "30s"
