@@ -150,10 +150,12 @@ prometheus.relabel "drop_noise" {
     action        = "drop"
   }
 
-  // cAdvisor root-cgroup rollups (empty id AND empty name).
+  // cAdvisor root-cgroup rollups (empty id AND empty name). Scoped to
+  // container_* metrics so we don't accidentally drop node_exporter / blackbox
+  // metrics which simply don't carry id/name labels.
   rule {
-    source_labels = ["id", "name"]
-    regex         = ";"
+    source_labels = ["__name__", "id", "name"]
+    regex         = "container_.+;;"
     action        = "drop"
   }
 
