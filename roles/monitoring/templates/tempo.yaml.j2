@@ -1,0 +1,65 @@
+# Tempo 2.10.x — single-binary, local filesystem, OTLP-only.
+# Receives traces from Alloy's otelcol.exporter.otlp.tempo; serves Grafana
+# via HTTP on :3200. No Traefik ingress — tracing is not a public endpoint.
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+  log_level: info
+
+# Monolithic mode: distributor + ingester + querier + compactor in one process.
+# No metrics_generator — miplata-api and categorizer-api emit their own
+# Prometheus histograms, so span-metrics regeneration would just double the cost.
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  lifecycler:
+    ring:
+      replication_factor: 1
+      kvstore:
+        store: inmemory
+  trace_idle_period: 10s
+  max_block_duration: 30m
+  max_block_bytes: 104857600   # 100 MiB per block
+
+compactor:
+  compaction:
+    block_retention: {{ tempo_retention }}
+    compacted_block_retention: 1h
+    compaction_window: 1h
+    max_compaction_objects: 1000000
+    retention_concurrency: 2
+    v2_in_buffer_bytes: 5242880
+    v2_out_buffer_bytes: 20971520
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+    pool:
+      max_workers: 10
+      queue_depth: 1000
+    blocklist_poll: 5m
+
+# Ingestion caps — protect disk against runaway loops (e.g. a test firing
+# thousands of traced requests). In normal personal-use traffic we're FAR
+# below these; they're a safety net, not an operating constraint.
+overrides:
+  defaults:
+    ingestion:
+      rate_limit_bytes: 15000000
+      burst_size_bytes: 20000000
+    global:
+      max_bytes_per_trace: 5000000

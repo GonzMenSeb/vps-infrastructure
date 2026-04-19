@@ -59,6 +59,14 @@
     mode: "0644"
   notify: restart monitoring
 
+- name: Copy Tempo config
+  when: enable_tracing | default(false)
+  template:
+    src: tempo.yaml.j2
+    dest: "{{ monitoring_dir }}/tempo.yaml"
+    mode: "0644"
+  notify: restart monitoring
+
 - name: Copy Alertmanager config
   template:
     src: alertmanager.yml.j2
