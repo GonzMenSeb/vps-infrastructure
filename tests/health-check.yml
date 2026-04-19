@@ -201,6 +201,15 @@
       delegate_to: localhost
       become: false
 
+    - name: Verify Prometheus UI responds
+      uri:
+        url: "https://{{ prometheus_ui_host }}"
+        status_code: [200, 401]
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+
     - name: Verify PowerDNS Admin responds
       uri:
         url: "https://{{ pdns_admin_host }}"

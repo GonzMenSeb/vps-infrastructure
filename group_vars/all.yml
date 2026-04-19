@@ -59,6 +59,7 @@ loki_retention: "336h"  # 14 days
 grafana_host: "grafana.{{ web_subdomain }}"
 loki_push_host: "loki-push.{{ web_subdomain }}"
 prom_push_host: "prom-push.{{ web_subdomain }}"
+prometheus_ui_host: "prometheus.{{ web_subdomain }}"
 grafana_github_admin_login: "GonzMenSeb"
 observability_network: "observability"
 observability_agent_dir: /opt/observability
