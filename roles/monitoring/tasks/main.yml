@@ -104,6 +104,15 @@
     state: present
     pull: missing
 
+- name: Ensure DNS A record for Prometheus UI
+  command: >
+    docker exec pdns pdnsutil replace-rrset
+    {{ web_subdomain }}
+    prometheus
+    A 3600 {{ vps_public_ip }}
+  register: prometheus_ui_dns
+  changed_when: "'New rrset' in prometheus_ui_dns.stdout or 'Current rrset' in prometheus_ui_dns.stdout"
+
 - name: Wait for Alloy readiness
   uri:
     url: http://127.0.0.1:12345/-/ready
