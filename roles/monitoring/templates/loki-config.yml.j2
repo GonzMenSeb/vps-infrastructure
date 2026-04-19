@@ -30,13 +30,28 @@ limits_config:
   retention_period: {{ loki_retention }}
   allow_structured_metadata: true
   max_query_series: 2000
+  # Ingestion rate caps — sized for a single-VPS ~30-container fleet. Raise if
+  # bulk-ingesting logs (e.g. replaying a backup) and then return to defaults.
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+  per_stream_rate_limit: 3MB
+  per_stream_rate_limit_burst: 10MB
+  max_global_streams_per_user: 5000
+  max_entries_limit_per_query: 10000
+  max_query_length: 721h
+  max_query_parallelism: 8
+  cardinality_limit: 100000
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  split_queries_by_interval: 15m
 
 compactor:
   working_directory: /loki/compactor
   retention_enabled: true
   retention_delete_delay: 2h
-  retention_delete_worker_count: 150
+  retention_delete_worker_count: 50
   delete_request_store: filesystem
+  compaction_interval: 10m
 
 analytics:
   reporting_enabled: false
