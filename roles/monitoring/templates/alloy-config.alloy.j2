@@ -267,6 +267,14 @@ prometheus.scrape "process_exporter" {
   scrape_interval = "30s"
 }
 
+{% if enable_tracing %}
+prometheus.scrape "tempo" {
+  targets         = [{"__address__" = "tempo:3200", "job" = "tempo", "host" = "vps"}]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
+}
+{% endif %}
+
 ////////////////////////////////////////////////////////////////////////////////
 // METRICS — blackbox probes (public endpoints)
 ////////////////////////////////////////////////////////////////////////////////
