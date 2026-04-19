@@ -72,7 +72,7 @@ jenkins_image: "jenkins/jenkins:lts-jdk17"
 github_repo_ssh_url: "git@github.com:GonzMenSeb/vps-infrastructure.git"
 
 # Zot registry (self-hosted OCI registry)
-zot_host: "registry.{{ web_subdomain }}"
+zot_host: "zot.{{ web_subdomain }}"
 zot_registry_user: "ci"
 
 # Miplata
