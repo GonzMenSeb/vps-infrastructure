@@ -101,3 +101,188 @@ groups:
         annotations:
           summary: "Alertmanager is down"
           description: "Alertmanager has been down for 10+ minutes. Alerts are still visible in the Prometheus UI but won't be routed externally. User has opted out of external alerting for now."
+
+  - name: host
+    interval: 30s
+    rules:
+      - alert: HostCPUHigh
+        expr: 100 - avg by (host) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host {{ '{{' }} $labels.host {{ '}}' }} CPU > 90%"
+          description: "CPU utilization above 90% sustained for 10 minutes."
+
+      - alert: HostMemoryHigh
+        expr: 100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host {{ '{{' }} $labels.host {{ '}}' }} memory > 90%"
+          description: "Memory utilization > 90% sustained for 10 minutes."
+
+      - alert: HostSwapping
+        expr: rate(node_vmstat_pswpin[5m]) * 4096 > 10485760
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host {{ '{{' }} $labels.host {{ '}}' }} swap-in > 10 MB/s"
+          description: "Sustained swap-in rate indicates memory pressure even before RSS hits 90%."
+
+      - alert: HostLoadHigh
+        expr: node_load5 / on(host) count by (host) (node_cpu_seconds_total{mode="idle"}) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Host {{ '{{' }} $labels.host {{ '}}' }} load-per-core > 2"
+          description: "5-minute load average is more than 2x core count; run queue is saturated."
+
+  - name: disk
+    interval: 30s
+    rules:
+      - alert: DiskFillingSoon
+        expr: |
+          predict_linear(
+            node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs|autofs|ramfs|fuse.*"}[6h],
+            7 * 86400
+          ) < 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk on {{ '{{' }} $labels.host {{ '}}' }}:{{ '{{' }} $labels.mountpoint {{ '}}' }} will fill within 7 days"
+          description: "Linear extrapolation of the 6-hour trend predicts exhaustion inside a week."
+
+      - alert: DiskAlmostFull
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs|autofs|ramfs|fuse.*"}
+          /
+          node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs|autofs|ramfs|fuse.*"}
+          < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk on {{ '{{' }} $labels.host {{ '}}' }}:{{ '{{' }} $labels.mountpoint {{ '}}' }} < 15% free"
+          description: "Free space below 15% for 10+ minutes."
+
+      - alert: DiskCritical
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs|autofs|ramfs|fuse.*"}
+          /
+          node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs|autofs|ramfs|fuse.*"}
+          < 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk on {{ '{{' }} $labels.host {{ '}}' }}:{{ '{{' }} $labels.mountpoint {{ '}}' }} < 5% free"
+          description: "Imminent disk-full; free space below 5%."
+
+  - name: containers
+    interval: 30s
+    rules:
+      - alert: ContainerRestartLoop
+        expr: changes(container_start_time_seconds{name!=""}[1h]) > 5
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ '{{' }} $labels.name {{ '}}' }} is crash-looping"
+          description: "More than 5 restarts in the last hour."
+
+      - alert: ContainerOOMKilled
+        expr: increase(container_oom_events_total{name!=""}[5m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container {{ '{{' }} $labels.name {{ '}}' }} was OOM-killed"
+          description: "Kernel OOM-killed this container in the last 5 minutes."
+
+  - name: ingress
+    interval: 30s
+    rules:
+      - alert: Traefik5xxRate
+        expr: |
+          sum by (service) (rate(traefik_service_requests_total{code=~"5.."}[5m]))
+          /
+          clamp_min(sum by (service) (rate(traefik_service_requests_total[5m])), 0.001)
+          > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service {{ '{{' }} $labels.service {{ '}}' }} 5xx rate > 1%"
+          description: "Backend error rate exceeds 1% for 5 minutes."
+
+  - name: tls
+    interval: 5m
+    rules:
+      - alert: TLSCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 14
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "TLS cert on {{ '{{' }} $labels.instance {{ '}}' }} expires in < 14 days"
+          description: "Let's Encrypt usually renews at 30 days; < 14 means renewal is broken."
+
+      - alert: TLSCertExpiringCritical
+        expr: probe_ssl_earliest_cert_expiry - time() < 86400 * 3
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "TLS cert on {{ '{{' }} $labels.instance {{ '}}' }} expires in < 3 days"
+          description: "Cert is about to expire. Investigate certbot / Traefik ACME immediately."
+
+  - name: pipeline_self
+    interval: 1m
+    rules:
+      - alert: PrometheusSamplesDropped
+        expr: rate(prometheus_remote_storage_samples_dropped_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus is dropping remote-write samples"
+          description: "Samples are being dropped downstream."
+
+      - alert: PrometheusTSDBCardinalityHigh
+        expr: prometheus_tsdb_head_series > 80000
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "TSDB head series > 80k"
+          description: "Cardinality creep — inspect top-N jobs by series count."
+
+      - alert: PrometheusCompactionFailed
+        expr: increase(prometheus_tsdb_compactions_failed_total[1h]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus TSDB compaction failed"
+          description: "Storage integrity at risk; investigate immediately."
+
+      - alert: LokiCompactorStuck
+        expr: loki_compactor_oldest_pending_delete_request_age_seconds > 14400
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Loki compactor has pending deletes older than 4h"
+          description: "Retention is falling behind; disk will grow past target."
+
+      - alert: AlloyHighMemory
+        expr: alloy_resources_process_resident_memory_bytes > 500 * 1024 * 1024
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alloy RSS > 500 MB on {{ '{{' }} $labels.host {{ '}}' }}"
+          description: "Alloy is above its GOMEMLIMIT soft target. Check remote_write WAL and Docker SD churn."
