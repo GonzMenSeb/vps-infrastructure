@@ -7,6 +7,7 @@ acme_email: "{{ vault_acme_email }}"
 docker_networks:
   - proxy
   - miplata_db
+  - categorizer_net
 
 # SSH
 ssh_allowed_users: ubuntu
@@ -83,3 +84,15 @@ miplata_repo_ssh_url: "git@github.com:GonzMenSeb/miplata.git"
 metabase_image: "metabase/metabase:v0.59.6"
 metabase_postgres_image: "postgres:16-alpine"
 metabase_host: "metabase.{{ web_subdomain }}"
+
+# LLM inference (self-hosted Qwen3-4B via llama.cpp's llama-server).
+# TODO: verify this tag resolves against ghcr.io/ggml-org/llama.cpp before first deploy.
+llm_inference_image: "ghcr.io/ggml-org/llama.cpp:server"
+
+# Transaction categorizer (Colombian-Spanish cascade).
+# Self-hosted, no Claude fallback in production (per user policy).
+# Image is built by Jenkins job `categorizer-deploy` and pushed to Zot.
+categorizer_host: "categorizer.{{ web_subdomain }}"
+categorizer_image: "{{ zot_host }}/miplata/categorizer:latest"
+categorizer_postgres_image: "pgvector/pgvector:pg16"
+categorizer_repo_ssh_url: "git@github.com:GonzMenSeb/miplata-categorizer.git"

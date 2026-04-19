@@ -1,0 +1,33 @@
+networks:
+  categorizer_net:
+    external: true
+
+services:
+  llama-server:
+    # TODO: pin to a concrete tag once verified against the current ggml-org build.
+    # Override via group_vars (llm_inference_image).
+    image: {{ llm_inference_image }}
+    container_name: llama-server
+    restart: unless-stopped
+    networks: [categorizer_net]
+    env_file: .env
+    # --temp has no LLAMA_ARG_* env var so it goes here; --no-slots + --no-webui
+    # complement LLAMA_ARG_ENDPOINT_SLOTS=0 as belt-and-suspenders.
+    command:
+      - --temp
+      - "{{ llm_inference_temp }}"
+      - --top-k
+      - "{{ llm_inference_top_k }}"
+      - --seed
+      - "{{ llm_inference_seed }}"
+      - --no-webui
+    volumes:
+      - {{ llm_inference_models_dir }}:/models:ro
+    mem_limit: {{ llm_inference_mem_limit }}
+    cpuset: "{{ llm_inference_cpuset }}"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:{{ llm_inference_port }}/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s

@@ -1,0 +1,25 @@
+---
+llm_inference_dir: /opt/llm_inference
+llm_inference_models_dir: "{{ llm_inference_dir }}/models"
+
+# The GGUF filename that must exist inside {{ llm_inference_models_dir }}.
+# The operator copies the file in by hand (or via Jenkins) before the stack comes up.
+# Default is the Qwen3-4B-Instruct-2507 Q5_K_M build from unsloth/bartowski.
+llm_inference_model_file: "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+llm_inference_model_id: "qwen3-4b-instruct-2507"   # short id returned by the OpenAI-compat /v1/models
+
+# llama-server sampler + runtime defaults. These end up as env vars; see env.j2.
+llm_inference_ctx_size: 4096  # total across slots; with N_PARALLEL=2 each slot gets 2048 (prompt ~1.2k after tool schemas)
+llm_inference_threads: 5          # per §3 of research: 5 threads saturates DDR4 dual-channel on this CPU
+llm_inference_threads_batch: 6
+llm_inference_parallel_slots: 2
+llm_inference_temp: "0.0"
+llm_inference_top_k: 1
+llm_inference_seed: 42
+
+# Container resource limits (OVH Haswell 11 GB / 6 vCPU: leave headroom for miplata + monitoring).
+llm_inference_mem_limit: "4g"
+llm_inference_cpuset: "0-4"       # pin to 5 cores; leave core 5 for the rest of the host
+
+# Port the container listens on internally. Standard llama-server default.
+llm_inference_port: 8080

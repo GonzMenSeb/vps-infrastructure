@@ -31,6 +31,10 @@ vault_jenkins_miplata_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   (GitHub deploy key for the miplata repo)
   -----END OPENSSH PRIVATE KEY-----
+vault_jenkins_categorizer_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  (GitHub deploy key for the miplata-categorizer repo)
+  -----END OPENSSH PRIVATE KEY-----
 vault_jenkins_vps_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   (VPS deploy key private key)
@@ -54,6 +58,10 @@ vault_zot_htpasswd_hash: "CHANGE_ME_$2b$10$..."
 vault_metabase_db_password: "CHANGE_ME"
 vault_miplata_ro_password: "CHANGE_ME"
 vault_metabase_admin_password: "CHANGE_ME"
+
+# Categorizer (Colombian-Spanish tx categorization cascade)
+vault_categorizer_db_password: "CHANGE_ME"
+vault_categorizer_api_token: "CHANGE_ME_32_BYTE_HEX"  # used by Traefik bearer middleware
 
 # Identifying info (hidden in encrypted vault instead of plaintext repo files)
 vault_main_vps_ip: "CHANGE_ME"      # e.g. 203.0.113.10

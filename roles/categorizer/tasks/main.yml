@@ -1,0 +1,77 @@
+---
+- name: Create categorizer directory
+  file:
+    path: "{{ categorizer_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create categorizer artifact directory (model + taxonomy cache, merchant dict, FAISS fallback)
+  file:
+    path: "{{ categorizer_dir }}/artifacts"
+    state: directory
+    mode: "0755"
+    owner: "{{ categorizer_container_uid }}"
+    group: "{{ categorizer_container_gid }}"
+
+- name: Create categorizer .env file
+  template:
+    src: env.j2
+    dest: "{{ categorizer_dir }}/.env"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0640"
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ categorizer_dir }}/docker-compose.yml"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0644"
+
+- name: Ensure DNS A record for categorizer
+  command: >
+    docker exec pdns pdnsutil replace-rrset
+    {{ web_subdomain }}
+    categorizer
+    A 3600 {{ vps_public_ip }}
+  register: categorizer_dns
+  changed_when: "'New rrset' in categorizer_dns.stdout or 'Current rrset' in categorizer_dns.stdout"
+
+# Bootstrap-tolerant pull: the categorizer app image is built by Jenkins and
+# pushed to Zot; on a fresh VPS it doesn't exist yet. Same pattern as miplata.
+- name: Pull categorizer images (tolerant of empty registry on first bootstrap)
+  command: docker compose pull
+  args:
+    chdir: "{{ categorizer_dir }}"
+  register: categorizer_pull
+  failed_when: false
+  changed_when: "'Pulled' in categorizer_pull.stdout"
+
+- name: Start categorizer stack (only if images were pulled successfully)
+  community.docker.docker_compose_v2:
+    project_src: "{{ categorizer_dir }}"
+    state: present
+    pull: never
+  when: categorizer_pull.rc == 0
+
+- name: Warn when categorizer images are not yet in the registry
+  debug:
+    msg: >
+      Categorizer images not yet available in {{ zot_host }} — skipping `up`.
+      Trigger the `categorizer-deploy` Jenkins job so Jenkins builds and pushes them,
+      then re-run this playbook (or let Jenkins do the subsequent SSH deploy).
+  when: categorizer_pull.rc != 0
+
+- name: Enable pgvector extension (only if stack is up)
+  shell: |
+    docker exec -i categorizer-postgres psql -v ON_ERROR_STOP=1 \
+      -U {{ categorizer_db_user }} -d {{ categorizer_db_name }} <<'SQL'
+    CREATE EXTENSION IF NOT EXISTS vector;
+    SQL
+  register: pgvector_enable
+  until: pgvector_enable.rc == 0
+  retries: 5
+  delay: 3
+  changed_when: false
+  when: categorizer_pull.rc == 0

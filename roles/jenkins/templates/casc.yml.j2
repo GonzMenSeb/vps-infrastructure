@@ -35,6 +35,15 @@ credentials:
                     {{ vault_jenkins_miplata_ssh_key | indent(20) }}
           - basicSSHUserPrivateKey:
               scope: GLOBAL
+              id: "github-categorizer-ssh-key"
+              username: "git"
+              description: "GitHub deploy key (miplata-categorizer)"
+              privateKeySource:
+                directEntry:
+                  privateKey: |
+                    {{ vault_jenkins_categorizer_ssh_key | indent(20) }}
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
               id: "vps-ssh-key"
               username: "ubuntu"
               description: "VPS deploy key"
@@ -91,6 +100,30 @@ jobs:
                   credentials('github-miplata-ssh-key')
                 }
                 branches('*/master')
+              }
+            }
+            scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  - script: |
+      pipelineJob('categorizer-deploy') {
+        description('Build miplata-categorizer, push to self-hosted Zot registry, deploy + migrate on VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ categorizer_repo_ssh_url }}')
+                  credentials('github-categorizer-ssh-key')
+                }
+                branches('*/main')
               }
             }
             scriptPath('infra/jenkins/Jenkinsfile')
