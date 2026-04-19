@@ -10,6 +10,7 @@ volumes:
   grafana_data:
   loki_data:
   alloy_data:
+  alertmanager_data:
 
 services:
   prometheus:
@@ -132,3 +133,15 @@ services:
     volumes:
       - ./blackbox.yml:/etc/blackbox_exporter/config.yml:ro
     command: ["--config.file=/etc/blackbox_exporter/config.yml"]
+
+  alertmanager:
+    image: {{ alertmanager_image }}
+    container_name: alertmanager
+    restart: unless-stopped
+    networks: [{{ observability_network }}]
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'

@@ -19,6 +19,9 @@ vault_observability_push_token: "CHANGE_ME_32_BYTE_HEX"
 vault_grafana_oauth_client_id: "CHANGE_ME_GITHUB_OAUTH_CLIENT_ID"
 vault_grafana_oauth_client_secret: "CHANGE_ME_GITHUB_OAUTH_CLIENT_SECRET"
 vault_grafana_secret_key: "CHANGE_ME_32_BYTE_HEX"
+# Alertmanager: leave empty to keep the default/null receiver only.
+# Set to a Slack incoming-webhook URL to enable Slack routing for critical alerts.
+vault_alertmanager_slack_webhook: ""
 
 # Jenkins
 vault_jenkins_admin_password: "CHANGE_ME"

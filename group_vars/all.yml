@@ -52,6 +52,7 @@ cadvisor_image: "ghcr.io/google/cadvisor:v0.53.0"
 postgres_exporter_image: "prometheuscommunity/postgres-exporter:v0.15.0"
 redis_exporter_image: "oliver006/redis_exporter:v1.62.0"
 blackbox_exporter_image: "prom/blackbox-exporter:v0.26.0"
+alertmanager_image: "prom/alertmanager:v0.28.1"
 prometheus_retention: "30d"
 loki_retention: "336h"  # 14 days
 

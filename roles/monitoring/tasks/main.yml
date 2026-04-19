@@ -52,6 +52,13 @@
     mode: "0644"
   notify: restart monitoring
 
+- name: Copy Alertmanager config
+  template:
+    src: alertmanager.yml.j2
+    dest: "{{ monitoring_dir }}/alertmanager.yml"
+    mode: "0640"
+  notify: restart monitoring
+
 - name: Copy Grafana config
   template:
     src: grafana.ini.j2
