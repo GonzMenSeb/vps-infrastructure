@@ -64,7 +64,7 @@ tempo_retention: "168h"       # 7 days
 tempo_max_block_bytes: 500000000
 
 # Extra observability exporters
-process_exporter_image: "ncabatoff/process-exporter:0.8.5"
+process_exporter_image: "ncabatoff/process-exporter:0.8.7"
 
 grafana_host: "grafana.{{ web_subdomain }}"
 loki_push_host: "loki-push.{{ web_subdomain }}"
