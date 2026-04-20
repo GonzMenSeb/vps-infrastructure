@@ -279,10 +279,10 @@ groups:
           description: "Retention is falling behind; disk will grow past target."
 
       - alert: AlloyHighMemory
-        expr: alloy_resources_process_resident_memory_bytes > 500 * 1024 * 1024
+        expr: alloy_resources_process_resident_memory_bytes > 600 * 1024 * 1024
         for: 30m
         labels:
           severity: warning
         annotations:
-          summary: "Alloy RSS > 500 MB on {{ '{{' }} $labels.host {{ '}}' }}"
-          description: "Alloy is above its GOMEMLIMIT soft target. Check remote_write WAL and Docker SD churn."
+          summary: "Alloy RSS > 600 MB on {{ '{{' }} $labels.host {{ '}}' }}"
+          description: "Alloy is above its GOMEMLIMIT soft target (560 MiB) with 40 MB headroom gone. Check remote_write WAL, Docker SD churn, and OTel tail_sampling buffer (num_traces * avg_trace_size)."

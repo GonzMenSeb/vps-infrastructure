@@ -365,9 +365,13 @@ otelcol.processor.batch "traces" {
 
 // Tail sampling: policies OR together. Any match keeps the trace.
 // The 1% probabilistic baseline runs last as the default-drop fallthrough.
+// Buffers are sized for current traffic (near-zero until app-side OTel PRs
+// land) plus headroom for initial ramp. Previous `num_traces=5000` reserved
+// ~200MB of Go heap for an empty pipeline — raise back to 5000 once actual
+// span rate justifies it (check otelcol_processor_tail_sampling_new_trace_id_received_total).
 otelcol.processor.tail_sampling "policy" {
-  decision_wait               = "10s"
-  num_traces                  = 5000
+  decision_wait               = "5s"
+  num_traces                  = 500
   expected_new_traces_per_sec = 5
 
   policy {
