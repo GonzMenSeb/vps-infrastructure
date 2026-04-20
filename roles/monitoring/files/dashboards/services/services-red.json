@@ -1,18 +1,48 @@
 {
   "uid": "services-red",
-  "title": "Services — RED",
-  "tags": ["services", "red"],
+  "title": "Services \u2014 RED",
+  "tags": [
+    "services",
+    "red"
+  ],
   "schemaVersion": 39,
   "version": 1,
-  "time": { "from": "now-6h", "to": "now" },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
   "refresh": "1m",
   "graphTooltip": 1,
   "timezone": "browser",
   "links": [
-    { "title": "Home", "type": "link", "url": "/d/home/home", "icon": "home", "targetBlank": false },
-    { "title": "Fleet", "type": "link", "url": "/d/fleet-hosts/fleet-hosts", "icon": "dashboard", "targetBlank": false },
-    { "title": "Logs", "type": "link", "url": "/d/logs/logs", "icon": "dashboard", "targetBlank": false },
-    { "title": "Meta", "type": "link", "url": "/d/meta/meta", "icon": "dashboard", "targetBlank": false }
+    {
+      "title": "Home",
+      "type": "link",
+      "url": "/d/home/home",
+      "icon": "home",
+      "targetBlank": false
+    },
+    {
+      "title": "Fleet",
+      "type": "link",
+      "url": "/d/fleet-hosts/fleet-hosts",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Logs",
+      "type": "link",
+      "url": "/d/logs/logs",
+      "icon": "dashboard",
+      "targetBlank": false
+    },
+    {
+      "title": "Meta",
+      "type": "link",
+      "url": "/d/meta/meta",
+      "icon": "dashboard",
+      "targetBlank": false
+    }
   ],
   "templating": {
     "list": [
@@ -20,8 +50,14 @@
         "name": "service",
         "label": "Service",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
-        "query": { "query": "label_values(traefik_service_requests_total, service)", "refId": "A" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(traefik_service_requests_total, service)",
+          "refId": "A"
+        },
         "multi": false,
         "includeAll": false,
         "refresh": 2,
@@ -29,26 +65,44 @@
       }
     ]
   },
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "panels": [
     {
       "id": 1,
       "type": "row",
       "title": "Rate",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 2,
       "type": "stat",
       "title": "Request rate (req/s)",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum(rate(traefik_service_requests_total{service=~\"$service.*\"}[$__rate_interval]))"
         }
       ],
@@ -58,7 +112,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
@@ -69,19 +126,36 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "textMode": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
       "id": 3,
       "type": "timeseries",
       "title": "Requests by method + code",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 6,
+        "y": 1
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum by (method, code) (rate(traefik_service_requests_total{service=~\"$service.*\"}[$__rate_interval]))",
           "legendFormat": "{{method}} {{code}}"
         }
@@ -93,14 +167,24 @@
             "drawStyle": "line",
             "lineInterpolation": "linear",
             "fillOpacity": 30,
-            "stacking": { "mode": "normal", "group": "A" }
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
           }
         },
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
@@ -108,19 +192,35 @@
       "type": "row",
       "title": "Errors",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "panels": []
     },
     {
       "id": 5,
       "type": "stat",
       "title": "4xx rate",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 10 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 10
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum(rate(traefik_service_requests_total{service=~\"$service.*\",code=~\"4..\"}[$__rate_interval]))"
         }
       ],
@@ -130,9 +230,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.1 },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.1
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
           }
         },
@@ -143,19 +252,36 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "textMode": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
       "id": 6,
       "type": "stat",
       "title": "5xx rate",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 10 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 10
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum(rate(traefik_service_requests_total{service=~\"$service.*\",code=~\"5..\"}[$__rate_interval]))"
         }
       ],
@@ -165,9 +291,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.01 },
-              { "color": "red", "value": 0.1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.1
+              }
             ]
           }
         },
@@ -178,25 +313,45 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "textMode": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
       "id": 7,
       "type": "timeseries",
       "title": "Error rate over time",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum(rate(traefik_service_requests_total{service=~\"$service.*\",code=~\"4..\"}[$__rate_interval]))",
           "legendFormat": "4xx"
         },
         {
           "refId": "B",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum(rate(traefik_service_requests_total{service=~\"$service.*\",code=~\"5..\"}[$__rate_interval]))",
           "legendFormat": "5xx"
         }
@@ -213,20 +368,38 @@
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 8,
       "type": "stat",
-      "title": "Errors — log rate (Loki)",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 4, "w": 12, "x": 0, "y": 14 },
+      "title": "Errors \u2014 log rate (Loki)",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "loki", "uid": "loki" },
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
           "expr": "sum(rate({compose_service=~\"$service.*\"} |~ \"(?i)(error|fatal|panic|exception)\" [$__rate_interval]))"
         }
       ],
@@ -236,9 +409,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         },
@@ -249,7 +431,13 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "textMode": "auto",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
       }
     },
     {
@@ -257,31 +445,53 @@
       "type": "row",
       "title": "Duration",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
       "panels": []
     },
     {
       "id": 10,
       "type": "timeseries",
       "title": "p50/p95/p99 (s)",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 19
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "histogram_quantile(0.5, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\"$service.*\"}[$__rate_interval])))",
           "legendFormat": "p50"
         },
         {
           "refId": "B",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\"$service.*\"}[$__rate_interval])))",
           "legendFormat": "p95"
         },
         {
           "refId": "C",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "histogram_quantile(0.99, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\"$service.*\"}[$__rate_interval])))",
           "legendFormat": "p99"
         }
@@ -298,20 +508,38 @@
         "overrides": []
       },
       "options": {
-        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "multi", "sort": "desc" }
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       }
     },
     {
       "id": 11,
       "type": "heatmap",
       "title": "Latency heatmap",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 19
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\"$service.*\"}[$__rate_interval]))",
           "format": "heatmap",
           "legendFormat": "{{le}}"
@@ -322,17 +550,30 @@
         "calculate": false,
         "cellGap": 1,
         "color": {
-          "scheme": "Spectral",
           "mode": "scheme",
+          "scheme": "Oranges",
+          "reverse": false,
+          "steps": 128,
           "exponent": 0.5,
-          "steps": 64,
-          "reverse": true
+          "min": 0
         },
-        "exemplars": { "color": "rgba(255,0,255,0.7)" },
-        "filterValues": { "le": 1e-9 },
-        "legend": { "show": true },
-        "rowsFrame": { "layout": "auto" },
-        "tooltip": { "mode": "single", "yHistogram": false, "showColorScale": false },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
+        "legend": {
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
+        },
+        "tooltip": {
+          "mode": "single",
+          "yHistogram": false,
+          "showColorScale": false
+        },
         "yAxis": {
           "axisPlacement": "left",
           "reverse": false,
@@ -340,12 +581,20 @@
           "format": "s"
         }
       },
-      "yAxis": { "format": "s" },
+      "yAxis": {
+        "format": "s"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "scaleDistribution": { "type": "linear" },
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false }
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
           }
         },
         "overrides": []
@@ -355,12 +604,23 @@
       "id": 12,
       "type": "table",
       "title": "Top-5 slowest routes",
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 27 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "topk(5, histogram_quantile(0.95, sum by (le, method, handler) (rate(traefik_service_request_duration_seconds_bucket{service=~\"$service.*\"}[$__rate_interval]))))",
           "format": "table",
           "instant": true,
@@ -371,9 +631,18 @@
         {
           "id": "organize",
           "options": {
-            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true },
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "job": true,
+              "instance": true
+            },
             "indexByName": {},
-            "renameByName": { "Value": "p95 (s)", "method": "method", "handler": "handler" }
+            "renameByName": {
+              "Value": "p95 (s)",
+              "method": "method",
+              "handler": "handler"
+            }
           }
         }
       ],
@@ -387,17 +656,31 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "p95 (s)" },
+            "matcher": {
+              "id": "byName",
+              "options": "p95 (s)"
+            },
             "properties": [
-              { "id": "unit", "value": "s" },
-              { "id": "custom.displayMode", "value": "gradient-gauge" }
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.displayMode",
+                "value": "gradient-gauge"
+              }
             ]
           }
         ]
       },
       "options": {
         "showHeader": true,
-        "sortBy": [{ "displayName": "p95 (s)", "desc": true }]
+        "sortBy": [
+          {
+            "displayName": "p95 (s)",
+            "desc": true
+          }
+        ]
       }
     },
     {
@@ -405,19 +688,35 @@
       "type": "row",
       "title": "Scoped logs & traces",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
       "panels": []
     },
     {
       "id": 14,
       "type": "logs",
       "title": "Logs",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 10, "w": 18, "x": 0, "y": 36 },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 18,
+        "x": 0,
+        "y": 36
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "loki", "uid": "loki" },
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
           "expr": "{compose_service=~\"$service.*\"} | logfmt"
         }
       ],
@@ -443,10 +742,15 @@
       "id": 15,
       "type": "text",
       "title": "Traces",
-      "gridPos": { "h": 10, "w": 6, "x": 18, "y": 36 },
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 18,
+        "y": 36
+      },
       "options": {
         "mode": "markdown",
-        "content": "### Traces\n[Search Tempo for this service →](/explore?panes=%7B%22tempo%22%3A%7B%22datasource%22%3A%22tempo%22%2C%22queries%22%3A%5B%7B%22query%22%3A%22%7B%20resource.service.name%3D%5C%22$service%5C%22%20%7D%22%7D%5D%7D%7D)\n\nExemplars on the heatmap above link directly to traces."
+        "content": "### Traces\n[Search Tempo for this service \u2192](/explore?panes=%7B%22tempo%22%3A%7B%22datasource%22%3A%22tempo%22%2C%22queries%22%3A%5B%7B%22query%22%3A%22%7B%20resource.service.name%3D%5C%22$service%5C%22%20%7D%22%7D%5D%7D%7D)\n\nExemplars on the heatmap above link directly to traces."
       }
     }
   ]

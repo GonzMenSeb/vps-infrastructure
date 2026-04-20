@@ -108,11 +108,13 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      # Cap Go heap so freed memory returns to the OS; defaults let RSS drift
-      # upward indefinitely on a host with steady Docker SD churn.
-      - GOMEMLIMIT=450MiB
+      # Soft heap cap — nudges Go's GC to return freed memory to the OS rather
+      # than letting RSS drift upward. Bumped from 450→560 MiB after Tempo
+      # OTel pipeline landed (receiver+batch+tail_sampling+exporter all
+      # reserve buffers even when there's no traffic).
+      - GOMEMLIMIT=560MiB
       - GOGC=75
-    mem_limit: 512m
+    mem_limit: 640m
     volumes:
       - alloy_data:/var/lib/alloy/data
       - ./alloy-config.alloy:/etc/alloy/config.alloy:ro
