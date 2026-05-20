@@ -1,0 +1,3277 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "vps-infrastructure",
+    "languages": [
+      "yaml",
+      "jinja2",
+      "markdown",
+      "dockerfile",
+      "jenkinsfile",
+      "json",
+      "conf",
+      "txt",
+      "service",
+      "config",
+      "ansible-lint",
+      "example"
+    ],
+    "frameworks": [
+      "Ansible",
+      "Docker",
+      "Docker Compose",
+      "Jenkins",
+      "Jinja2"
+    ],
+    "description": "Ansible Infrastructure-as-Code for a two-VPS setup: a main public web host fronted by Traefik (with Let's Encrypt) and a dedicated Jenkins CI/CD host that builds container images and deploys back to the main VPS. Secrets are stored in ansible-vault.",
+    "analyzedAt": "2026-05-20T16:30:27.832Z",
+    "gitCommitHash": "8701183da3dd01b3faf18131a7ebca42c8cd1285"
+  },
+  "nodes": [
+    {
+      "id": "config:.ansible-lint",
+      "type": "config",
+      "name": ".ansible-lint",
+      "filePath": ".ansible-lint",
+      "summary": "Ansible-lint configuration using the 'min' profile with intentional skips (command-instead-of-module, no-changed-when, risky-file-permissions) and mocks the jenkins role to keep CI tolerant of pragmatic Ansible patterns.",
+      "tags": [
+        "configuration",
+        "linting",
+        "ci-cd",
+        "ansible"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:ansible.cfg",
+      "type": "config",
+      "name": "ansible.cfg",
+      "filePath": "ansible.cfg",
+      "summary": "Ansible runtime defaults wiring inventory, role path, jsonfile fact caching (1h TTL), SSH pipelining/ControlMaster, and sudo privilege escalation for all playbook executions.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "runtime",
+        "build-system"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "document:CLAUDE.md",
+      "type": "document",
+      "name": "CLAUDE.md",
+      "filePath": "CLAUDE.md",
+      "summary": "Project-specific guidance for Claude Code agents covering repo topology, common commands, architectural conventions, role ordering constraints, and gotchas like the Miplata pull-tolerant deploy pattern.",
+      "tags": [
+        "documentation",
+        "claude-instructions",
+        "architecture",
+        "onboarding"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "document:README.md",
+      "type": "document",
+      "name": "README.md",
+      "filePath": "README.md",
+      "summary": "Human-facing project overview describing the two-VPS Ansible setup, role-to-service mapping for both hosts, usage commands, repository layout, and the Jenkins CI flow.",
+      "tags": [
+        "documentation",
+        "entry-point",
+        "overview",
+        "usage"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "pipeline:Jenkinsfile",
+      "type": "pipeline",
+      "name": "Jenkinsfile",
+      "filePath": "Jenkinsfile",
+      "summary": "Declarative Jenkins pipeline running galaxy install, ansible-lint, syntax check, dry run, deploy, and health-check stages, injecting vault password and SSH key from credentials and scrubbing the temp vault file on every exit.",
+      "tags": [
+        "ci-cd",
+        "pipeline",
+        "deployment",
+        "jenkins",
+        "ansible"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Uses withCredentials + a temp .vault_pass_tmp file pattern so the vault password never touches disk outside the build workspace; an always-block guarantees cleanup."
+    },
+    {
+      "id": "pipeline:playbook.yml",
+      "type": "pipeline",
+      "name": "playbook.yml",
+      "filePath": "playbook.yml",
+      "summary": "Main VPS deploy playbook applying eleven roles in dependency-sensitive order (base, docker, traefik, dns, vaultwarden, monitoring, zot, miplata, metabase, llm_inference, categorizer) and writing a node_exporter textfile deploy marker.",
+      "tags": [
+        "pipeline",
+        "ansible",
+        "orchestration",
+        "deployment",
+        "entry-point"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Role ordering is load-bearing — traefik must precede any role that joins the proxy network."
+    },
+    {
+      "id": "pipeline:jenkins-playbook.yml",
+      "type": "pipeline",
+      "name": "jenkins-playbook.yml",
+      "filePath": "jenkins-playbook.yml",
+      "summary": "Jenkins-host deploy playbook applying the hardened baseline (base, docker, traefik) plus the jenkins role and observability_agent that pushes metrics/logs back to the main VPS.",
+      "tags": [
+        "pipeline",
+        "ansible",
+        "orchestration",
+        "jenkins",
+        "ci-cd"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:requirements.yml",
+      "type": "config",
+      "name": "requirements.yml",
+      "filePath": "requirements.yml",
+      "summary": "Ansible Galaxy requirements pinning community.docker >=3.0.0, the only external collection needed for docker_compose_v2 / docker_network modules used across roles.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "dependencies",
+        "galaxy"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:inventory.yml",
+      "type": "config",
+      "name": "inventory.yml",
+      "filePath": "inventory.yml",
+      "summary": "Two-host inventory defining 'vps' (ubuntu user) and 'jenkins' (root user), with ansible_host addresses sourced from vault variables so the repo is safe to publish.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "inventory",
+        "hosts"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:group_vars/all.yml",
+      "type": "config",
+      "name": "all.yml",
+      "filePath": "group_vars/all.yml",
+      "summary": "Project-wide variable store: domain/subdomain patterns, Docker network list, SSH/UFW/fail2ban defaults, and pinned container image tags for Traefik, PowerDNS, Vaultwarden, the full observability stack, Jenkins, Zot, Miplata, Metabase, llama.cpp, and the categorizer.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "variables",
+        "image-pins",
+        "shared-state"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "First place to look when changing any service hostname or pinned image version — every role reads from here."
+    },
+    {
+      "id": "config:host_vars/jenkins.yml",
+      "type": "config",
+      "name": "jenkins.yml",
+      "filePath": "host_vars/jenkins.yml",
+      "summary": "Jenkins-host overrides allowing root login, narrowing UFW to SSH/HTTP/HTTPS (no DNS ports), and renaming the Traefik dashboard host to traefik-ci.<web_subdomain>.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "host-vars",
+        "jenkins"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:host_vars/vps.yml",
+      "type": "config",
+      "name": "vps.yml",
+      "filePath": "host_vars/vps.yml",
+      "summary": "Main VPS host overrides binding ansible_host and vps_public_ip to the vault-supplied IP so other roles can reference the public address.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "host-vars",
+        "vps"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:vault.yml",
+      "type": "config",
+      "name": "vault.yml",
+      "filePath": "vault.yml",
+      "summary": "Ansible-vault AES256-encrypted secret store holding all passwords, SSH deploy keys, OAuth credentials, bearer tokens, and identifying values (IPs, domain, ACME email) consumed by every role at template-render time.",
+      "tags": [
+        "configuration",
+        "secrets",
+        "ansible-vault",
+        "security",
+        "encrypted"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Opaque ciphertext on disk — referenced via vars_files in both playbooks and unlocked by .vault_pass or Jenkins credential injection."
+    },
+    {
+      "id": "config:vault.yml.example",
+      "type": "config",
+      "name": "vault.yml.example",
+      "filePath": "vault.yml.example",
+      "summary": "Plaintext template enumerating every vault variable the project expects (PowerDNS, Vaultwarden, Grafana OAuth, Jenkins deploy keys, Miplata, Zot htpasswd, Metabase, categorizer, plus IPs/domain), used for first-time vault bootstrap.",
+      "tags": [
+        "configuration",
+        "documentation",
+        "template",
+        "secrets",
+        "onboarding"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/base/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/base/defaults/main.yml",
+      "summary": "Base role defaults listing required apt packages (ufw, fail2ban, curl, git, htop, unattended-upgrades) and the conservative PermitRootLogin=no SSH default that host_vars override on the Jenkins host.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "defaults",
+        "base-role"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/base/handlers/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/base/handlers/main.yml",
+      "summary": "Base role handlers restarting ssh, fail2ban, and systemd-journald when their respective config templates or drop-ins change.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "handlers",
+        "systemd"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/base/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/base/tasks/main.yml",
+      "summary": "Base role task list installing core packages, enabling unattended-upgrades, applying SSH hardening, configuring UFW (including a narrow Docker-bridge rule to reach host node_exporter on :9100), installing journald limits, and configuring fail2ban.",
+      "tags": [
+        "ansible-role",
+        "security",
+        "hardening",
+        "ufw",
+        "fail2ban"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "The 172.16.0.0/12 UFW rule for node_exporter is deliberately scoped to Docker's reserved range to avoid public exposure — do not widen it."
+    },
+    {
+      "id": "config:roles/base/files/journald-observability.conf",
+      "type": "config",
+      "name": "journald-observability.conf",
+      "filePath": "roles/base/files/journald-observability.conf",
+      "summary": "systemd-journald drop-in capping disk usage (500M system / 100M runtime), enforcing 14-day retention with daily rotation, and rate-limiting to keep Alloy's journal reader bounded.",
+      "tags": [
+        "configuration",
+        "journald",
+        "observability",
+        "logging"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/base/templates/jail.local.j2",
+      "type": "config",
+      "name": "jail.local.j2",
+      "filePath": "roles/base/templates/jail.local.j2",
+      "summary": "fail2ban jail.local template wiring tunable bantime/findtime/maxretry defaults and an sshd jail with UFW as the ban action, pulling all thresholds from group_vars.",
+      "tags": [
+        "configuration",
+        "fail2ban",
+        "template",
+        "security"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/base/templates/sshd-hardening.conf.j2",
+      "type": "config",
+      "name": "sshd-hardening.conf.j2",
+      "filePath": "roles/base/templates/sshd-hardening.conf.j2",
+      "summary": "sshd drop-in template enforcing per-host root-login policy, max auth tries, login grace, no X11 forwarding, an AllowUsers allowlist, and keepalive timeouts.",
+      "tags": [
+        "configuration",
+        "ssh",
+        "template",
+        "hardening",
+        "security"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/docker/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/docker/defaults/main.yml",
+      "summary": "Docker role default selecting docker-compose-plugin as the Compose v2 package to install alongside docker-ce.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "defaults",
+        "docker"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/docker/handlers/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/docker/handlers/main.yml",
+      "summary": "Docker role handler restarting the docker service when /etc/docker/daemon.json changes.",
+      "tags": [
+        "configuration",
+        "ansible",
+        "handlers",
+        "docker"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/docker/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/docker/tasks/main.yml",
+      "summary": "Docker role tasks installing prerequisites, idempotently adding the Docker apt repo (guarded by a docker --version probe), installing docker-ce + compose plugin, configuring the daemon, adding ansible_user to the docker group, and creating the shared docker_networks list.",
+      "tags": [
+        "ansible-role",
+        "docker",
+        "installation",
+        "infrastructure"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "GPG key + repo add steps are gated on docker_installed.rc != 0 so re-runs are no-ops on hosts that already have Docker."
+    },
+    {
+      "id": "config:roles/docker/templates/daemon.json.j2",
+      "type": "config",
+      "name": "daemon.json.j2",
+      "filePath": "roles/docker/templates/daemon.json.j2",
+      "summary": "Docker daemon.json template capping container log files to 10MB with a 3-file rotation under the default json-file driver.",
+      "tags": [
+        "configuration",
+        "docker",
+        "template",
+        "logging"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/traefik/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/traefik/defaults/main.yml",
+      "summary": "Defines the default install directory (`traefik_dir`) for the Traefik role, used by tasks to know where to place compose files and ACME storage.",
+      "tags": [
+        "ansible-defaults",
+        "configuration",
+        "traefik",
+        "role-variables"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/traefik/handlers/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/traefik/handlers/main.yml",
+      "summary": "Defines the `restart traefik` handler that runs `docker compose restart` when tasks notify a config change.",
+      "tags": [
+        "ansible-handlers",
+        "traefik",
+        "docker-compose",
+        "restart"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/traefik/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/traefik/tasks/main.yml",
+      "summary": "Provisions Traefik: creates `/opt/traefik`, copies the static config and nginx socket proxy, renders the compose file, ensures `acme.json` is 0600, and starts the stack.",
+      "tags": [
+        "ansible-tasks",
+        "traefik",
+        "reverse-proxy",
+        "tls-acme",
+        "deployment"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/traefik/files/nginx-docker-proxy.conf",
+      "type": "config",
+      "name": "nginx-docker-proxy.conf",
+      "filePath": "roles/traefik/files/nginx-docker-proxy.conf",
+      "summary": "Nginx configuration for a read-only Docker socket proxy that exposes only the endpoints Traefik needs (containers, services, networks).",
+      "tags": [
+        "nginx",
+        "docker-socket",
+        "security",
+        "least-privilege",
+        "traefik"
+      ],
+      "complexity": "simple",
+      "languageNotes": "Implements the docker-socket-proxy pattern by whitelisting specific URI paths and rejecting all others."
+    },
+    {
+      "id": "config:roles/traefik/files/nginx.conf",
+      "type": "config",
+      "name": "nginx.conf",
+      "filePath": "roles/traefik/files/nginx.conf",
+      "summary": "Top-level nginx configuration wrapper for the docker socket proxy sidecar — sets worker processes, events, and includes the http server block.",
+      "tags": [
+        "nginx",
+        "configuration",
+        "docker-socket",
+        "traefik"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/traefik/templates/traefik.yml.j2",
+      "type": "config",
+      "name": "traefik.yml.j2",
+      "filePath": "roles/traefik/templates/traefik.yml.j2",
+      "summary": "Traefik static configuration template: defines entrypoints (web/websecure), the Docker provider via the socket proxy, Let's Encrypt HTTP-01 ACME resolver, and access logging.",
+      "tags": [
+        "traefik",
+        "tls-acme",
+        "letsencrypt",
+        "reverse-proxy",
+        "jinja2-template"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/traefik/templates/docker-compose.yml.j2",
+      "summary": "Compose stack rendering Traefik plus its nginx docker-socket-proxy sidecar; binds ports 80/443, mounts `acme.json`, and attaches to the shared `proxy` network for label-based routing.",
+      "tags": [
+        "docker-compose",
+        "traefik",
+        "reverse-proxy",
+        "ingress",
+        "proxy-network"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "The nginx sidecar fronts /var/run/docker.sock so Traefik never reads the host socket directly — a defense-in-depth pattern."
+    },
+    {
+      "id": "config:roles/dns/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/dns/defaults/main.yml",
+      "summary": "Defines `dns_dir` default (typically `/opt/dns`) consumed by the DNS role's tasks and templates.",
+      "tags": [
+        "ansible-defaults",
+        "configuration",
+        "dns",
+        "role-variables"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/dns/handlers/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/dns/handlers/main.yml",
+      "summary": "Defines the `restart dns` handler that restarts the PowerDNS compose stack when configuration changes.",
+      "tags": [
+        "ansible-handlers",
+        "powerdns",
+        "docker-compose",
+        "restart"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/dns/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/dns/tasks/main.yml",
+      "summary": "Provisions the authoritative PowerDNS server: creates `/opt/dns`, renders `pdns.conf`/`.env`/compose templates, then brings up the DNS container stack.",
+      "tags": [
+        "ansible-tasks",
+        "powerdns",
+        "authoritative-dns",
+        "deployment"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/dns/templates/env.j2",
+      "type": "config",
+      "name": "env.j2",
+      "filePath": "roles/dns/templates/env.j2",
+      "summary": "Renders the `.env` file injecting PowerDNS API key and database credentials from vault into the compose stack.",
+      "tags": [
+        "env-template",
+        "powerdns",
+        "secrets",
+        "jinja2-template"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/dns/templates/pdns.conf.j2",
+      "type": "config",
+      "name": "pdns.conf.j2",
+      "filePath": "roles/dns/templates/pdns.conf.j2",
+      "summary": "PowerDNS authoritative server configuration template: enables the SQLite backend, REST API for `pdnsutil`-style updates, and webserver/API key auth.",
+      "tags": [
+        "powerdns",
+        "authoritative-dns",
+        "rest-api",
+        "jinja2-template"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/dns/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/dns/templates/docker-compose.yml.j2",
+      "summary": "Compose stack rendering the PowerDNS container with UDP/TCP 53 published, SQLite volume mounted, and Traefik labels exposing the API on an internal hostname.",
+      "tags": [
+        "docker-compose",
+        "powerdns",
+        "dns-server",
+        "port-53",
+        "proxy-network"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/vaultwarden/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/vaultwarden/defaults/main.yml",
+      "summary": "Defines `vaultwarden_dir` default install path used by the Vaultwarden role's tasks and compose template.",
+      "tags": [
+        "ansible-defaults",
+        "configuration",
+        "vaultwarden",
+        "role-variables"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/vaultwarden/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/vaultwarden/tasks/main.yml",
+      "summary": "Provisions Vaultwarden: creates the install and data directories, renders `.env` and `docker-compose.yml` from templates, then starts the password-manager stack.",
+      "tags": [
+        "ansible-tasks",
+        "vaultwarden",
+        "password-manager",
+        "deployment"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/vaultwarden/templates/env.j2",
+      "type": "config",
+      "name": "env.j2",
+      "filePath": "roles/vaultwarden/templates/env.j2",
+      "summary": "Renders the Vaultwarden `.env` with admin token and domain settings sourced from vault and group_vars.",
+      "tags": [
+        "env-template",
+        "vaultwarden",
+        "secrets",
+        "jinja2-template"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/vaultwarden/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/vaultwarden/templates/docker-compose.yml.j2",
+      "summary": "Compose stack rendering the Vaultwarden container with persistent data volume and Traefik labels for TLS termination on the configured subdomain.",
+      "tags": [
+        "docker-compose",
+        "vaultwarden",
+        "password-manager",
+        "proxy-network"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/zot/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/zot/defaults/main.yml",
+      "summary": "Defines defaults for the Zot OCI registry role: install directory, data directory for image blobs, and the Zot container image tag.",
+      "tags": [
+        "ansible-defaults",
+        "configuration",
+        "zot",
+        "oci-registry",
+        "role-variables"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/zot/handlers/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/zot/handlers/main.yml",
+      "summary": "Defines the `restart zot` handler that restarts the Zot registry stack when its config or htpasswd file changes.",
+      "tags": [
+        "ansible-handlers",
+        "zot",
+        "oci-registry",
+        "docker-compose",
+        "restart"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/zot/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/zot/tasks/main.yml",
+      "summary": "Provisions the self-hosted Zot OCI registry consumed by the Jenkins build pipeline: renders config/htpasswd, brings up the compose stack, registers a PowerDNS A record, and waits for the HTTP endpoint to be ready.",
+      "tags": [
+        "ansible-tasks",
+        "zot",
+        "oci-registry",
+        "deployment",
+        "jenkins-integration"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:roles/zot/templates/config.json.j2",
+      "type": "config",
+      "name": "config.json.j2",
+      "filePath": "roles/zot/templates/config.json.j2",
+      "summary": "Zot registry configuration template: defines storage paths, htpasswd auth, HTTP listener, and any sync/extension settings.",
+      "tags": [
+        "zot",
+        "oci-registry",
+        "json-template",
+        "jinja2-template",
+        "auth"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "service:roles/zot/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/zot/templates/docker-compose.yml.j2",
+      "summary": "Compose stack rendering the Zot OCI registry container with bind-mounted config, htpasswd, data volume, and Traefik labels for TLS-terminated public access.",
+      "tags": [
+        "docker-compose",
+        "zot",
+        "oci-registry",
+        "proxy-network"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/zot/templates/htpasswd.j2",
+      "type": "config",
+      "name": "htpasswd.j2",
+      "filePath": "roles/zot/templates/htpasswd.j2",
+      "summary": "Renders the htpasswd credential file used by Zot for HTTP basic-auth, sourced from vault-encrypted username/bcrypt-hash variables.",
+      "tags": [
+        "zot",
+        "auth",
+        "htpasswd",
+        "secrets",
+        "jinja2-template"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/miplata/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/miplata/defaults/main.yml",
+      "summary": "Default variables for the Miplata role: install directory under /opt/miplata, uploads path bind-mounted into the API container, Postgres user/db names, and the UID/GID the NestJS container runs as so the host-side uploads dir matches.",
+      "tags": [
+        "ansible-defaults",
+        "miplata",
+        "configuration",
+        "variables"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/miplata/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/miplata/tasks/main.yml",
+      "summary": "Ansible task list that provisions Miplata: creates dirs, renders .env and compose file, logs into the Zot registry, ensures the DNS A record, tolerantly pulls images (skips `up` on a fresh VPS when Jenkins hasn't built them yet), and idempotently provisions a read-only PG user and a postgres-exporter role.",
+      "tags": [
+        "ansible-tasks",
+        "miplata",
+        "deployment",
+        "bootstrap-tolerant",
+        "postgres-provisioning"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "The `failed_when: false` on docker compose pull + `when: miplata_pull.rc == 0` guards are intentional — they make the role idempotent across first-boot (no images in Zot) and steady-state."
+    },
+    {
+      "id": "config:roles/miplata/templates/env.j2",
+      "type": "config",
+      "name": "env.j2",
+      "filePath": "roles/miplata/templates/env.j2",
+      "summary": "Jinja2 template rendering Miplata's runtime `.env`: Postgres credentials, JWT secret, BullMQ/Redis settings, uploads path, and tracing OTEL endpoints into the observability network.",
+      "tags": [
+        "jinja2-template",
+        "env-file",
+        "miplata",
+        "secrets"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/miplata/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/miplata/templates/docker-compose.yml.j2",
+      "summary": "Docker Compose template defining the Miplata stack: Postgres + Redis on an internal network, the NestJS API (uploads bind-mounted), nginx Web exposed via Traefik labels, plus postgres- and redis-exporters joined to the observability network.",
+      "tags": [
+        "docker-compose",
+        "miplata",
+        "traefik",
+        "postgres",
+        "redis",
+        "exporters"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "API image is pulled from the self-hosted Zot registry (built by a separate Jenkins job, not by this role)."
+    },
+    {
+      "id": "config:roles/metabase/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/metabase/defaults/main.yml",
+      "summary": "Default variables for the Metabase role: install dir, Metabase application-DB user/name, and initial admin user identity (name, email, site name) used to bootstrap the instance via the Setup API.",
+      "tags": [
+        "ansible-defaults",
+        "metabase",
+        "configuration",
+        "variables"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/metabase/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/metabase/tasks/main.yml",
+      "summary": "Ansible tasks that deploy Metabase: render .env and compose, ensure DNS, start the stack, wait for the API to be healthy, complete first-time admin setup over HTTPS, and register Miplata's Postgres as a Metabase data source via the read-only `metabase_ro` role.",
+      "tags": [
+        "ansible-tasks",
+        "metabase",
+        "deployment",
+        "api-bootstrap",
+        "bi-analytics"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Setup is fully automated through Metabase's REST API; subsequent runs are no-ops because `has-user-setup` short-circuits the setup task."
+    },
+    {
+      "id": "config:roles/metabase/templates/env.j2",
+      "type": "config",
+      "name": "env.j2",
+      "filePath": "roles/metabase/templates/env.j2",
+      "summary": "Jinja2 template rendering Metabase's `.env`: Postgres app-DB credentials and JVM/site settings for the Metabase container.",
+      "tags": [
+        "jinja2-template",
+        "env-file",
+        "metabase"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/metabase/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/metabase/templates/docker-compose.yml.j2",
+      "summary": "Docker Compose template for Metabase: dedicated Postgres app-DB on an internal-only network plus the Metabase app exposed via Traefik. Metabase also joins the `miplata_db` network so it can query Miplata's Postgres as a read-only data source.",
+      "tags": [
+        "docker-compose",
+        "metabase",
+        "traefik",
+        "cross-network",
+        "bi-analytics"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Metabase joining `miplata_db` is what enables it to read from miplata-postgres using the `metabase_ro` user."
+    },
+    {
+      "id": "config:roles/categorizer/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/categorizer/defaults/main.yml",
+      "summary": "Default variables for the Categorizer role: install dir, Postgres user/db with pgvector, container UID/GID, app port and thread count, plus mem/cpuset limits that constrain the AI service to a dedicated CPU set.",
+      "tags": [
+        "ansible-defaults",
+        "categorizer",
+        "configuration",
+        "resource-limits"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/categorizer/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/categorizer/tasks/main.yml",
+      "summary": "Ansible tasks that deploy the AI categorizer service: dirs, .env, compose, DNS, bootstrap-tolerant pull from Zot, start stack, and enable the pgvector extension in the dedicated Postgres once the stack is up.",
+      "tags": [
+        "ansible-tasks",
+        "categorizer",
+        "ai-service",
+        "pgvector",
+        "bootstrap-tolerant"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/categorizer/templates/env.j2",
+      "type": "config",
+      "name": "env.j2",
+      "filePath": "roles/categorizer/templates/env.j2",
+      "summary": "Jinja2 env template wiring the Categorizer to its own Postgres+pgvector, a read-only DSN into Miplata's DB for training data, the internal llama-server LLM endpoint, an API bearer token (enforced by a Traefik middleware), and OTLP tracing to Alloy.",
+      "tags": [
+        "jinja2-template",
+        "env-file",
+        "categorizer",
+        "llm-config",
+        "cross-service"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Critical cross-role wiring lives here: `LLM_BASE_URL` points at `llama-server` (llm_inference role) and `MIPLATA_RO_DATABASE_URL` points at `miplata-postgres` using the RO user provisioned by the miplata role."
+    },
+    {
+      "id": "service:roles/categorizer/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/categorizer/templates/docker-compose.yml.j2",
+      "summary": "Docker Compose template for the Categorizer stack: a dedicated Postgres on `categorizer_net`, plus the API container joined to four networks (proxy, categorizer_net, miplata_db, observability) and protected by a Traefik bearer-token middleware. mem_limit/cpuset bound its CPU footprint.",
+      "tags": [
+        "docker-compose",
+        "categorizer",
+        "traefik",
+        "bearer-auth",
+        "multi-network",
+        "ai-service"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Cross-stack dependency on llama-server is intentionally not declared via depends_on (Compose can't model cross-project deps); the app retries on startup instead."
+    },
+    {
+      "id": "config:roles/llm_inference/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/llm_inference/defaults/main.yml",
+      "summary": "Default variables for the llm_inference role: install/models dirs, GGUF model filename and `LLM_MODEL` id, llama.cpp tuning (ctx size, threads, parallel slots, temp, top-k, seed), and container mem/cpuset constraints plus the served port.",
+      "tags": [
+        "ansible-defaults",
+        "llm-inference",
+        "llama-cpp",
+        "model-tuning"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/llm_inference/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/llm_inference/tasks/main.yml",
+      "summary": "Ansible tasks that deploy llama-server: create dirs (models dir operator-owned for scp), render .env and compose, warn if the GGUF file isn't yet on disk, then start the stack. Unlike miplata/categorizer the image comes from public ghcr.io so a pull failure is a real error.",
+      "tags": [
+        "ansible-tasks",
+        "llm-inference",
+        "llama-cpp",
+        "model-deployment"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/llm_inference/templates/env.j2",
+      "type": "config",
+      "name": "env.j2",
+      "filePath": "roles/llm_inference/templates/env.j2",
+      "summary": "Jinja2 env template that translates the role's defaults into llama.cpp `LLAMA_ARG_*` environment variables (model path, ctx size, threads, parallel slots, port, slot/webui toggles).",
+      "tags": [
+        "jinja2-template",
+        "env-file",
+        "llm-inference",
+        "llama-cpp"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/llm_inference/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/llm_inference/templates/docker-compose.yml.j2",
+      "summary": "Docker Compose template for the llama-server container: joined to `categorizer_net` (serves /v1/chat/completions to the categorizer) and the observability network (scraped for /metrics + /health). Models dir mounted read-only.",
+      "tags": [
+        "docker-compose",
+        "llm-inference",
+        "llama-cpp",
+        "internal-service"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "No Traefik labels — this service is intentionally internal-only. Reachable only on `categorizer_net`."
+    },
+    {
+      "id": "config:roles/jenkins/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/jenkins/defaults/main.yml",
+      "summary": "Minimal default variables for the Jenkins role: install dir (/opt/jenkins) and the data dir bind-mounted into the container as JENKINS_HOME.",
+      "tags": [
+        "ansible-defaults",
+        "jenkins",
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/jenkins/handlers/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/jenkins/handlers/main.yml",
+      "summary": "Single Ansible handler that restarts the Jenkins compose stack — triggered when the JCasC config file changes so Jenkins re-reads its declarative configuration on next boot.",
+      "tags": [
+        "ansible-handler",
+        "jenkins",
+        "restart"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/jenkins/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/jenkins/tasks/main.yml",
+      "summary": "Ansible tasks that build and run a containerized Jenkins: disable any pre-existing systemd Jenkins, create dirs, discover the host's docker GID, copy Dockerfile+plugins.txt and build the local `jenkins-ansible:latest` image, deploy SSH keys + known_hosts, render JCasC and compose, start the stack, and install a weekly docker-prune cron.",
+      "tags": [
+        "ansible-tasks",
+        "jenkins",
+        "docker-build",
+        "ci-cd",
+        "ssh-keys",
+        "cron"
+      ],
+      "complexity": "complex",
+      "languageNotes": "The role grafts the host's docker GID into the container so the jenkins user can talk to the bind-mounted docker.sock — this is what enables Jenkins to build images on the host."
+    },
+    {
+      "id": "service:roles/jenkins/files/Dockerfile",
+      "type": "service",
+      "name": "Dockerfile",
+      "filePath": "roles/jenkins/files/Dockerfile",
+      "summary": "Multi-step Dockerfile extending `jenkins/jenkins:lts-jdk21` with Ansible (via venv), the Docker CLI + buildx + compose plugins, Node.js 22 + corepack/pnpm, and a pre-installed plugin set; JCasC is enabled via `CASC_JENKINS_CONFIG=/var/jenkins_home/casc.yml`.",
+      "tags": [
+        "dockerfile",
+        "jenkins",
+        "containerization",
+        "build-image",
+        "ci-cd-tools"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Bakes Ansible + Docker CLI + Node.js into the Jenkins image so build jobs have everything they need without spinning up secondary agent containers."
+    },
+    {
+      "id": "config:roles/jenkins/files/plugins.txt",
+      "type": "config",
+      "name": "plugins.txt",
+      "filePath": "roles/jenkins/files/plugins.txt",
+      "summary": "Declarative Jenkins plugin manifest baked into the image at build time: JCasC, git/github, workflow/pipeline, credentials, ssh-agent, job-dsl, docker-workflow, ansicolor, junit, and prometheus.",
+      "tags": [
+        "plugins-manifest",
+        "jenkins",
+        "configuration",
+        "declarative"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/jenkins/templates/casc.yml.j2",
+      "type": "config",
+      "name": "casc.yml.j2",
+      "filePath": "roles/jenkins/templates/casc.yml.j2",
+      "summary": "Jenkins Configuration-as-Code (JCasC) template defining Jenkins entirely declaratively — credentials, jobs (DSL or pipeline definitions), security, and tool config — rendered to `/var/jenkins_home/casc.yml` and re-read after the `restart jenkins` handler fires.",
+      "tags": [
+        "jcasc",
+        "jenkins",
+        "configuration-as-code",
+        "declarative",
+        "jinja2-template"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Mutating state through the Jenkins UI is anti-pattern in this repo — anything not in this template gets overwritten on the next playbook run."
+    },
+    {
+      "id": "service:roles/jenkins/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/jenkins/templates/docker-compose.yml.j2",
+      "summary": "Docker Compose template running the locally-built `jenkins-ansible:latest` image, bind-mounting `docker.sock` and JENKINS_HOME, with `group_add` set to the host's docker GID and Traefik labels for HTTPS ingress on the jenkins host.",
+      "tags": [
+        "docker-compose",
+        "jenkins",
+        "traefik",
+        "docker-in-docker",
+        "ci-cd"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/monitoring/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/monitoring/defaults/main.yml",
+      "summary": "Default variables for the monitoring role — defines monitoring_dir (typically /opt/monitoring) consumed by every monitoring task.",
+      "tags": [
+        "ansible",
+        "role-defaults",
+        "monitoring",
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/monitoring/files/dashboards/fleet/fleet-hosts.json",
+      "type": "config",
+      "name": "fleet-hosts.json",
+      "filePath": "roles/monitoring/files/dashboards/fleet/fleet-hosts.json",
+      "summary": "Grafana dashboard showing fleet-wide host health (CPU, RAM, disk, network) for both VPS hosts derived from node_exporter metrics scraped via Prometheus.",
+      "tags": [
+        "grafana-dashboard",
+        "fleet",
+        "node-exporter",
+        "observability",
+        "host-metrics"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Pre-built Grafana dashboard JSON with 18 top-level config sections (templating, annotations, panels)."
+    },
+    {
+      "id": "config:roles/monitoring/files/dashboards/home/home.json",
+      "type": "config",
+      "name": "home.json",
+      "filePath": "roles/monitoring/files/dashboards/home/home.json",
+      "summary": "Landing-page Grafana dashboard summarising overall infrastructure health with cross-links to fleet, services, logs, and meta dashboards.",
+      "tags": [
+        "grafana-dashboard",
+        "home",
+        "overview",
+        "observability",
+        "entry-point"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:roles/monitoring/files/dashboards/logs/logs.json",
+      "type": "config",
+      "name": "logs.json",
+      "filePath": "roles/monitoring/files/dashboards/logs/logs.json",
+      "summary": "Loki-backed log explorer dashboard with container/host filters and structured-metadata search across the observability fleet.",
+      "tags": [
+        "grafana-dashboard",
+        "logs",
+        "loki",
+        "observability",
+        "log-explorer"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:roles/monitoring/files/dashboards/meta/meta.json",
+      "type": "config",
+      "name": "meta.json",
+      "filePath": "roles/monitoring/files/dashboards/meta/meta.json",
+      "summary": "Meta-observability dashboard tracking the observability pipeline itself — Alloy, Prometheus, Loki, Tempo internal metrics (scrape duration, ingestion rates, queue depths).",
+      "tags": [
+        "grafana-dashboard",
+        "meta",
+        "pipeline-health",
+        "observability",
+        "self-monitoring"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "config:roles/monitoring/files/dashboards/services/services-red.json",
+      "type": "config",
+      "name": "services-red.json",
+      "filePath": "roles/monitoring/files/dashboards/services/services-red.json",
+      "summary": "RED-method (Rate/Errors/Duration) Grafana dashboard for application services like miplata-api and categorizer-api driven by Traefik request metrics and traces.",
+      "tags": [
+        "grafana-dashboard",
+        "services",
+        "red-method",
+        "sli-slo",
+        "observability"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "service:roles/monitoring/files/node_exporter.service",
+      "type": "service",
+      "name": "node_exporter.service",
+      "filePath": "roles/monitoring/files/node_exporter.service",
+      "summary": "Systemd unit for node_exporter running directly on the main VPS host (not containerized), with --collector.textfile.directory pointing at /var/lib/node_exporter/textfile for custom metrics.",
+      "tags": [
+        "systemd-unit",
+        "node-exporter",
+        "host-metrics",
+        "observability"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/monitoring/handlers/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/monitoring/handlers/main.yml",
+      "summary": "Handlers for the monitoring role: restart_monitoring (docker compose restart), restart_node_exporter (systemd), and reload_prometheus (POST /-/reload hot-reload).",
+      "tags": [
+        "ansible",
+        "handlers",
+        "monitoring",
+        "hot-reload"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/monitoring/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/monitoring/tasks/main.yml",
+      "summary": "Provisions the full observability stack on the main VPS — renders Prometheus/Loki/Alloy/Tempo/Grafana/Alertmanager configs, brings up the docker-compose stack, and installs node_exporter as a host binary plus systemd unit.",
+      "tags": [
+        "ansible",
+        "tasks",
+        "monitoring",
+        "docker-compose",
+        "node-exporter"
+      ],
+      "complexity": "complex",
+      "languageNotes": "30 tasks including legacy-cleanup steps for Promtail (superseded by Alloy) and orphaned dashboard files."
+    },
+    {
+      "id": "config:roles/monitoring/templates/alertmanager.yml.j2",
+      "type": "config",
+      "name": "alertmanager.yml.j2",
+      "filePath": "roles/monitoring/templates/alertmanager.yml.j2",
+      "summary": "Alertmanager configuration template — deployed but deliberately non-critical (notification disabled); Prometheus tolerates downtime and a soft AlertmanagerDown rule monitors it.",
+      "tags": [
+        "alertmanager",
+        "configuration",
+        "jinja2",
+        "observability"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/monitoring/templates/alloy-config.alloy.j2",
+      "type": "config",
+      "name": "alloy-config.alloy.j2",
+      "filePath": "roles/monitoring/templates/alloy-config.alloy.j2",
+      "summary": "Grafana Alloy pipeline for the main VPS — scrapes containers/host metrics, tails Docker logs into Loki with JSON parsing for known emitters, and exports OTLP traces to Tempo with tail sampling.",
+      "tags": [
+        "alloy",
+        "configuration",
+        "metrics-pipeline",
+        "logs-pipeline",
+        "tracing"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Alloy's River-based DSL; every metric scrape funnels through prometheus.relabel.drop_noise to strip high-cardinality series before they reach Prometheus."
+    },
+    {
+      "id": "config:roles/monitoring/templates/blackbox.yml.j2",
+      "type": "config",
+      "name": "blackbox.yml.j2",
+      "filePath": "roles/monitoring/templates/blackbox.yml.j2",
+      "summary": "Blackbox exporter probe definitions for synthetic HTTP/HTTPS/TCP/ICMP checks against the public hostnames served by Traefik.",
+      "tags": [
+        "blackbox-exporter",
+        "synthetic-monitoring",
+        "configuration",
+        "jinja2"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/monitoring/templates/docker-compose.yml.j2",
+      "summary": "Docker Compose stack for the full main-VPS observability plane — Prometheus, Loki, Grafana, Alloy, Tempo (conditional), cAdvisor, process-exporter, blackbox-exporter, and Alertmanager — wired into the proxy network with Traefik bearer-token-auth ingress for prom-push and loki-push.",
+      "tags": [
+        "docker-compose",
+        "observability-stack",
+        "containerization",
+        "traefik",
+        "orchestration"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Bearer-token middleware (obs-bearer) declared on Loki labels and reused by Prometheus push router; Tempo block is gated on enable_tracing."
+    },
+    {
+      "id": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "type": "config",
+      "name": "grafana-provisioning-dashboards.yml.j2",
+      "filePath": "roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "summary": "Grafana dashboards provider config — points at /etc/grafana/dashboards with foldersFromFilesStructure so each subdirectory becomes a UI folder.",
+      "tags": [
+        "grafana",
+        "provisioning",
+        "dashboards",
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/monitoring/templates/grafana-provisioning-datasources.yml.j2",
+      "type": "config",
+      "name": "grafana-provisioning-datasources.yml.j2",
+      "filePath": "roles/monitoring/templates/grafana-provisioning-datasources.yml.j2",
+      "summary": "Grafana datasource provisioning declaring Prometheus, Loki, and (when tracing is enabled) Tempo with derivedFields that link log lines back to traces via the trace_id field.",
+      "tags": [
+        "grafana",
+        "provisioning",
+        "datasources",
+        "tracing",
+        "exemplars"
+      ],
+      "complexity": "moderate",
+      "languageNotes": "Configures trace-to-logs and trace-to-metrics correlation; derivedFields regex extracts trace_id from both Pino (JSON) and Python stdlib (logfmt) emitters."
+    },
+    {
+      "id": "config:roles/monitoring/templates/grafana.ini.j2",
+      "type": "config",
+      "name": "grafana.ini.j2",
+      "filePath": "roles/monitoring/templates/grafana.ini.j2",
+      "summary": "Grafana server config (root_url, anonymous auth disabled, security headers) rendered into /etc/grafana/grafana.ini with vault-sourced admin credentials.",
+      "tags": [
+        "grafana",
+        "configuration",
+        "ini",
+        "security"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/monitoring/templates/loki-config.yml.j2",
+      "type": "config",
+      "name": "loki-config.yml.j2",
+      "filePath": "roles/monitoring/templates/loki-config.yml.j2",
+      "summary": "Loki single-binary configuration with TSDB schema, structured-metadata support (Loki 3+), and retention/compaction tuned for a small-VPS deployment.",
+      "tags": [
+        "loki",
+        "configuration",
+        "log-storage",
+        "jinja2"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/monitoring/templates/process-exporter.yml.j2",
+      "type": "config",
+      "name": "process-exporter.yml.j2",
+      "filePath": "roles/monitoring/templates/process-exporter.yml.j2",
+      "summary": "process-exporter group definitions that classify host processes (sshd, docker, ansible, etc.) into named groups for Prometheus.",
+      "tags": [
+        "process-exporter",
+        "host-metrics",
+        "configuration",
+        "observability"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/monitoring/templates/prometheus-rules.yml.j2",
+      "type": "config",
+      "name": "prometheus-rules.yml.j2",
+      "filePath": "roles/monitoring/templates/prometheus-rules.yml.j2",
+      "summary": "Prometheus alerting and recording rules covering host health, container restarts, certificate expiry, scrape-target up-ness, Alloy pipeline health, and Tempo ingestion — hot-reloaded via the reload_prometheus handler.",
+      "tags": [
+        "prometheus",
+        "alert-rules",
+        "recording-rules",
+        "observability",
+        "alerting"
+      ],
+      "complexity": "complex",
+      "languageNotes": "288 lines of PromQL rule groups; AlertmanagerDown is intentionally soft-severity."
+    },
+    {
+      "id": "config:roles/monitoring/templates/prometheus.yml.j2",
+      "type": "config",
+      "name": "prometheus.yml.j2",
+      "filePath": "roles/monitoring/templates/prometheus.yml.j2",
+      "summary": "Prometheus server config — global scrape interval, exemplar storage enabled, rule directory mount, alertmanager static target, and self-scrape only (Alloy ships everything else via remote_write).",
+      "tags": [
+        "prometheus",
+        "configuration",
+        "scrape-config",
+        "remote-write"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "config:roles/monitoring/templates/tempo.yaml.j2",
+      "type": "config",
+      "name": "tempo.yaml.j2",
+      "filePath": "roles/monitoring/templates/tempo.yaml.j2",
+      "summary": "Tempo single-binary configuration with OTLP gRPC/HTTP receivers, local-blocks storage, and metrics-generator producing service-graph and span metrics scraped by Prometheus.",
+      "tags": [
+        "tempo",
+        "tracing",
+        "configuration",
+        "otlp",
+        "metrics-generator"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/observability_agent/defaults/main.yml",
+      "type": "config",
+      "name": "main.yml",
+      "filePath": "roles/observability_agent/defaults/main.yml",
+      "summary": "Defaults for the observability_agent role — sets observability_agent_dir / host paths used on the Jenkins VPS.",
+      "tags": [
+        "ansible",
+        "role-defaults",
+        "observability-agent",
+        "configuration"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/observability_agent/files/node_exporter.service",
+      "type": "service",
+      "name": "node_exporter.service",
+      "filePath": "roles/observability_agent/files/node_exporter.service",
+      "summary": "Systemd unit for node_exporter running on the Jenkins VPS host (not containerized) — identical structure to the main-VPS unit; metrics are scraped locally by Alloy and pushed cross-VPS.",
+      "tags": [
+        "systemd-unit",
+        "node-exporter",
+        "host-metrics",
+        "jenkins"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/observability_agent/handlers/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/observability_agent/handlers/main.yml",
+      "summary": "Handlers for the observability_agent role: restart_observability_agent (docker compose restart) and restart_node_exporter (systemd).",
+      "tags": [
+        "ansible",
+        "handlers",
+        "observability-agent"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "service:roles/observability_agent/tasks/main.yml",
+      "type": "service",
+      "name": "main.yml",
+      "filePath": "roles/observability_agent/tasks/main.yml",
+      "summary": "Provisions the Jenkins-host observability agent — renders Alloy + docker-compose, brings up the small Alloy/cAdvisor stack, and installs node_exporter as a host binary that Alloy scrapes locally before pushing to the main VPS.",
+      "tags": [
+        "ansible",
+        "tasks",
+        "observability-agent",
+        "alloy",
+        "node-exporter"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "config:roles/observability_agent/templates/alloy-config.alloy.j2",
+      "type": "config",
+      "name": "alloy-config.alloy.j2",
+      "filePath": "roles/observability_agent/templates/alloy-config.alloy.j2",
+      "summary": "Jenkins-host Alloy pipeline — discovers containers via Docker SD, tails logs into Loki, scrapes node_exporter and cAdvisor for host/container metrics, then pushes everything cross-internet to the main VPS's loki-push / prom-push endpoints with bearer-token auth.",
+      "tags": [
+        "alloy",
+        "configuration",
+        "remote-write",
+        "cross-vps",
+        "metrics-pipeline"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Mirrors the main-VPS drop_noise discipline but uses loki.write.remote / prometheus.remote_write targeting Traefik-protected push endpoints."
+    },
+    {
+      "id": "service:roles/observability_agent/templates/docker-compose.yml.j2",
+      "type": "service",
+      "name": "docker-compose.yml.j2",
+      "filePath": "roles/observability_agent/templates/docker-compose.yml.j2",
+      "summary": "Docker Compose stack for the Jenkins-host observability agent — only Alloy + cAdvisor (no Prometheus/Loki/Grafana, since data is pushed to the main VPS).",
+      "tags": [
+        "docker-compose",
+        "observability-agent",
+        "alloy",
+        "cadvisor",
+        "containerization"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "pipeline:tests/health-check.yml",
+      "type": "pipeline",
+      "name": "health-check.yml",
+      "filePath": "tests/health-check.yml",
+      "summary": "Post-deploy assertion playbook for the main VPS — verifies UFW/fail2ban/Docker, every expected container (Traefik, Vaultwarden, PowerDNS, Zot, Prometheus, Loki, Grafana, Alloy, cAdvisor, blackbox, Miplata, Metabase, llama-server, Categorizer), TLS endpoints, bearer-token auth on push endpoints, scrape target up-ness, DNS, and exposed ports.",
+      "tags": [
+        "ansible",
+        "health-check",
+        "post-deploy",
+        "smoke-test",
+        "test"
+      ],
+      "complexity": "complex",
+      "languageNotes": "Idempotent assertions; Miplata/Metabase/Categorizer/llama-server checks are gated on image presence (mirrors the role's tolerate-missing-image bootstrap pattern)."
+    },
+    {
+      "id": "pipeline:tests/jenkins-health-check.yml",
+      "type": "pipeline",
+      "name": "jenkins-health-check.yml",
+      "filePath": "tests/jenkins-health-check.yml",
+      "summary": "Post-deploy assertion playbook for the Jenkins VPS — verifies firewall/Docker, Jenkins/Alloy/cAdvisor containers, node_exporter unit, Jenkins TLS, and round-trips into the main VPS's Prometheus to confirm up{host=\"jenkins\"}==1 (cross-VPS push is actually landing).",
+      "tags": [
+        "ansible",
+        "health-check",
+        "post-deploy",
+        "jenkins",
+        "test"
+      ],
+      "complexity": "moderate"
+    }
+  ],
+  "edges": [
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "config:inventory.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "config:host_vars/vps.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "config:requirements.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/base/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/docker/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "config:roles/base/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "config:roles/docker/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "config:inventory.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "config:host_vars/jenkins.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "config:requirements.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "service:roles/base/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "service:roles/docker/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:Jenkinsfile",
+      "target": "pipeline:playbook.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:Jenkinsfile",
+      "target": "config:requirements.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:Jenkinsfile",
+      "target": "config:.ansible-lint",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:Jenkinsfile",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:ansible.cfg",
+      "target": "pipeline:playbook.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:ansible.cfg",
+      "target": "pipeline:jenkins-playbook.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:ansible.cfg",
+      "target": "config:inventory.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:.ansible-lint",
+      "target": "pipeline:playbook.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:inventory.yml",
+      "target": "config:host_vars/vps.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:inventory.yml",
+      "target": "config:host_vars/jenkins.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:inventory.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:host_vars/vps.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:host_vars/jenkins.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:group_vars/all.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:vault.yml.example",
+      "target": "config:vault.yml",
+      "type": "related",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "pipeline:playbook.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "pipeline:jenkins-playbook.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "pipeline:Jenkinsfile",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:inventory.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:group_vars/all.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:vault.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:vault.yml.example",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:README.md",
+      "target": "config:requirements.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "pipeline:playbook.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "pipeline:jenkins-playbook.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "pipeline:Jenkinsfile",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "config:ansible.cfg",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "config:.ansible-lint",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "config:group_vars/all.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "config:vault.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "document:CLAUDE.md",
+      "target": "config:inventory.yml",
+      "type": "documents",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "service:roles/base/tasks/main.yml",
+      "target": "config:roles/base/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/base/tasks/main.yml",
+      "target": "config:roles/base/handlers/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/base/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/base/templates/sshd-hardening.conf.j2",
+      "target": "service:roles/base/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/base/templates/jail.local.j2",
+      "target": "service:roles/base/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/base/files/journald-observability.conf",
+      "target": "service:roles/base/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/docker/tasks/main.yml",
+      "target": "config:roles/docker/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/docker/tasks/main.yml",
+      "target": "config:roles/docker/handlers/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/docker/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/docker/templates/daemon.json.j2",
+      "target": "service:roles/docker/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/tasks/main.yml",
+      "target": "config:roles/traefik/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/traefik/templates/traefik.yml.j2",
+      "target": "service:roles/traefik/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/traefik/files/nginx.conf",
+      "target": "service:roles/traefik/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/traefik/files/nginx-docker-proxy.conf",
+      "target": "service:roles/traefik/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/tasks/main.yml",
+      "target": "service:roles/traefik/handlers/main.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "target": "config:roles/traefik/templates/traefik.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "target": "config:roles/traefik/files/nginx.conf",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "target": "config:roles/traefik/files/nginx-docker-proxy.conf",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/tasks/main.yml",
+      "target": "config:roles/dns/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/dns/templates/env.j2",
+      "target": "service:roles/dns/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/dns/templates/pdns.conf.j2",
+      "target": "service:roles/dns/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/templates/docker-compose.yml.j2",
+      "target": "service:roles/dns/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/tasks/main.yml",
+      "target": "service:roles/dns/handlers/main.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/templates/docker-compose.yml.j2",
+      "target": "config:roles/dns/templates/pdns.conf.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/templates/docker-compose.yml.j2",
+      "target": "config:roles/dns/templates/env.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/vaultwarden/tasks/main.yml",
+      "target": "config:roles/vaultwarden/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/vaultwarden/templates/env.j2",
+      "target": "service:roles/vaultwarden/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/vaultwarden/templates/docker-compose.yml.j2",
+      "target": "service:roles/vaultwarden/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/vaultwarden/templates/docker-compose.yml.j2",
+      "target": "config:roles/vaultwarden/templates/env.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/vaultwarden/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/tasks/main.yml",
+      "target": "config:roles/zot/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/zot/templates/config.json.j2",
+      "target": "service:roles/zot/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/zot/templates/htpasswd.j2",
+      "target": "service:roles/zot/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/templates/docker-compose.yml.j2",
+      "target": "service:roles/zot/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/tasks/main.yml",
+      "target": "service:roles/zot/handlers/main.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/templates/docker-compose.yml.j2",
+      "target": "config:roles/zot/templates/config.json.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/templates/docker-compose.yml.j2",
+      "target": "config:roles/zot/templates/htpasswd.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/tasks/main.yml",
+      "target": "service:roles/dns/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/miplata/tasks/main.yml",
+      "target": "config:roles/miplata/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/miplata/templates/env.j2",
+      "target": "service:roles/miplata/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/miplata/templates/docker-compose.yml.j2",
+      "target": "service:roles/miplata/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/miplata/tasks/main.yml",
+      "target": "service:roles/miplata/templates/docker-compose.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/miplata/tasks/main.yml",
+      "target": "config:roles/miplata/templates/env.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/metabase/tasks/main.yml",
+      "target": "config:roles/metabase/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/metabase/templates/env.j2",
+      "target": "service:roles/metabase/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/metabase/templates/docker-compose.yml.j2",
+      "target": "service:roles/metabase/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/metabase/tasks/main.yml",
+      "target": "service:roles/metabase/templates/docker-compose.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/metabase/tasks/main.yml",
+      "target": "config:roles/metabase/templates/env.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/metabase/templates/docker-compose.yml.j2",
+      "target": "service:roles/miplata/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/metabase/tasks/main.yml",
+      "target": "service:roles/miplata/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/categorizer/tasks/main.yml",
+      "target": "config:roles/categorizer/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/categorizer/templates/env.j2",
+      "target": "service:roles/categorizer/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/categorizer/templates/docker-compose.yml.j2",
+      "target": "service:roles/categorizer/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/categorizer/tasks/main.yml",
+      "target": "service:roles/categorizer/templates/docker-compose.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/categorizer/tasks/main.yml",
+      "target": "config:roles/categorizer/templates/env.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/categorizer/templates/docker-compose.yml.j2",
+      "target": "service:roles/llm_inference/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/categorizer/templates/env.j2",
+      "target": "service:roles/llm_inference/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/categorizer/templates/env.j2",
+      "target": "service:roles/miplata/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/categorizer/templates/docker-compose.yml.j2",
+      "target": "service:roles/miplata/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/llm_inference/tasks/main.yml",
+      "target": "config:roles/llm_inference/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/llm_inference/templates/env.j2",
+      "target": "service:roles/llm_inference/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/llm_inference/templates/docker-compose.yml.j2",
+      "target": "service:roles/llm_inference/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/llm_inference/tasks/main.yml",
+      "target": "service:roles/llm_inference/templates/docker-compose.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/llm_inference/tasks/main.yml",
+      "target": "config:roles/llm_inference/templates/env.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/jenkins/tasks/main.yml",
+      "target": "config:roles/jenkins/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/jenkins/tasks/main.yml",
+      "target": "service:roles/jenkins/handlers/main.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/jenkins/files/Dockerfile",
+      "target": "service:roles/jenkins/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/jenkins/files/plugins.txt",
+      "target": "service:roles/jenkins/files/Dockerfile",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/jenkins/templates/casc.yml.j2",
+      "target": "service:roles/jenkins/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/jenkins/templates/docker-compose.yml.j2",
+      "target": "service:roles/jenkins/tasks/main.yml",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/jenkins/tasks/main.yml",
+      "target": "service:roles/jenkins/templates/docker-compose.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/jenkins/tasks/main.yml",
+      "target": "service:roles/jenkins/files/Dockerfile",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/jenkins/tasks/main.yml",
+      "target": "config:roles/jenkins/templates/casc.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "service:roles/monitoring/handlers/main.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/prometheus.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/prometheus-rules.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/loki-config.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/alloy-config.alloy.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/blackbox.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/process-exporter.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/tempo.yaml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/alertmanager.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/grafana.ini.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/grafana-provisioning-datasources.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/files/dashboards/home/home.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/files/dashboards/fleet/fleet-hosts.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/files/dashboards/logs/logs.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/files/dashboards/meta/meta.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:roles/monitoring/files/dashboards/services/services-red.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "service:roles/monitoring/files/node_exporter.service",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "target": "config:roles/monitoring/files/dashboards/home/home.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "target": "config:roles/monitoring/files/dashboards/fleet/fleet-hosts.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "target": "config:roles/monitoring/files/dashboards/logs/logs.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "target": "config:roles/monitoring/files/dashboards/meta/meta.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "target": "config:roles/monitoring/files/dashboards/services/services-red.json",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/prometheus.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/prometheus-rules.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/loki-config.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/alloy-config.alloy.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/blackbox.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/process-exporter.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/tempo.yaml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/alertmanager.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/grafana.ini.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/grafana-provisioning-datasources.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "config:roles/observability_agent/defaults/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "service:roles/observability_agent/handlers/main.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "config:roles/observability_agent/templates/alloy-config.alloy.j2",
+      "type": "configures",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "service:roles/observability_agent/templates/docker-compose.yml.j2",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "service:roles/observability_agent/files/node_exporter.service",
+      "type": "deploys",
+      "direction": "forward",
+      "weight": 0.7
+    },
+    {
+      "source": "service:roles/observability_agent/templates/docker-compose.yml.j2",
+      "target": "config:roles/observability_agent/templates/alloy-config.alloy.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "config:roles/observability_agent/templates/alloy-config.alloy.j2",
+      "target": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "pipeline:tests/health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "pipeline:tests/health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:roles/monitoring/templates/prometheus.yml.j2",
+      "target": "pipeline:tests/health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:roles/monitoring/templates/alloy-config.alloy.j2",
+      "target": "pipeline:tests/health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:roles/monitoring/templates/loki-config.yml.j2",
+      "target": "pipeline:tests/health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "service:roles/monitoring/files/node_exporter.service",
+      "target": "pipeline:tests/health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "pipeline:tests/jenkins-health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "service:roles/observability_agent/templates/docker-compose.yml.j2",
+      "target": "pipeline:tests/jenkins-health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "config:roles/observability_agent/templates/alloy-config.alloy.j2",
+      "target": "pipeline:tests/jenkins-health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "service:roles/observability_agent/files/node_exporter.service",
+      "target": "pipeline:tests/jenkins-health-check.yml",
+      "type": "tested_by",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/traefik/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/dns/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/vaultwarden/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/monitoring/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/zot/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/miplata/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/metabase/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/llm_inference/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:playbook.yml",
+      "target": "service:roles/categorizer/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "service:roles/traefik/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "service:roles/jenkins/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:jenkins-playbook.yml",
+      "target": "service:roles/observability_agent/tasks/main.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "pipeline:Jenkinsfile",
+      "target": "pipeline:tests/health-check.yml",
+      "type": "triggers",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/vaultwarden/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/miplata/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/metabase/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/categorizer/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/llm_inference/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/jenkins/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "config:group_vars/all.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/traefik/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/dns/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/vaultwarden/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/zot/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/miplata/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/metabase/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/categorizer/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/jenkins/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/observability_agent/tasks/main.yml",
+      "target": "config:vault.yml",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/miplata/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/metabase/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/categorizer/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/jenkins/templates/docker-compose.yml.j2",
+      "target": "service:roles/traefik/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "service:roles/observability_agent/templates/docker-compose.yml.j2",
+      "target": "service:roles/monitoring/templates/docker-compose.yml.j2",
+      "type": "depends_on",
+      "direction": "forward",
+      "weight": 0.6
+    }
+  ],
+  "layers": [
+    {
+      "id": "layer:orchestration",
+      "name": "Orchestration & Entry Points",
+      "description": "Top-level Ansible playbooks, inventory, runtime config, lint rules, and Galaxy requirements that drive every deploy against the two VPS hosts.",
+      "nodeIds": [
+        "config:.ansible-lint",
+        "config:ansible.cfg",
+        "config:requirements.yml",
+        "config:inventory.yml",
+        "pipeline:playbook.yml",
+        "pipeline:jenkins-playbook.yml"
+      ]
+    },
+    {
+      "id": "layer:ci-cd",
+      "name": "CI/CD Pipeline",
+      "description": "Jenkins-driven delivery pipeline plus the Ansible role that builds and runs the Jenkins controller image (JCasC, Dockerfile, plugins, compose) on the dedicated CI host.",
+      "nodeIds": [
+        "pipeline:Jenkinsfile",
+        "config:roles/jenkins/defaults/main.yml",
+        "service:roles/jenkins/handlers/main.yml",
+        "service:roles/jenkins/tasks/main.yml",
+        "service:roles/jenkins/files/Dockerfile",
+        "config:roles/jenkins/files/plugins.txt",
+        "config:roles/jenkins/templates/casc.yml.j2",
+        "service:roles/jenkins/templates/docker-compose.yml.j2"
+      ]
+    },
+    {
+      "id": "layer:configuration",
+      "name": "Shared Configuration & Secrets",
+      "description": "Cross-host variables, per-host overrides, and the ansible-vault encrypted secrets file (plus its template) consumed by every playbook and role.",
+      "nodeIds": [
+        "config:vault.yml",
+        "config:vault.yml.example",
+        "config:group_vars/all.yml",
+        "config:host_vars/jenkins.yml",
+        "config:host_vars/vps.yml"
+      ]
+    },
+    {
+      "id": "layer:documentation",
+      "name": "Documentation",
+      "description": "Human- and agent-facing project documentation: the README overview and the CLAUDE.md guide describing repo topology, conventions, and gotchas.",
+      "nodeIds": [
+        "document:README.md",
+        "document:CLAUDE.md"
+      ]
+    },
+    {
+      "id": "layer:foundation",
+      "name": "Foundation Roles",
+      "description": "Host-prep roles applied first on every VPS: OS hardening (UFW, fail2ban, SSH) and Docker Engine installation that all other roles depend on.",
+      "nodeIds": [
+        "config:roles/base/defaults/main.yml",
+        "config:roles/base/handlers/main.yml",
+        "service:roles/base/tasks/main.yml",
+        "config:roles/base/files/journald-observability.conf",
+        "config:roles/base/templates/jail.local.j2",
+        "config:roles/base/templates/sshd-hardening.conf.j2",
+        "config:roles/docker/defaults/main.yml",
+        "config:roles/docker/handlers/main.yml",
+        "service:roles/docker/tasks/main.yml",
+        "config:roles/docker/templates/daemon.json.j2"
+      ]
+    },
+    {
+      "id": "layer:edge",
+      "name": "Edge & Networking",
+      "description": "Public-facing perimeter: Traefik reverse proxy with ACME TLS owning ports 80/443 and the PowerDNS authoritative server that publishes A records for every other service.",
+      "nodeIds": [
+        "config:roles/traefik/defaults/main.yml",
+        "service:roles/traefik/handlers/main.yml",
+        "service:roles/traefik/tasks/main.yml",
+        "config:roles/traefik/files/nginx-docker-proxy.conf",
+        "config:roles/traefik/files/nginx.conf",
+        "config:roles/traefik/templates/traefik.yml.j2",
+        "service:roles/traefik/templates/docker-compose.yml.j2",
+        "config:roles/dns/defaults/main.yml",
+        "service:roles/dns/handlers/main.yml",
+        "service:roles/dns/tasks/main.yml",
+        "config:roles/dns/templates/env.j2",
+        "config:roles/dns/templates/pdns.conf.j2",
+        "service:roles/dns/templates/docker-compose.yml.j2"
+      ]
+    },
+    {
+      "id": "layer:applications",
+      "name": "Application Services",
+      "description": "Compose-based application stacks deployed behind Traefik: Vaultwarden, the Miplata personal-finance app and its AI categorizer, the llm_inference llama-server, the Zot OCI registry, and Metabase BI.",
+      "nodeIds": [
+        "config:roles/vaultwarden/defaults/main.yml",
+        "service:roles/vaultwarden/tasks/main.yml",
+        "config:roles/vaultwarden/templates/env.j2",
+        "service:roles/vaultwarden/templates/docker-compose.yml.j2",
+        "config:roles/zot/defaults/main.yml",
+        "service:roles/zot/handlers/main.yml",
+        "service:roles/zot/tasks/main.yml",
+        "config:roles/zot/templates/config.json.j2",
+        "service:roles/zot/templates/docker-compose.yml.j2",
+        "config:roles/zot/templates/htpasswd.j2",
+        "config:roles/miplata/defaults/main.yml",
+        "service:roles/miplata/tasks/main.yml",
+        "config:roles/miplata/templates/env.j2",
+        "service:roles/miplata/templates/docker-compose.yml.j2",
+        "config:roles/metabase/defaults/main.yml",
+        "service:roles/metabase/tasks/main.yml",
+        "config:roles/metabase/templates/env.j2",
+        "service:roles/metabase/templates/docker-compose.yml.j2",
+        "config:roles/categorizer/defaults/main.yml",
+        "service:roles/categorizer/tasks/main.yml",
+        "config:roles/categorizer/templates/env.j2",
+        "service:roles/categorizer/templates/docker-compose.yml.j2",
+        "config:roles/llm_inference/defaults/main.yml",
+        "service:roles/llm_inference/tasks/main.yml",
+        "config:roles/llm_inference/templates/env.j2",
+        "service:roles/llm_inference/templates/docker-compose.yml.j2"
+      ]
+    },
+    {
+      "id": "layer:observability",
+      "name": "Observability",
+      "description": "Monitoring stack on the main VPS (Prometheus, Loki, Tempo, Grafana, Alloy, cAdvisor, blackbox, dashboards) and the lightweight Alloy + node_exporter agent on the Jenkins host that pushes metrics and logs back over the internet.",
+      "nodeIds": [
+        "config:roles/monitoring/defaults/main.yml",
+        "config:roles/monitoring/files/dashboards/fleet/fleet-hosts.json",
+        "config:roles/monitoring/files/dashboards/home/home.json",
+        "config:roles/monitoring/files/dashboards/logs/logs.json",
+        "config:roles/monitoring/files/dashboards/meta/meta.json",
+        "config:roles/monitoring/files/dashboards/services/services-red.json",
+        "service:roles/monitoring/files/node_exporter.service",
+        "service:roles/monitoring/handlers/main.yml",
+        "service:roles/monitoring/tasks/main.yml",
+        "config:roles/monitoring/templates/alertmanager.yml.j2",
+        "config:roles/monitoring/templates/alloy-config.alloy.j2",
+        "config:roles/monitoring/templates/blackbox.yml.j2",
+        "service:roles/monitoring/templates/docker-compose.yml.j2",
+        "config:roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+        "config:roles/monitoring/templates/grafana-provisioning-datasources.yml.j2",
+        "config:roles/monitoring/templates/grafana.ini.j2",
+        "config:roles/monitoring/templates/loki-config.yml.j2",
+        "config:roles/monitoring/templates/process-exporter.yml.j2",
+        "config:roles/monitoring/templates/prometheus-rules.yml.j2",
+        "config:roles/monitoring/templates/prometheus.yml.j2",
+        "config:roles/monitoring/templates/tempo.yaml.j2",
+        "config:roles/observability_agent/defaults/main.yml",
+        "service:roles/observability_agent/files/node_exporter.service",
+        "service:roles/observability_agent/handlers/main.yml",
+        "service:roles/observability_agent/tasks/main.yml",
+        "config:roles/observability_agent/templates/alloy-config.alloy.j2",
+        "service:roles/observability_agent/templates/docker-compose.yml.j2"
+      ]
+    },
+    {
+      "id": "layer:testing",
+      "name": "Health Checks",
+      "description": "Post-deploy verification playbooks executed after every CI deploy to assert that the main VPS and Jenkins host are functionally healthy.",
+      "nodeIds": [
+        "pipeline:tests/health-check.yml",
+        "pipeline:tests/jenkins-health-check.yml"
+      ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 1,
+      "title": "Project Overview",
+      "description": "Start with the human- and agent-facing documentation. README.md introduces the two-VPS layout — a public web host behind Traefik + Let's Encrypt and a separate Jenkins host that builds container images and deploys back to it. CLAUDE.md goes deeper into repo conventions, role ordering constraints, and the gotchas (vault file is encrypted, .vault_pass is gitignored, role order in the playbook matters) you need to keep in mind for every step that follows.",
+      "nodeIds": [
+        "document:README.md",
+        "document:CLAUDE.md"
+      ]
+    },
+    {
+      "order": 2,
+      "title": "Entry Points & Inventory",
+      "description": "Both deploys are orchestrated by a flat Ansible playbook. playbook.yml drives the main VPS through eleven roles in a deliberately dependency-sensitive order; jenkins-playbook.yml drives the CI host through a smaller baseline plus the Jenkins role. inventory.yml is the connective tissue: two hosts whose ansible_host values come from the encrypted vault, so the repo is safe to publish. Read these three side-by-side and the rest of the project becomes a tree of roles hanging off them.",
+      "nodeIds": [
+        "pipeline:playbook.yml",
+        "pipeline:jenkins-playbook.yml",
+        "config:inventory.yml"
+      ],
+      "languageLesson": "Ansible playbooks have no implicit dependency resolution — the order in the `roles:` list IS the execution order. Reordering can silently break things (e.g. a role joining the `proxy` Docker network before `traefik` created it)."
+    },
+    {
+      "order": 3,
+      "title": "Shared Config & Secrets",
+      "description": "Configuration is layered. group_vars/all.yml is the single source of truth for non-secret shared values — image pins, hostnames, Docker network names, UFW rule sets, observability ports. host_vars/{vps,jenkins}.yml override per-host details (the Jenkins host uses `root` as ssh user and a different UFW set). vault.yml is AES256-encrypted and holds every identifying value (IP, domain, ACME email, tokens); vault.yml.example is the unencrypted template for onboarding. ansible.cfg ties them together — fact caching on, sudo on, vault password auto-loaded from .vault_pass.",
+      "nodeIds": [
+        "config:group_vars/all.yml",
+        "config:host_vars/vps.yml",
+        "config:host_vars/jenkins.yml",
+        "config:vault.yml.example",
+        "config:ansible.cfg"
+      ],
+      "languageLesson": "Ansible variable precedence: role defaults < group_vars/all < group_vars/<group> < host_vars/<host> < extra vars. Putting service tunables in group_vars/all.yml and identifying info in vault.yml is the standard split for a publishable IaC repo."
+    },
+    {
+      "order": 4,
+      "title": "Foundation: Host Hardening & Docker",
+      "description": "The first two roles run on every host. The base role installs core packages, applies SSH hardening, configures UFW (including a narrow rule allowing Docker bridge subnets 172.16.0.0/12 to reach node_exporter on :9100), enables unattended-upgrades, and tunes fail2ban. The docker role idempotently adds the Docker apt repo (guarded by a `docker --version` probe), installs the engine + compose v2 plugin, and pre-creates the shared `proxy` and `miplata_db` networks. Nothing downstream can run until both have completed.",
+      "nodeIds": [
+        "service:roles/base/tasks/main.yml",
+        "service:roles/docker/tasks/main.yml"
+      ]
+    },
+    {
+      "order": 5,
+      "title": "Edge Layer: Traefik & PowerDNS",
+      "description": "Building on the Docker networks from Step 4, the edge layer owns everything user-facing. Traefik binds ports 80/443, terminates TLS via ACME HTTP-01 (acme.json chmod 0600), and exposes every other service by Compose labels on the shared `proxy` network. PowerDNS runs as a container on the same VPS and is authoritative for the project domain — downstream roles register their A records with `docker exec pdns pdnsutil replace-rrset` (note: short relative name, not FQDN). Traefik's compose template has the highest fan-in of any service in the repo — eight downstream roles plug into it.",
+      "nodeIds": [
+        "service:roles/traefik/tasks/main.yml",
+        "service:roles/traefik/templates/docker-compose.yml.j2",
+        "service:roles/dns/tasks/main.yml",
+        "service:roles/dns/templates/docker-compose.yml.j2"
+      ],
+      "languageLesson": "Jinja2 templates with the `.j2` extension are rendered by Ansible's `template` module, substituting variables from group_vars/host_vars/vault at deploy time. This is why compose files are templated (not copied): vault secrets and per-host config resolve into them."
+    },
+    {
+      "order": 6,
+      "title": "Application Stack: Miplata + AI Pipeline",
+      "description": "The headline app. Miplata is a pnpm/turbo monorepo (NestJS API + nginx web + Postgres + Redis) deployed as a Compose stack joined to both `proxy` (Traefik) and `miplata_db` (isolated DB plane). Crucially, the Ansible role does NOT build images — they come from the Zot registry, populated by the Jenkins job in Step 9. That's why `docker compose pull` is tolerantly handled (`failed_when: false`) and `up` is guarded by `when: miplata_pull.rc == 0`. The categorizer is the AI sidecar that consumes transactions via pgvector, calling the llm_inference llama-server over a private network for chat completions. Vaultwarden and Zot round out the stack as supporting tenants behind Traefik.",
+      "nodeIds": [
+        "service:roles/miplata/tasks/main.yml",
+        "service:roles/miplata/templates/docker-compose.yml.j2",
+        "service:roles/categorizer/tasks/main.yml",
+        "service:roles/llm_inference/tasks/main.yml",
+        "service:roles/vaultwarden/tasks/main.yml"
+      ]
+    },
+    {
+      "order": 7,
+      "title": "Analytics & Registry: Metabase + Zot",
+      "description": "Two supporting services round out the application plane. Metabase is the BI tool that queries Postgres through the read-only `metabase_ro` role the miplata task provisions — out-of-app analytics without granting write access. Zot is the self-hosted OCI registry that holds the images the Jenkins pipeline pushes to and the Miplata/categorizer roles pull from. Both attach to `proxy` for TLS termination and register their own PowerDNS A records on apply.",
+      "nodeIds": [
+        "service:roles/metabase/tasks/main.yml",
+        "service:roles/metabase/templates/docker-compose.yml.j2",
+        "service:roles/zot/tasks/main.yml"
+      ]
+    },
+    {
+      "order": 8,
+      "title": "Observability: Push From Jenkins to Main VPS",
+      "description": "This is the non-obvious topology. The full stack — Prometheus, Loki, Tempo, Grafana, Alloy, cAdvisor, blackbox, process-exporter — runs as containers on the main VPS. The Jenkins host doesn't host Prom or Loki; instead, observability_agent installs Alloy + node_exporter and PUSHES metrics and logs over the public internet to `prom-push.<web_subdomain>` and `loki-push.<web_subdomain>`, which Traefik exposes with bearer-token auth (`vault_observability_push_token`). node_exporter on the main VPS runs as a systemd unit on the host (not a container), which is why the base role's UFW rule has to open :9100 to the Docker bridge ranges.",
+      "nodeIds": [
+        "service:roles/monitoring/tasks/main.yml",
+        "service:roles/monitoring/templates/docker-compose.yml.j2",
+        "service:roles/observability_agent/tasks/main.yml",
+        "config:roles/observability_agent/templates/alloy-config.alloy.j2"
+      ],
+      "languageLesson": "Alloy uses HCL-like `.alloy` config files (formerly Grafana Agent flow mode). Components are wired by export references — e.g. `prometheus.remote_write.main.receiver` is consumed by scrape components — which lets one agent unify metrics, logs, and traces."
+    },
+    {
+      "order": 9,
+      "title": "CI/CD: Jenkins on Jenkins",
+      "description": "On the Jenkins VPS, the jenkins role builds a local image (`jenkins-ansible:latest`) from a Dockerfile that grafts in Ansible (in a venv), the Docker CLI + buildx + compose plugin, and Node 22 + pnpm — everything its pipelines need to build apps like Miplata. It then runs Jenkins via Compose with `docker.sock` bind-mounted and `group_add` set to the host's docker GID (discovered at deploy time). Config is fully declarative via JCasC (casc.yml.j2) — touching the UI is futile, the next playbook run will overwrite it. The Jenkinsfile is the meta-pipeline that runs against THIS repo: galaxy install → ansible-lint → syntax check → `--check --diff` dry run → real deploy → health-check.",
+      "nodeIds": [
+        "pipeline:Jenkinsfile",
+        "service:roles/jenkins/tasks/main.yml",
+        "service:roles/jenkins/files/Dockerfile",
+        "config:roles/jenkins/templates/casc.yml.j2"
+      ],
+      "languageLesson": "Mounting `/var/run/docker.sock` into a container gives that container root-equivalent control of the host. Jenkins needs it to build images, but the trade-off is that any pipeline running in this Jenkins can spawn host containers. The `group_add` trick aligns the in-container Jenkins user with the host's docker group so it can talk to the socket without running as root."
+    },
+    {
+      "order": 10,
+      "title": "Verification: Health Checks",
+      "description": "Every CI deploy ends here. tests/health-check.yml asserts the main VPS state functionally — Traefik is up, every expected service responds on its hostname, PowerDNS resolves, observability endpoints answer — using the same role/group_vars context as the deploy itself. tests/jenkins-health-check.yml mirrors that for the CI host. Both mirror the Miplata `pull-may-fail-on-cold-start` guard so they don't false-positive on a fresh VPS where images don't yet exist. Run them locally after any deploy; the Jenkinsfile runs them automatically on every push to main.",
+      "nodeIds": [
+        "pipeline:tests/health-check.yml",
+        "pipeline:tests/jenkins-health-check.yml"
+      ]
+    }
+  ]
+}

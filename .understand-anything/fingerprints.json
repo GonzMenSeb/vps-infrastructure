@@ -1,0 +1,997 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "8701183da3dd01b3faf18131a7ebca42c8cd1285",
+  "generatedAt": "2026-05-20T16:31:02.904Z",
+  "files": {
+    ".ansible-lint": {
+      "filePath": ".ansible-lint",
+      "contentHash": "794a5cc3739fd9bf7bb86ffe1d628c13120de1670509ed3d0d120056993d5bcb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": false
+    },
+    "ansible.cfg": {
+      "filePath": "ansible.cfg",
+      "contentHash": "53d37a5157e4bad3bfca1d05ccd8757c8521d9dc4d8bb4b86339a8e1c79a1466",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": false
+    },
+    "CLAUDE.md": {
+      "filePath": "CLAUDE.md",
+      "contentHash": "b0880c5edeca769e2cb2bdf3fc2034dea59fae6f4d1b4403d75dcb32a8c26bd2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 85,
+      "hasStructuralAnalysis": true
+    },
+    "README.md": {
+      "filePath": "README.md",
+      "contentHash": "61e72a5dd895233eccece83251b3eddb09ba1838adb86fc05849cefc93a74fd6",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 95,
+      "hasStructuralAnalysis": true
+    },
+    "Jenkinsfile": {
+      "filePath": "Jenkinsfile",
+      "contentHash": "64efd6c821917a2d9ef909aa7ea36ee105b700bc9fc574b6c326ce18e4047de3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 116,
+      "hasStructuralAnalysis": true
+    },
+    "playbook.yml": {
+      "filePath": "playbook.yml",
+      "contentHash": "1ca276868f21269c0a37a2c631cc97cd9195159997505762c88860d4ee20033b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    "jenkins-playbook.yml": {
+      "filePath": "jenkins-playbook.yml",
+      "contentHash": "fb83be534dba6ebd3db108ad71ecb81724be35da8a70a09da2ca302347bba993",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "requirements.yml": {
+      "filePath": "requirements.yml",
+      "contentHash": "8a7c88911fd6560beadea0243b83b9ea96dcc0e0e7510158eb788658b8c78909",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": true
+    },
+    "inventory.yml": {
+      "filePath": "inventory.yml",
+      "contentHash": "0e9b64983ea08f03dfc0303b86719b94db8b3ed1487cab70a60f9bee422163eb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 9,
+      "hasStructuralAnalysis": true
+    },
+    "group_vars/all.yml": {
+      "filePath": "group_vars/all.yml",
+      "contentHash": "36b186882f9cebffa8f3d46cc9e0b4a82cc9e232803c09cc8be758ddf7c946dc",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 111,
+      "hasStructuralAnalysis": true
+    },
+    "host_vars/jenkins.yml": {
+      "filePath": "host_vars/jenkins.yml",
+      "contentHash": "6219b6dc003752a733fb80af278e0df6032a389f5cf4ab23f6590d2fc369d76e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "host_vars/vps.yml": {
+      "filePath": "host_vars/vps.yml",
+      "contentHash": "76591d749b4e2480fb402c3d6919b2c88e2aa26be3a3620314335637dbdc20c4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 4,
+      "hasStructuralAnalysis": true
+    },
+    "vault.yml": {
+      "filePath": "vault.yml",
+      "contentHash": "f279199b27808fa56143c0f02120f49aff669d3445ee4f73eef1ecb53fc63f0a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 215,
+      "hasStructuralAnalysis": true
+    },
+    "vault.yml.example": {
+      "filePath": "vault.yml.example",
+      "contentHash": "50edf3ff465517df9cbb577e244b7fb3454fc0f11b6e3f41965668e161d52965",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 74,
+      "hasStructuralAnalysis": false
+    },
+    "roles/base/defaults/main.yml": {
+      "filePath": "roles/base/defaults/main.yml",
+      "contentHash": "ead0ddbe35f43a8ab41573e73bd600fb3c544f613ae8e05778dfecdf9795f4d4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": true
+    },
+    "roles/base/handlers/main.yml": {
+      "filePath": "roles/base/handlers/main.yml",
+      "contentHash": "46a2beabe306b560013687fbeace5716e0eb69659b698e1c6fbc33cd0ae41a19",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "roles/base/tasks/main.yml": {
+      "filePath": "roles/base/tasks/main.yml",
+      "contentHash": "006360fa06a86e42660047ade622081ef59533d37ee928295b85dd9d762505f3",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 92,
+      "hasStructuralAnalysis": true
+    },
+    "roles/base/files/journald-observability.conf": {
+      "filePath": "roles/base/files/journald-observability.conf",
+      "contentHash": "d12de89738e95eb4f0d05baa0af791c898f42ffd1bf7301831c24d09615b74f1",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 17,
+      "hasStructuralAnalysis": false
+    },
+    "roles/base/templates/jail.local.j2": {
+      "filePath": "roles/base/templates/jail.local.j2",
+      "contentHash": "d0ac7ee13689087d053aa27658014b3702d20e42dab3d36c12c8437b8aaddada",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 14,
+      "hasStructuralAnalysis": false
+    },
+    "roles/base/templates/sshd-hardening.conf.j2": {
+      "filePath": "roles/base/templates/sshd-hardening.conf.j2",
+      "contentHash": "7104fad7c9df51bb36fca8c3a322615804d7df601f7cc4e49630f83e6735b81a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 8,
+      "hasStructuralAnalysis": false
+    },
+    "roles/docker/defaults/main.yml": {
+      "filePath": "roles/docker/defaults/main.yml",
+      "contentHash": "77d414e6d379188921c76997b981d50b2748736133e31d246882f96c07a0a0d0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "roles/docker/handlers/main.yml": {
+      "filePath": "roles/docker/handlers/main.yml",
+      "contentHash": "98fd310884184e3f8a0c350d933db1c394c9de39e26a2624b3c16aca613f0dae",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "roles/docker/tasks/main.yml": {
+      "filePath": "roles/docker/tasks/main.yml",
+      "contentHash": "95e2bd282ebdb1df3f34e9b9c036eae5f2015977f7b56e36e2593943c4b15b36",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 69,
+      "hasStructuralAnalysis": true
+    },
+    "roles/docker/templates/daemon.json.j2": {
+      "filePath": "roles/docker/templates/daemon.json.j2",
+      "contentHash": "f2ed05c6f5934a15f12571139bdc225804f67b8c83561cc39868f7b2296d2697",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 8,
+      "hasStructuralAnalysis": false
+    },
+    "roles/traefik/defaults/main.yml": {
+      "filePath": "roles/traefik/defaults/main.yml",
+      "contentHash": "b9d0264ec89d7c362189ac40bb30c88c5010e88408bb15bbd1f8fd9b5d23158b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "roles/traefik/handlers/main.yml": {
+      "filePath": "roles/traefik/handlers/main.yml",
+      "contentHash": "3c7cdc4ff1bb23509a87e2af2ececbbeadbcead8709543fca0b72864a8aa373a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "roles/traefik/tasks/main.yml": {
+      "filePath": "roles/traefik/tasks/main.yml",
+      "contentHash": "df90f7fb91f52ac6b5a422085c59a847e137f8a0375f7da02a661327caaa0bcf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 44,
+      "hasStructuralAnalysis": true
+    },
+    "roles/traefik/files/nginx-docker-proxy.conf": {
+      "filePath": "roles/traefik/files/nginx-docker-proxy.conf",
+      "contentHash": "0a948a01933b2c225b4d54f31e43d2926770b882d403ad4b069357b2764ba765",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 28,
+      "hasStructuralAnalysis": false
+    },
+    "roles/traefik/files/nginx.conf": {
+      "filePath": "roles/traefik/files/nginx.conf",
+      "contentHash": "98bdb958266b833a61bd3b5834ca1deda7e6a45979f0196ff96dafe2dbaa4417",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 17,
+      "hasStructuralAnalysis": false
+    },
+    "roles/traefik/templates/traefik.yml.j2": {
+      "filePath": "roles/traefik/templates/traefik.yml.j2",
+      "contentHash": "fd8d4cfb35ab5ca5a83b6237fee92fde33f337c1aa41e0e2a1c1c5de2e2d23b9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 46,
+      "hasStructuralAnalysis": false
+    },
+    "roles/traefik/templates/docker-compose.yml.j2": {
+      "filePath": "roles/traefik/templates/docker-compose.yml.j2",
+      "contentHash": "3de2d36f952425fc6f91943ccc8dbb7209d2405d3be8ac71025cc21b9a0113f8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 40,
+      "hasStructuralAnalysis": false
+    },
+    "roles/dns/defaults/main.yml": {
+      "filePath": "roles/dns/defaults/main.yml",
+      "contentHash": "425ea6c24daab0b4d3b8a1a864f9984dddef5d1d167ea2595c23c15660cf8494",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "roles/dns/handlers/main.yml": {
+      "filePath": "roles/dns/handlers/main.yml",
+      "contentHash": "5627aee0c3290aabc96501005427ea2b117d41c08402f4c05756c52e141c1347",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "roles/dns/tasks/main.yml": {
+      "filePath": "roles/dns/tasks/main.yml",
+      "contentHash": "2707abc6b289ce2e74d0ceca4c0bba711b1b14407f4f490d0e6e55760ec9e93d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
+    },
+    "roles/dns/templates/env.j2": {
+      "filePath": "roles/dns/templates/env.j2",
+      "contentHash": "84600b719d9ac61430e16358d07bad95a2c308ef3dc1c58d1e9aced62b185b7b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 5,
+      "hasStructuralAnalysis": false
+    },
+    "roles/dns/templates/pdns.conf.j2": {
+      "filePath": "roles/dns/templates/pdns.conf.j2",
+      "contentHash": "3c537ec149660715484026b651851c39468c7fb348ebcb5c9f45a2ae05ea5fa0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": false
+    },
+    "roles/dns/templates/docker-compose.yml.j2": {
+      "filePath": "roles/dns/templates/docker-compose.yml.j2",
+      "contentHash": "3463e4acbe9b838067d65e174e876d5074b2981855d0873c06d968809b46dcba",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 66,
+      "hasStructuralAnalysis": false
+    },
+    "roles/vaultwarden/defaults/main.yml": {
+      "filePath": "roles/vaultwarden/defaults/main.yml",
+      "contentHash": "08627d2caffa8af314ab91cc9ea0f1d1b47f3ce3b62e2f76ec2ac5b73484d544",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "roles/vaultwarden/tasks/main.yml": {
+      "filePath": "roles/vaultwarden/tasks/main.yml",
+      "contentHash": "98466144971688dfb638014e609d6447450876a59272dadccbcfdf3901b26be2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 31,
+      "hasStructuralAnalysis": true
+    },
+    "roles/vaultwarden/templates/env.j2": {
+      "filePath": "roles/vaultwarden/templates/env.j2",
+      "contentHash": "46263e8b4bfe4aa7a72bb3079084f1bf93aad8d90445660e571cd1c63d06bf39",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": false
+    },
+    "roles/vaultwarden/templates/docker-compose.yml.j2": {
+      "filePath": "roles/vaultwarden/templates/docker-compose.yml.j2",
+      "contentHash": "8a80363d35f021930b21714dd2a151d48140a57bf64463ac89fa0370df018912",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 39,
+      "hasStructuralAnalysis": false
+    },
+    "roles/zot/defaults/main.yml": {
+      "filePath": "roles/zot/defaults/main.yml",
+      "contentHash": "a93ee944e99ebad35dd9a9686b990dd8182507aefed87bc721d13a02e44be15b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": true
+    },
+    "roles/zot/handlers/main.yml": {
+      "filePath": "roles/zot/handlers/main.yml",
+      "contentHash": "e8b863cc88ed48758b247aea84668b2f0631f5d2a44bc20e2066724dd3f1e672",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "roles/zot/tasks/main.yml": {
+      "filePath": "roles/zot/tasks/main.yml",
+      "contentHash": "1cea17f7aaadf9a9d4274f04592a200ffe7e2d506d79c47af86e32e4cc5b1c57",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 54,
+      "hasStructuralAnalysis": true
+    },
+    "roles/zot/templates/config.json.j2": {
+      "filePath": "roles/zot/templates/config.json.j2",
+      "contentHash": "befe428c0570dd97fe459c41321f8b380ce8c7554d705d185dc69aa8107a95c4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 53,
+      "hasStructuralAnalysis": false
+    },
+    "roles/zot/templates/docker-compose.yml.j2": {
+      "filePath": "roles/zot/templates/docker-compose.yml.j2",
+      "contentHash": "f041991482c34a4b9e0e06944012a00891617edc35f5a5f1e6426e82deaf4801",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": false
+    },
+    "roles/zot/templates/htpasswd.j2": {
+      "filePath": "roles/zot/templates/htpasswd.j2",
+      "contentHash": "059e8eaf6adb52aeda3c2b725c59d61eb90fc201c07887adac84cae128e4a85b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": false
+    },
+    "roles/miplata/defaults/main.yml": {
+      "filePath": "roles/miplata/defaults/main.yml",
+      "contentHash": "545880701d56db6e90b1bd52eb7cc145904becb8af05549cc6a1fd338bcfd5ff",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 10,
+      "hasStructuralAnalysis": true
+    },
+    "roles/miplata/tasks/main.yml": {
+      "filePath": "roles/miplata/tasks/main.yml",
+      "contentHash": "87497b830edab267a1ebdb42105cdcb4771dd00e6b8a1148f4b2d45ac5a8e42e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 133,
+      "hasStructuralAnalysis": true
+    },
+    "roles/miplata/templates/env.j2": {
+      "filePath": "roles/miplata/templates/env.j2",
+      "contentHash": "5725b06b5e552cd0260cc1a28447b371151e23290e9ff9a33fb9a9fbad99e902",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 28,
+      "hasStructuralAnalysis": false
+    },
+    "roles/miplata/templates/docker-compose.yml.j2": {
+      "filePath": "roles/miplata/templates/docker-compose.yml.j2",
+      "contentHash": "79ab5e0e782e77bd90651d5895c55b7a2257cf3c6543c82fe03b6fd0e96c61f5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 93,
+      "hasStructuralAnalysis": false
+    },
+    "roles/metabase/defaults/main.yml": {
+      "filePath": "roles/metabase/defaults/main.yml",
+      "contentHash": "23729a9ebccf5362afd4a88e3641151a5dbd5ecb6f18033e0ff0849339af6e3c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": true
+    },
+    "roles/metabase/tasks/main.yml": {
+      "filePath": "roles/metabase/tasks/main.yml",
+      "contentHash": "3818959bec96beca0339251d07c0d190d3866f81aadb00a5ba520f981606e841",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 119,
+      "hasStructuralAnalysis": true
+    },
+    "roles/metabase/templates/env.j2": {
+      "filePath": "roles/metabase/templates/env.j2",
+      "contentHash": "3d761d2681e38e650fdd66af9f1d227121b50ed7e31ec9b7dbc77bfb629508c4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 11,
+      "hasStructuralAnalysis": false
+    },
+    "roles/metabase/templates/docker-compose.yml.j2": {
+      "filePath": "roles/metabase/templates/docker-compose.yml.j2",
+      "contentHash": "496d137355357d1c03f30154321933117c36d3b39020f0644ff93720b2ad2e9d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 44,
+      "hasStructuralAnalysis": false
+    },
+    "roles/categorizer/defaults/main.yml": {
+      "filePath": "roles/categorizer/defaults/main.yml",
+      "contentHash": "c7b134e1cff6c6f159cd06cf49fc064df848ed94ca76b1820a572e6784468f98",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 19,
+      "hasStructuralAnalysis": true
+    },
+    "roles/categorizer/tasks/main.yml": {
+      "filePath": "roles/categorizer/tasks/main.yml",
+      "contentHash": "a8e824d6192050ce46d26c13b05283927b26d40f14bb068f71f3a38efc84dce6",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 78,
+      "hasStructuralAnalysis": true
+    },
+    "roles/categorizer/templates/env.j2": {
+      "filePath": "roles/categorizer/templates/env.j2",
+      "contentHash": "ebf4cee338cc6b603d87ec8b41216c104c3779feeaa59f769a0c9c0f3096eab2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 42,
+      "hasStructuralAnalysis": false
+    },
+    "roles/categorizer/templates/docker-compose.yml.j2": {
+      "filePath": "roles/categorizer/templates/docker-compose.yml.j2",
+      "contentHash": "5681ad352527c994b9555f02a06c2f0b794316d7d19b7ee95a300f7948394ed0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 74,
+      "hasStructuralAnalysis": false
+    },
+    "roles/llm_inference/defaults/main.yml": {
+      "filePath": "roles/llm_inference/defaults/main.yml",
+      "contentHash": "964028594a6048df1cee8434f362ac95c1a79bb3eeeb76fec3beba75774d74bf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": true
+    },
+    "roles/llm_inference/tasks/main.yml": {
+      "filePath": "roles/llm_inference/tasks/main.yml",
+      "contentHash": "da96aad1ce103f040aa60c08575928b320cfe508d0967e900f2a997b6420e18d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 53,
+      "hasStructuralAnalysis": true
+    },
+    "roles/llm_inference/templates/env.j2": {
+      "filePath": "roles/llm_inference/templates/env.j2",
+      "contentHash": "a0217d250f4861a6c69dbcc12b30e69bb824a0f83fd2f3150dc6e08e65645962",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 18,
+      "hasStructuralAnalysis": false
+    },
+    "roles/llm_inference/templates/docker-compose.yml.j2": {
+      "filePath": "roles/llm_inference/templates/docker-compose.yml.j2",
+      "contentHash": "bd3d22f9173dbcebfa1bfc8e4ef4012f482a5d439362513a62d18e937e4532df",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 40,
+      "hasStructuralAnalysis": false
+    },
+    "roles/jenkins/defaults/main.yml": {
+      "filePath": "roles/jenkins/defaults/main.yml",
+      "contentHash": "196c919a1c93817d977f1b331cc4f5fa633c88ae236952193e2b58f4b4f47ab1",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 4,
+      "hasStructuralAnalysis": true
+    },
+    "roles/jenkins/handlers/main.yml": {
+      "filePath": "roles/jenkins/handlers/main.yml",
+      "contentHash": "317610db95638ba9f9da876e9349d1dacb0f9534b914f7aeed2dd4cc7b2232fd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "roles/jenkins/tasks/main.yml": {
+      "filePath": "roles/jenkins/tasks/main.yml",
+      "contentHash": "0e38863dd667d37062064d8467f422e65fe7fd12c9a93894a736f1fdcd968aae",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 117,
+      "hasStructuralAnalysis": true
+    },
+    "roles/jenkins/files/Dockerfile": {
+      "filePath": "roles/jenkins/files/Dockerfile",
+      "contentHash": "38fa6ccb57c045832057919162defe36ce6f21a154c82c626b763fceb1738c60",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 49,
+      "hasStructuralAnalysis": true
+    },
+    "roles/jenkins/files/plugins.txt": {
+      "filePath": "roles/jenkins/files/plugins.txt",
+      "contentHash": "e346b1f69739424d46a144da6a008eeace6c5ead372ce5bcb842024fc07e8da2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": false
+    },
+    "roles/jenkins/templates/casc.yml.j2": {
+      "filePath": "roles/jenkins/templates/casc.yml.j2",
+      "contentHash": "191c6378af8043509dedde8611db1961dda94297cb4700b98628b90929895a10",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 149,
+      "hasStructuralAnalysis": false
+    },
+    "roles/jenkins/templates/docker-compose.yml.j2": {
+      "filePath": "roles/jenkins/templates/docker-compose.yml.j2",
+      "contentHash": "d97c72ee5355a11740092be18c47a97e7bc103ecf90bc4678b0eb49a3abf4176",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 27,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/defaults/main.yml": {
+      "filePath": "roles/monitoring/defaults/main.yml",
+      "contentHash": "cfea25e5b2589bc3e8b23ec768288e75d440e51a005e547d85582f6e2e839234",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/files/dashboards/fleet/fleet-hosts.json": {
+      "filePath": "roles/monitoring/files/dashboards/fleet/fleet-hosts.json",
+      "contentHash": "54a03c9bcc9145aa6a895ec5a63760f43d8ded68af950dcbd7847e4c0b001462",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 607,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/files/dashboards/home/home.json": {
+      "filePath": "roles/monitoring/files/dashboards/home/home.json",
+      "contentHash": "c41273ee721a4e00fbf67edeee0f1e5708dd3d0ae8193313144d12cb8e589b31",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1235,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/files/dashboards/logs/logs.json": {
+      "filePath": "roles/monitoring/files/dashboards/logs/logs.json",
+      "contentHash": "4b3ef71eda45d045611751996171367e6b000d5ccbc7e6bfc838e745da19cf3b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 341,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/files/dashboards/meta/meta.json": {
+      "filePath": "roles/monitoring/files/dashboards/meta/meta.json",
+      "contentHash": "c0951042fe00df87772bbdc3cdcc826f4f4d45917778dcab0ebf4a9cb2bddb63",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 577,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/files/dashboards/services/services-red.json": {
+      "filePath": "roles/monitoring/files/dashboards/services/services-red.json",
+      "contentHash": "fc928fdcad4939ae1bf313e33aa163aa7780eab7d0b51a7f1879596f0d20c7a7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 757,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/files/node_exporter.service": {
+      "filePath": "roles/monitoring/files/node_exporter.service",
+      "contentHash": "a35e94f2c0f9ab7bf19d5100a6ba82c21f90f91ffeca4f39e4a591820485614d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/handlers/main.yml": {
+      "filePath": "roles/monitoring/handlers/main.yml",
+      "contentHash": "c61a760c79554da44bfe0c7432d8416f69f0e01c76c87723a2279adf08ff6688",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 21,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/tasks/main.yml": {
+      "filePath": "roles/monitoring/tasks/main.yml",
+      "contentHash": "d002db53c1bf5786609afc2f756af261d57f5b4da61eae4204dc6639abdad2ba",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 219,
+      "hasStructuralAnalysis": true
+    },
+    "roles/monitoring/templates/alertmanager.yml.j2": {
+      "filePath": "roles/monitoring/templates/alertmanager.yml.j2",
+      "contentHash": "accce99cc85d2d43298f1a2bc68ad9784a33c0aa02559777a390fb4a052752bd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/alloy-config.alloy.j2": {
+      "filePath": "roles/monitoring/templates/alloy-config.alloy.j2",
+      "contentHash": "32c72a1e5493e1fc56801bcb559763746f6af02ba8fb281d84abe7e30a2cd937",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 464,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/blackbox.yml.j2": {
+      "filePath": "roles/monitoring/templates/blackbox.yml.j2",
+      "contentHash": "d30cfcfbf5f68aea529d7dc8907b4ff56167ec3a0adc095c07cb5dd42fefdf02",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 53,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/docker-compose.yml.j2": {
+      "filePath": "roles/monitoring/templates/docker-compose.yml.j2",
+      "contentHash": "a4a260e71d09ec781bc735ae974e82113219490af96f24ce3c0220c6fdd0eee8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 209,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2": {
+      "filePath": "roles/monitoring/templates/grafana-provisioning-dashboards.yml.j2",
+      "contentHash": "9010188e2a1b9fb726352093095b1a79bb1e4a114829f9ae5ff16f219efe7b62",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/grafana-provisioning-datasources.yml.j2": {
+      "filePath": "roles/monitoring/templates/grafana-provisioning-datasources.yml.j2",
+      "contentHash": "7c07214db089fa19081dffa75c6ec438b5d619968fcde0a135bed921ab03c1d1",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 82,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/grafana.ini.j2": {
+      "filePath": "roles/monitoring/templates/grafana.ini.j2",
+      "contentHash": "8de64787d69fc0e4a64571fc1a110316aee5fcd1694ccbf510bb86369696281d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 40,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/loki-config.yml.j2": {
+      "filePath": "roles/monitoring/templates/loki-config.yml.j2",
+      "contentHash": "ffb0d856d87955680aabde8f55e0ef619981e345afaf78fe2015f78052c9c48c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 58,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/process-exporter.yml.j2": {
+      "filePath": "roles/monitoring/templates/process-exporter.yml.j2",
+      "contentHash": "bcb229edc710315f78e4b37c2ae955532838e25029fc1cbc02d6fcba9b4435cb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 26,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/prometheus-rules.yml.j2": {
+      "filePath": "roles/monitoring/templates/prometheus-rules.yml.j2",
+      "contentHash": "12565a6feabd42c851fbe69ea817bbf809f4c757986b3bbef8621608c4a8d831",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 289,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/prometheus.yml.j2": {
+      "filePath": "roles/monitoring/templates/prometheus.yml.j2",
+      "contentHash": "c31ca14052daa6d3002c43cd2d75f25a525be37c71a05c35ccc8cc6f7105fe27",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 30,
+      "hasStructuralAnalysis": false
+    },
+    "roles/monitoring/templates/tempo.yaml.j2": {
+      "filePath": "roles/monitoring/templates/tempo.yaml.j2",
+      "contentHash": "09d06d61066e0c763866dabd1c43bde4e1225469fc1306a219a3fe6547164d7a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 66,
+      "hasStructuralAnalysis": false
+    },
+    "roles/observability_agent/defaults/main.yml": {
+      "filePath": "roles/observability_agent/defaults/main.yml",
+      "contentHash": "e9b7c4c6ec5f990d5cbf121d02b0d73a0156eb63696eef89490dacdcc9d440c4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 3,
+      "hasStructuralAnalysis": true
+    },
+    "roles/observability_agent/files/node_exporter.service": {
+      "filePath": "roles/observability_agent/files/node_exporter.service",
+      "contentHash": "a35e94f2c0f9ab7bf19d5100a6ba82c21f90f91ffeca4f39e4a591820485614d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 15,
+      "hasStructuralAnalysis": false
+    },
+    "roles/observability_agent/handlers/main.yml": {
+      "filePath": "roles/observability_agent/handlers/main.yml",
+      "contentHash": "4c8b1a589cde6034deb32c936042005b4de29c75ed8c5623e62e119ea6207d4e",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "roles/observability_agent/tasks/main.yml": {
+      "filePath": "roles/observability_agent/tasks/main.yml",
+      "contentHash": "f436a483cd54b0bddf89703bc11ca9074000525c4cbbcdebf42ca61d37881887",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 91,
+      "hasStructuralAnalysis": true
+    },
+    "roles/observability_agent/templates/alloy-config.alloy.j2": {
+      "filePath": "roles/observability_agent/templates/alloy-config.alloy.j2",
+      "contentHash": "28457fe6a85f0c7510bb1730081d80a429be44a68484da3a6d89f3c9956c196d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 228,
+      "hasStructuralAnalysis": false
+    },
+    "roles/observability_agent/templates/docker-compose.yml.j2": {
+      "filePath": "roles/observability_agent/templates/docker-compose.yml.j2",
+      "contentHash": "1fc1fe39cdc7423e8151e7f6cd19833489268bd9ff585cef2cf2d937763647cb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 55,
+      "hasStructuralAnalysis": false
+    },
+    "tests/health-check.yml": {
+      "filePath": "tests/health-check.yml",
+      "contentHash": "bbb74f233750d1ed9a381db1a1add73a4970a83c81d619cc0c1a6ad6a70b90ed",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 432,
+      "hasStructuralAnalysis": true
+    },
+    "tests/jenkins-health-check.yml": {
+      "filePath": "tests/jenkins-health-check.yml",
+      "contentHash": "268fc380b0ee77c470414ac4b763bd0a44014df12611b0382b114e968cebf8bd",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 100,
+      "hasStructuralAnalysis": true
+    }
+  }
+}
