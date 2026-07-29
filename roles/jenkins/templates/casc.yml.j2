@@ -44,6 +44,15 @@ credentials:
                     {{ vault_jenkins_categorizer_ssh_key | indent(20) }}
           - basicSSHUserPrivateKey:
               scope: GLOBAL
+              id: "github-decabot-ssh-key"
+              username: "git"
+              description: "GitHub deploy key (Los-Prompteros-Project / DecaBot)"
+              privateKeySource:
+                directEntry:
+                  privateKey: |
+                    {{ vault_jenkins_decabot_ssh_key | indent(20) }}
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
               id: "vps-ssh-key"
               username: "ubuntu"
               description: "VPS deploy key"
@@ -68,6 +77,12 @@ credentials:
               description: "Bearer token for https://{{ categorizer_host }} - used by Eval Gate"
               secret: "{{ vault_categorizer_api_token }}"
 
+# Adding a NEW job here needs a "Reload Configuration from Disk" after the play, or a
+# second restart. JCasC's job DSL runs at SYSTEM_CONFIG_ADAPTED and writes the new
+# jobs/<name>/config.xml, but the item map has already been built, so the job exists on
+# disk and 404s in the UI and API until Jenkins re-reads it. Existing jobs update in
+# place and are unaffected. Observed on decabot-deploy, 29 Jul 2026:
+#   curl -u admin:… -X POST https://jenkins.web.vespiridion.org/reload
 jobs:
   - script: |
       pipelineJob('vps-deploy') {
@@ -105,6 +120,30 @@ jobs:
                   credentials('github-miplata-ssh-key')
                 }
                 branches('*/master')
+              }
+            }
+            scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  - script: |
+      pipelineJob('decabot-deploy') {
+        description('Build DecaBot, push to self-hosted Zot registry, deploy + health-check on VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ decabot_repo_ssh_url }}')
+                  credentials('github-decabot-ssh-key')
+                }
+                branches('*/main')
               }
             }
             scriptPath('infra/jenkins/Jenkinsfile')

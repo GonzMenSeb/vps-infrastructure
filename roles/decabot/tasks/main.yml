@@ -68,7 +68,8 @@
   debug:
     msg: >
       DecaBot image not yet available in {{ zot_host }} — skipping `up`.
-      There is no Jenkins job for this service: build and push it by hand from the
-      Los-Prompteros-Project repo per its docs/DEPLOY.md (buildx with
-      oci-mediatypes=true — Zot rejects Docker v2 manifests), then re-run this playbook.
+      The `decabot-deploy` Jenkins job builds and pushes it on every merge to main;
+      run it (or merge something) and re-run this playbook. To do it by hand instead,
+      see docs/DEPLOY.md in the Los-Prompteros-Project repo — buildx with
+      oci-mediatypes=true, because Zot rejects Docker v2 manifests.
   when: decabot_pull.rc != 0
