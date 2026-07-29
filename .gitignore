@@ -4,6 +4,13 @@
 .ansible/
 .ansible_facts_cache/
 
+# Secrets. Roles template .env files onto the HOSTS (/opt/<service>/.env), never into
+# this repo — but .vault_pass was ignored here and .env was not, so a vault password
+# parked in a local .env would have been committable. Both are covered now.
+.env
+.env.*
+!.env.example
+
 # AI tooling
 .claude/
 .playwright-mcp/
