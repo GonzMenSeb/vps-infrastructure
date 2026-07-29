@@ -1,0 +1,74 @@
+---
+- name: Create decabot directory
+  file:
+    path: "{{ decabot_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create decabot session-state directory
+  file:
+    path: "{{ decabot_dir }}/states"
+    state: directory
+    mode: "0755"
+    owner: "{{ decabot_container_uid }}"
+    group: "{{ decabot_container_gid }}"
+
+- name: Create decabot .env file
+  template:
+    src: env.j2
+    dest: "{{ decabot_dir }}/.env"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0640"
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ decabot_dir }}/docker-compose.yml"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0644"
+
+# Duplicated from the miplata role on purpose. Full playbook runs reach that role
+# first, but `--tags decabot` on a fresh box would otherwise 401 on the pull below.
+- name: Log in to the Zot registry as root (for Ansible-driven pulls)
+  community.docker.docker_login:
+    registry_url: "https://{{ zot_host }}"
+    username: "{{ zot_registry_user }}"
+    password: "{{ vault_zot_registry_password }}"
+    reauthorize: true
+
+- name: Ensure DNS A record for decabot
+  command: >
+    docker exec pdns pdnsutil replace-rrset
+    {{ web_subdomain }}
+    decabot
+    A 3600 {{ vps_public_ip }}
+  register: decabot_dns
+  changed_when: "'New rrset' in decabot_dns.stdout or 'Current rrset' in decabot_dns.stdout"
+
+# Bootstrap-tolerant pull: on a fresh VPS the image is not in Zot yet. Same pattern as
+# miplata and categorizer — do not make this strict.
+- name: Pull decabot image (tolerant of empty registry on first bootstrap)
+  command: docker compose pull
+  args:
+    chdir: "{{ decabot_dir }}"
+  register: decabot_pull
+  failed_when: false
+  changed_when: "'Pulled' in decabot_pull.stdout"
+
+- name: Start decabot stack (only if the image was pulled successfully)
+  community.docker.docker_compose_v2:
+    project_src: "{{ decabot_dir }}"
+    state: present
+    pull: never
+  when: decabot_pull.rc == 0
+
+- name: Warn when the decabot image is not yet in the registry
+  debug:
+    msg: >
+      DecaBot image not yet available in {{ zot_host }} — skipping `up`.
+      There is no Jenkins job for this service: build and push it by hand from the
+      Los-Prompteros-Project repo per its docs/DEPLOY.md (buildx with
+      oci-mediatypes=true — Zot rejects Docker v2 manifests), then re-run this playbook.
+  when: decabot_pull.rc != 0

@@ -289,6 +289,9 @@ prometheus.scrape "blackbox_probes" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ zot_host }}/v2/",              "instance" = "zot-registry",      "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ traefik_dashboard_host }}",    "instance" = "traefik-dashboard", "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ jenkins_host }}/login",        "instance" = "jenkins",           "job" = "blackbox"},
+    // /ping, not /: it is Reflex's own liveness endpoint and sits outside the app's
+    // password gate, so a probe stays a probe and never counts as an unlock attempt.
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ decabot_host }}/ping",        "instance" = "decabot",           "job" = "blackbox"},
   ]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "30s"
@@ -328,6 +331,7 @@ prometheus.scrape "blackbox_tls" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ jenkins_host }}:443",           "instance" = "jenkins-tls",            "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ categorizer_host }}:443",       "instance" = "categorizer-tls",        "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ metabase_host }}:443",          "instance" = "metabase-tls",           "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ decabot_host }}:443",           "instance" = "decabot-tls",            "job" = "blackbox_tls"},
   ]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "5m"

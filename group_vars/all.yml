@@ -101,6 +101,14 @@ metabase_host: "metabase.{{ web_subdomain }}"
 # TODO: verify this tag resolves against ghcr.io/ggml-org/llama.cpp before first deploy.
 llm_inference_image: "ghcr.io/ggml-org/llama.cpp:server"
 
+# DecaBot — Los Prompteros expedition concierge (Reflex + Gemini + Decathlon UCP).
+# UNLIKE miplata and categorizer there is NO Jenkins job for this one yet. The image is
+# built and pushed by hand from the app repo — see its docs/DEPLOY.md, and note that Zot
+# needs OCI media types or the manifest PUT fails with 415 after every layer uploads.
+decabot_host: "decabot.{{ web_subdomain }}"
+decabot_image: "{{ zot_host }}/losprompteros/decabot:latest"
+decabot_repo_ssh_url: "git@github.com:GonzMenSeb/Los-Prompteros-Project.git"
+
 # Transaction categorizer (Colombian-Spanish cascade).
 # Self-hosted, no Claude fallback in production (per user policy).
 # Image is built by Jenkins job `categorizer-deploy` and pushed to Zot.

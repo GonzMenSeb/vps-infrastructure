@@ -1,4 +1,30 @@
 ---
+# Traefik owns 80/443. Nothing in this repo installs Caddy, but the deb leaves an
+# ENABLED systemd unit behind: on the 2026-07-09 reboot caddy.service won the race for
+# both ports, traefik exited 128, and the entire public plane — grafana, miplata,
+# metabase, zot, categorizer — stayed down for 19 days without alerting anybody.
+# Masked, not merely disabled: disabling still permits socket/dependency activation.
+# Nothing is uninstalled and /etc/caddy is untouched, so this is reversible.
+- name: Collect service facts
+  ansible.builtin.service_facts:
+
+- name: Stop and disable host web servers contending for 80/443
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop: "{{ traefik_contending_services }}"
+  when: (item ~ '.service') in ansible_facts.services
+
+# Separate task: masking a unit that is still running does not stop it, so the stop
+# above has to have already happened.
+- name: Mask host web servers contending for 80/443
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: true
+  loop: "{{ traefik_contending_services }}"
+  when: (item ~ '.service') in ansible_facts.services
+
 - name: Create Traefik directory
   file:
     path: "{{ traefik_dir }}"

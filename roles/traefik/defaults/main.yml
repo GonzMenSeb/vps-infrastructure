@@ -1,2 +1,10 @@
 ---
 traefik_dir: /opt/traefik
+
+# Host-installed web servers that would take 80/443 out from under Traefik. Each is
+# only touched if its unit actually exists on the host; all three are present on the
+# main VPS as leftovers from before the Traefik migration.
+traefik_contending_services:
+  - caddy
+  - caddy-api
+  - nginx

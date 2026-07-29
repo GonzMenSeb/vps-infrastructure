@@ -318,6 +318,54 @@
       delay: 5
       when: categorizer_image_check.stdout | length > 0
 
+    # ── DecaBot ──
+    - name: Check whether the decabot image is present locally
+      shell: docker images -q {{ decabot_image }}
+      register: decabot_image_check
+      changed_when: false
+
+    - name: Verify DecaBot is running
+      assert:
+        that: "'decabot' in running_containers.stdout_lines"
+        fail_msg: "DecaBot container is not running"
+      when: decabot_image_check.stdout | length > 0
+
+    - name: Verify DecaBot serves its liveness endpoint over TLS
+      uri:
+        url: "https://{{ decabot_host }}/ping"
+        status_code: 200
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+      register: decabot_health
+      until: decabot_health.status == 200
+      retries: 6
+      delay: 5
+      when: decabot_image_check.stdout | length > 0
+
+    # The page is a single-port Reflex app: same origin serves the HTML and the
+    # /_event websocket. A 200 on / with no upgrade proves only half of that, so
+    # assert the upgrade too — a page that renders and does nothing at all is the
+    # exact failure mode this deployment is shaped to avoid.
+    # --http1.1 is load-bearing: Traefik negotiates h2 with curl, and the
+    # Connection/Upgrade handshake is an HTTP/1.1 mechanism, so over h2 granian
+    # answers `400 Invalid websocket upgrade` on a perfectly healthy app.
+    # -m 3 with rc 28 tolerated: a successful upgrade holds the socket open, so
+    # curl timing out AFTER the 101 is the pass, not a failure.
+    - name: Verify DecaBot upgrades /_event to a websocket on the same origin
+      command: >
+        curl -s -D - -o /dev/null --http1.1 -N -m 3
+        -H 'Connection: Upgrade' -H 'Upgrade: websocket'
+        -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=='
+        'https://{{ decabot_host }}/_event/?EIO=4&transport=websocket'
+      delegate_to: localhost
+      become: false
+      register: decabot_ws
+      changed_when: false
+      failed_when: decabot_ws.stdout is not search('101 Switching Protocols')
+      when: decabot_image_check.stdout | length > 0
+
     # ── Observability TLS + auth ──
     - name: Verify Grafana responds over TLS (login page)
       uri:

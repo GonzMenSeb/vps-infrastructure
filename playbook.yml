@@ -5,18 +5,22 @@
   vars_files:
     - vault.yml
 
+  # Order is the contract — there are no role dependencies, so traefik must stay ahead
+  # of everything that joins the `proxy` network. Tags let you re-run one service
+  # without replaying the whole box; they do NOT make the order safe to ignore.
   roles:
-    - base
-    - docker
-    - traefik
-    - dns
-    - vaultwarden
-    - monitoring
-    - zot
-    - miplata
-    - metabase
-    - llm_inference
-    - categorizer
+    - { role: base, tags: [base] }
+    - { role: docker, tags: [docker] }
+    - { role: traefik, tags: [traefik] }
+    - { role: dns, tags: [dns] }
+    - { role: vaultwarden, tags: [vaultwarden] }
+    - { role: monitoring, tags: [monitoring] }
+    - { role: zot, tags: [zot] }
+    - { role: miplata, tags: [miplata] }
+    - { role: metabase, tags: [metabase] }
+    - { role: llm_inference, tags: [llm_inference] }
+    - { role: categorizer, tags: [categorizer] }
+    - { role: decabot, tags: [decabot] }
 
   post_tasks:
     # Textfile-collector deploy marker — annotates timeseries panels with a

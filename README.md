@@ -22,6 +22,7 @@ encrypted `vault.yml`. Nothing sensitive lives in plaintext in this repo.
 | `zot` | OCI container registry for CI artifacts |
 | `miplata` | App stack (Postgres + Redis + API + Web) |
 | `metabase` | BI dashboard on a read-only replica |
+| `decabot` | DecaBot expedition concierge (Reflex, single-port, in-app password gate) |
 | `monitoring` | Prometheus, Loki, Grafana, Alloy, cAdvisor, blackbox-exporter |
 
 **Jenkins VPS**
@@ -35,7 +36,7 @@ encrypted `vault.yml`. Nothing sensitive lives in plaintext in this repo.
 ## Requirements
 
 - Ansible 2.15+
-- A vault password file at `.vault_pass` (gitignored)
+- A vault password file at `.vault_pass` (gitignored; `ansible.cfg` picks it up automatically, so run ansible from the repo root)
 - SSH access to both hosts
 - Required collections: `ansible-galaxy collection install -r requirements.yml`
 
@@ -48,6 +49,9 @@ ansible-vault encrypt vault.yml
 
 # Full deploy
 ansible-playbook playbook.yml
+
+# One service only (every role in playbook.yml carries a tag matching its name)
+ansible-playbook playbook.yml --tags decabot
 
 # Jenkins host only
 ansible-playbook jenkins-playbook.yml

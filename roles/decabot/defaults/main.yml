@@ -1,0 +1,22 @@
+---
+decabot_dir: /opt/decabot
+
+# One port serves the page AND the /_event websocket. Reflex needs two ports in dev
+# (frontend 3000, backend 8000) but in prod it mounts the compiled frontend onto the
+# backend's own ASGI app, so there is exactly one router to point at.
+decabot_app_port: 8000
+
+# Reflex persists session state to ./.states with no Redis configured, so the container
+# owns a bind-mounted directory for it. Matches the image's non-root user.
+decabot_container_uid: 1001
+decabot_container_gid: 1001
+
+# INERT as configured, and left in place only so the knob is discoverable. The app gates
+# queueing on `bool(VIP_TOKEN) and not is_vip`, and env.j2 deliberately leaves
+# CONCIERGE_VIP_TOKEN empty, so nothing ever queues and this cap is never applied.
+# Behind the password there is NO concurrency limit — and one turn is ~52 s of Gemini.
+# Setting a VIP token is what makes this live; per-project Gemini quota is the one
+# bottleneck no amount of in-app queueing can protect either way.
+decabot_public_slots: 3
+
+decabot_mem_limit: "1g"
