@@ -1,0 +1,16 @@
+---
+brujula_dir: /opt/brujula
+
+# One port serves the page AND the /_event websocket. Reflex needs two ports in dev
+# (frontend 3000, backend 8000) but in prod it mounts the compiled frontend onto the
+# backend's own ASGI app, so there is exactly one router to point at.
+brujula_app_port: 8000
+
+# Reflex persists session state to ./.states on disk (DISK state manager, no Redis), and
+# the image uses a flattened /app layout, so the container owns a bind-mounted directory
+# for it. UID/GID mirror decabot's image; confirm against the corosBot Dockerfile when it
+# lands, because a mismatch shows up as a silently unwritable state dir.
+brujula_container_uid: 1001
+brujula_container_gid: 1001
+
+brujula_mem_limit: "1g"

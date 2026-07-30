@@ -38,6 +38,15 @@ vault_jenkins_categorizer_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   (GitHub deploy key for the miplata-categorizer repo)
   -----END OPENSSH PRIVATE KEY-----
+vault_jenkins_decabot_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  (GitHub deploy key for the Los-Prompteros-Project repo)
+  -----END OPENSSH PRIVATE KEY-----
+# One key for both coros jobs — brujula-deploy and huella-deploy read the same monorepo.
+vault_jenkins_coros_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  (GitHub deploy key for the corosBot repo)
+  -----END OPENSSH PRIVATE KEY-----
 vault_jenkins_vps_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   (VPS deploy key private key)
@@ -68,7 +77,29 @@ vault_categorizer_api_token: "CHANGE_ME_32_BYTE_HEX"  # used by Traefik bearer m
 
 # DecaBot (Los Prompteros expedition concierge)
 vault_decabot_password: "CHANGE_ME"            # the single shared password for the app's gate
+# Also used by Brújula and Huella, by decision — the coros apps have no key pool, so one
+# key and one quota. Do not add a second Gemini key for them.
 vault_decabot_gemini_api_key: "CHANGE_ME"      # Google AI Studio key for gemini-3.6-flash
+
+# Brújula and Huella (the two COROS apps)
+vault_brujula_password: "CHANGE_ME"            # gate password; empty means NO gate
+vault_huella_password: "CHANGE_ME"             # gate password; empty means NO gate
+# Strava OAuth app (Huella only) — register at https://www.strava.com/settings/api and set
+# the Authorization Callback Domain to huella.web.<domain>, or the redirect is refused.
+#
+# THESE TWO DEFAULT TO EMPTY STRINGS, AND THAT IS THE CORRECT PRE-STRAVA VALUE — not a
+# placeholder to be filled in before the first deploy. Both must be PRESENT: env.j2 references
+# them unconditionally and error_on_undefined_vars is on, so deleting a line fails the play at
+# Jinja render with an error that names templating rather than Strava.
+#
+# Do NOT write "CHANGE_ME" here. strava/client.is_configured() is
+# bool(client_id() and client_secret() and redirect_uri()), and STRAVA_REDIRECT_URI is always
+# templated to a real URL — so any non-empty value makes it True and Huella renders a live
+# "Connect with Strava" button that redirects with client_id=CHANGE_ME and fails at Strava.
+# "" makes it False, and connect.py says "no credentials configured" instead. Never offer a
+# button that cannot work.
+vault_strava_client_id: ""
+vault_strava_client_secret: ""
 
 # Identifying info (hidden in encrypted vault instead of plaintext repo files)
 vault_main_vps_ip: "CHANGE_ME"      # e.g. 203.0.113.10

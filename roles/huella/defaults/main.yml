@@ -1,0 +1,17 @@
+---
+huella_dir: /opt/huella
+
+# One port serves the page, the /_event websocket AND /oauth/strava/callback. The callback
+# is a Starlette route on Reflex's api_transformer, which Starlette matches ahead of the
+# compiled frontend's catch-all mount — same origin, same port, no second router.
+# Huella's dev pair is 3001/8001; prod is 8000 like every other Reflex app here.
+huella_app_port: 8000
+
+# Reflex persists session state to ./.states on disk (DISK state manager, no Redis), and
+# the image uses a flattened /app layout, so the container owns a bind-mounted directory
+# for it. UID/GID mirror decabot's image; confirm against the corosBot Dockerfile when it
+# lands, because a mismatch shows up as a silently unwritable state dir.
+huella_container_uid: 1001
+huella_container_gid: 1001
+
+huella_mem_limit: "1g"

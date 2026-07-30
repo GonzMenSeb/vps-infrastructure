@@ -1,0 +1,30 @@
+networks:
+  proxy:
+    external: true
+
+services:
+  huella:
+    image: {{ huella_image }}
+    container_name: huella
+    restart: unless-stopped
+    networks: [proxy]
+    env_file: .env
+    volumes:
+      - {{ huella_dir }}/states:/app/.states
+    mem_limit: {{ huella_mem_limit }}
+    # No healthcheck here on purpose: the image already declares one against
+    # /ping, and a second copy in this file is just something to drift.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.huella.rule=Host(`{{ huella_host }}`)"
+      - "traefik.http.routers.huella.entrypoints=websecure"
+      - "traefik.http.routers.huella.tls.certresolver=letsencrypt"
+      # One service, one port — and that includes /oauth/strava/callback. The callback is
+      # a Starlette route on Reflex's api_transformer, and Starlette matches it ahead of
+      # the compiled frontend's catch-all mount. No second router, no path-based split,
+      # no extra label: same origin, same port.
+      - "traefik.http.services.huella.loadbalancer.server.port={{ huella_app_port }}"
+      # No bearer/basicauth middleware. Access control is the app's own password gate,
+      # enforced in Python. A middleware here would also break Strava's redirect, which
+      # arrives as an unauthenticated top-level navigation.
