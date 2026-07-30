@@ -366,6 +366,91 @@
       failed_when: decabot_ws.stdout is not search('101 Switching Protocols')
       when: decabot_image_check.stdout | length > 0
 
+    # ── Brújula ──
+    - name: Check whether the brujula image is present locally
+      shell: docker images -q {{ brujula_image }}
+      register: brujula_image_check
+      changed_when: false
+
+    - name: Verify Brújula is running
+      assert:
+        that: "'brujula' in running_containers.stdout_lines"
+        fail_msg: "Brújula container is not running"
+      when: brujula_image_check.stdout | length > 0
+
+    - name: Verify Brújula serves its liveness endpoint over TLS
+      uri:
+        url: "https://{{ brujula_host }}/ping"
+        status_code: 200
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+      register: brujula_health
+      until: brujula_health.status == 200
+      retries: 6
+      delay: 5
+      when: brujula_image_check.stdout | length > 0
+
+    # Same reasoning as DecaBot's: one origin serves the HTML and the /_event websocket, and
+    # a 200 on / proves only half of it. --http1.1 is load-bearing — Traefik negotiates h2
+    # with curl and the Connection/Upgrade handshake is HTTP/1.1-only, so over h2 granian
+    # answers `400 Invalid websocket upgrade` on a perfectly healthy app. -m 3 with rc 28
+    # tolerated: a successful upgrade holds the socket open, so timing out AFTER the 101 is
+    # the pass.
+    - name: Verify Brújula upgrades /_event to a websocket on the same origin
+      command: >
+        curl -s -D - -o /dev/null --http1.1 -N -m 3
+        -H 'Connection: Upgrade' -H 'Upgrade: websocket'
+        -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=='
+        'https://{{ brujula_host }}/_event/?EIO=4&transport=websocket'
+      delegate_to: localhost
+      become: false
+      register: brujula_ws
+      changed_when: false
+      failed_when: brujula_ws.stdout is not search('101 Switching Protocols')
+      when: brujula_image_check.stdout | length > 0
+
+    # ── Huella ──
+    - name: Check whether the huella image is present locally
+      shell: docker images -q {{ huella_image }}
+      register: huella_image_check
+      changed_when: false
+
+    - name: Verify Huella is running
+      assert:
+        that: "'huella' in running_containers.stdout_lines"
+        fail_msg: "Huella container is not running"
+      when: huella_image_check.stdout | length > 0
+
+    - name: Verify Huella serves its liveness endpoint over TLS
+      uri:
+        url: "https://{{ huella_host }}/ping"
+        status_code: 200
+        validate_certs: true
+        timeout: 10
+      delegate_to: localhost
+      become: false
+      register: huella_health
+      until: huella_health.status == 200
+      retries: 6
+      delay: 5
+      when: huella_image_check.stdout | length > 0
+
+    # See the Brújula note above for why --http1.1 and a tolerated timeout are required.
+    - name: Verify Huella upgrades /_event to a websocket on the same origin
+      command: >
+        curl -s -D - -o /dev/null --http1.1 -N -m 3
+        -H 'Connection: Upgrade' -H 'Upgrade: websocket'
+        -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=='
+        'https://{{ huella_host }}/_event/?EIO=4&transport=websocket'
+      delegate_to: localhost
+      become: false
+      register: huella_ws
+      changed_when: false
+      failed_when: huella_ws.stdout is not search('101 Switching Protocols')
+      when: huella_image_check.stdout | length > 0
+
     # ── Observability TLS + auth ──
     - name: Verify Grafana responds over TLS (login page)
       uri:

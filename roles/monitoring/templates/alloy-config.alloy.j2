@@ -292,6 +292,8 @@ prometheus.scrape "blackbox_probes" {
     // /ping, not /: it is Reflex's own liveness endpoint and sits outside the app's
     // password gate, so a probe stays a probe and never counts as an unlock attempt.
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ decabot_host }}/ping",        "instance" = "decabot",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ brujula_host }}/ping",        "instance" = "brujula",           "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ huella_host }}/ping",         "instance" = "huella",            "job" = "blackbox"},
   ]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "30s"
@@ -332,6 +334,8 @@ prometheus.scrape "blackbox_tls" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ categorizer_host }}:443",       "instance" = "categorizer-tls",        "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ metabase_host }}:443",          "instance" = "metabase-tls",           "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ decabot_host }}:443",           "instance" = "decabot-tls",            "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ brujula_host }}:443",           "instance" = "brujula-tls",            "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ huella_host }}:443",            "instance" = "huella-tls",             "job" = "blackbox_tls"},
   ]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "5m"
