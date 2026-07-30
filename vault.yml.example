@@ -86,8 +86,20 @@ vault_brujula_password: "CHANGE_ME"            # gate password; empty means NO g
 vault_huella_password: "CHANGE_ME"             # gate password; empty means NO gate
 # Strava OAuth app (Huella only) — register at https://www.strava.com/settings/api and set
 # the Authorization Callback Domain to huella.web.<domain>, or the redirect is refused.
-vault_strava_client_id: "CHANGE_ME"
-vault_strava_client_secret: "CHANGE_ME"
+#
+# THESE TWO DEFAULT TO EMPTY STRINGS, AND THAT IS THE CORRECT PRE-STRAVA VALUE — not a
+# placeholder to be filled in before the first deploy. Both must be PRESENT: env.j2 references
+# them unconditionally and error_on_undefined_vars is on, so deleting a line fails the play at
+# Jinja render with an error that names templating rather than Strava.
+#
+# Do NOT write "CHANGE_ME" here. strava/client.is_configured() is
+# bool(client_id() and client_secret() and redirect_uri()), and STRAVA_REDIRECT_URI is always
+# templated to a real URL — so any non-empty value makes it True and Huella renders a live
+# "Connect with Strava" button that redirects with client_id=CHANGE_ME and fails at Strava.
+# "" makes it False, and connect.py says "no credentials configured" instead. Never offer a
+# button that cannot work.
+vault_strava_client_id: ""
+vault_strava_client_secret: ""
 
 # Identifying info (hidden in encrypted vault instead of plaintext repo files)
 vault_main_vps_ip: "CHANGE_ME"      # e.g. 203.0.113.10
