@@ -1,0 +1,28 @@
+networks:
+  proxy:
+    external: true
+
+services:
+  brujula:
+    image: {{ brujula_image }}
+    container_name: brujula
+    restart: unless-stopped
+    networks: [proxy]
+    env_file: .env
+    volumes:
+      - {{ brujula_dir }}/states:/app/.states
+    mem_limit: {{ brujula_mem_limit }}
+    # No healthcheck here on purpose: the image already declares one against
+    # /ping, and a second copy in this file is just something to drift.
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.brujula.rule=Host(`{{ brujula_host }}`)"
+      - "traefik.http.routers.brujula.entrypoints=websecure"
+      - "traefik.http.routers.brujula.tls.certresolver=letsencrypt"
+      # One service, one port. The page and the /_event websocket are both on it —
+      # Reflex mounts the compiled frontend onto the backend's ASGI app in prod, so
+      # there is no second router and no path-based split to get wrong.
+      - "traefik.http.services.brujula.loadbalancer.server.port={{ brujula_app_port }}"
+      # No bearer/basicauth middleware. Access control is the app's own password gate,
+      # enforced in Python: state.py sets GATE_ON = bool(BRUJULA_PASSWORD).

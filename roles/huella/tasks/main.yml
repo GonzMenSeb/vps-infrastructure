@@ -1,0 +1,86 @@
+---
+- name: Create huella directory
+  file:
+    path: "{{ huella_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Create huella session-state directory
+  file:
+    path: "{{ huella_dir }}/states"
+    state: directory
+    mode: "0755"
+    owner: "{{ huella_container_uid }}"
+    group: "{{ huella_container_gid }}"
+
+- name: Create huella .env file
+  template:
+    src: env.j2
+    dest: "{{ huella_dir }}/.env"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0640"
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ huella_dir }}/docker-compose.yml"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0644"
+
+# Duplicated from the miplata role on purpose. Full playbook runs reach that role
+# first, but `--tags huella` on a fresh box would otherwise 401 on the pull below.
+- name: Log in to the Zot registry as root (for Ansible-driven pulls)
+  community.docker.docker_login:
+    registry_url: "https://{{ zot_host }}"
+    username: "{{ zot_registry_user }}"
+    password: "{{ vault_zot_registry_password }}"
+    reauthorize: true
+
+# The second login is not redundant: docker credentials are per-user, and the
+# `huella-deploy` job SSHes in as {{ ssh_allowed_users }} to run `docker compose pull`.
+# Without this, root can pull and the deploy job cannot. decabot is missing it.
+- name: Log in to the Zot registry as {{ ssh_allowed_users }} (for Jenkins SSH deploys)
+  community.docker.docker_login:
+    registry_url: "https://{{ zot_host }}"
+    username: "{{ zot_registry_user }}"
+    password: "{{ vault_zot_registry_password }}"
+    reauthorize: true
+  become: true
+  become_user: "{{ ssh_allowed_users }}"
+
+- name: Ensure DNS A record for huella
+  command: >
+    docker exec pdns pdnsutil replace-rrset
+    {{ web_subdomain }}
+    huella
+    A 3600 {{ vps_public_ip }}
+  register: huella_dns
+  changed_when: "'New rrset' in huella_dns.stdout or 'Current rrset' in huella_dns.stdout"
+
+# Bootstrap-tolerant pull: on a fresh VPS the image is not in Zot yet. Same pattern as
+# miplata, categorizer and decabot — do not make this strict.
+- name: Pull huella image (tolerant of empty registry on first bootstrap)
+  command: docker compose pull
+  args:
+    chdir: "{{ huella_dir }}"
+  register: huella_pull
+  failed_when: false
+  changed_when: "'Pulled' in huella_pull.stdout"
+
+- name: Start huella stack (only if the image was pulled successfully)
+  community.docker.docker_compose_v2:
+    project_src: "{{ huella_dir }}"
+    state: present
+    pull: never
+  when: huella_pull.rc == 0
+
+- name: Warn when the huella image is not yet in the registry
+  debug:
+    msg: >
+      Huella image not yet available in {{ zot_host }} — skipping `up`.
+      The `huella-deploy` Jenkins job builds and pushes it on every merge to main;
+      run it (or merge something) and re-run this playbook. Zot rejects Docker v2
+      manifests, so a by-hand push needs buildx with oci-mediatypes=true.
+  when: huella_pull.rc != 0

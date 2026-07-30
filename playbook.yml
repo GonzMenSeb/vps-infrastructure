@@ -21,6 +21,8 @@
     - { role: llm_inference, tags: [llm_inference] }
     - { role: categorizer, tags: [categorizer] }
     - { role: decabot, tags: [decabot] }
+    - { role: brujula, tags: [brujula] }
+    - { role: huella, tags: [huella] }
 
   post_tasks:
     # Textfile-collector deploy marker — annotates timeseries panels with a
