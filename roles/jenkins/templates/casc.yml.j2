@@ -51,6 +51,16 @@ credentials:
                 directEntry:
                   privateKey: |
                     {{ vault_jenkins_decabot_ssh_key | indent(20) }}
+          # One key, both coros jobs: brujula-deploy and huella-deploy read the same monorepo.
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
+              id: "github-coros-ssh-key"
+              username: "git"
+              description: "GitHub deploy key (corosBot / Brujula + Huella)"
+              privateKeySource:
+                directEntry:
+                  privateKey: |
+                    {{ vault_jenkins_coros_ssh_key | indent(20) }}
           - basicSSHUserPrivateKey:
               scope: GLOBAL
               id: "vps-ssh-key"
@@ -166,6 +176,57 @@ jobs:
                 remote {
                   url('{{ categorizer_repo_ssh_url }}')
                   credentials('github-categorizer-ssh-key')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  # Two jobs, one repo and one Jenkinsfile: the monorepo's pipeline gates on touched paths
+  # and pushes two separate images. Both jobs therefore fire on every push to main and it is
+  # the Jenkinsfile that decides which app is rebuilt.
+  - script: |
+      pipelineJob('brujula-deploy') {
+        description('Build Brujula from the corosBot monorepo, push to self-hosted Zot registry, deploy + health-check on VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ coros_repo_ssh_url }}')
+                  credentials('github-coros-ssh-key')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  - script: |
+      pipelineJob('huella-deploy') {
+        description('Build Huella from the corosBot monorepo, push to self-hosted Zot registry, deploy + health-check on VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ coros_repo_ssh_url }}')
+                  credentials('github-coros-ssh-key')
                 }
                 branches('*/main')
               }
