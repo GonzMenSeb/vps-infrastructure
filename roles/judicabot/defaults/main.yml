@@ -1,0 +1,7 @@
+---
+judicabot_dir: /opt/judicabot
+judicabot_app_port: 8000
+judicabot_container_uid: 1001
+judicabot_container_gid: 1001
+judicabot_mem_limit: "2g"
+judicabot_basic_auth: "{{ traefik_dashboard_auth }}"

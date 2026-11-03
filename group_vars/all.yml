@@ -115,6 +115,10 @@ decabot_repo_ssh_url: "git@github.com:GonzMenSeb/Los-Prompteros-Project.git"
 # `brujula-deploy` / `huella-deploy` jobs both point at it.
 coros_repo_ssh_url: "git@github.com:GonzMenSeb/corosBot.git"
 
+judicabot_host: "judicabot.{{ web_subdomain }}"
+judicabot_image: "{{ zot_host }}/judicabot/judicabot:latest"
+judicabot_repo_url: "https://github.com/GonzMenSeb/judicabot.git"
+
 brujula_host: "brujula.{{ web_subdomain }}"
 brujula_image: "{{ zot_host }}/coros/brujula:latest"
 

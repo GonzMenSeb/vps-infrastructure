@@ -10,6 +10,13 @@ jenkins:
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "REGISTRY"
+            value: "{{ zot_host }}"
+          - key: "VPS_HOST"
+            value: "ubuntu@{{ vault_main_vps_ip }}"
 
 credentials:
   system:
@@ -152,6 +159,29 @@ jobs:
                 remote {
                   url('{{ decabot_repo_ssh_url }}')
                   credentials('github-decabot-ssh-key')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  - script: |
+      pipelineJob('judicabot-deploy') {
+        description('Test judicabot, push to self-hosted Zot registry, deploy + health-check on VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ judicabot_repo_url }}')
                 }
                 branches('*/main')
               }

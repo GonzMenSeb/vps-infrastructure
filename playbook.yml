@@ -23,6 +23,7 @@
     - { role: decabot, tags: [decabot] }
     - { role: brujula, tags: [brujula] }
     - { role: huella, tags: [huella] }
+    - { role: judicabot, tags: [judicabot] }
 
   post_tasks:
     # Textfile-collector deploy marker — annotates timeseries panels with a

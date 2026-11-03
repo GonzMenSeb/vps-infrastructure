@@ -533,6 +533,29 @@
       retries: 12
       delay: 5
 
+    # ── judicabot ──
+    - name: Check whether the judicabot image is present locally
+      shell: docker images -q {{ judicabot_image }}
+      register: judicabot_image_check
+      changed_when: false
+
+    - name: Verify judicabot container is healthy
+      command: docker inspect --format '{{ '{{' }}.State.Health.Status{{ '}}' }}' judicabot
+      register: judicabot_health
+      until: judicabot_health.stdout == 'healthy'
+      retries: 10
+      delay: 3
+      changed_when: false
+      when: judicabot_image_check.stdout | length > 0
+
+    - name: Verify judicabot is behind basic-auth
+      uri:
+        url: "https://{{ judicabot_host }}/"
+        status_code: 401
+      delegate_to: localhost
+      become: false
+      when: judicabot_image_check.stdout | length > 0
+
     # ── DNS ──
     - name: Verify DNS responds on port 53
       command: dig @{{ vps_public_ip }} {{ domain }} SOA +short +timeout=5
