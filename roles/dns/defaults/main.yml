@@ -1,2 +1,12 @@
 ---
 dns_dir: /opt/dns
+
+dns_a_records:
+  - { name: traefik, ip: "{{ vps_public_ip }}" }
+  - { name: dns, ip: "{{ vps_public_ip }}" }
+  - { name: vault, ip: "{{ vps_public_ip }}" }
+  - { name: grafana, ip: "{{ vps_public_ip }}" }
+  - { name: loki-push, ip: "{{ vps_public_ip }}" }
+  - { name: prom-push, ip: "{{ vps_public_ip }}" }
+  - { name: jenkins, ip: "{{ vault_jenkins_vps_ip }}" }
+  - { name: traefik-ci, ip: "{{ vault_jenkins_vps_ip }}" }

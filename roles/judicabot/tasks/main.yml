@@ -11,6 +11,12 @@
     - { path: "{{ judicabot_dir }}/casos", owner: "{{ judicabot_container_uid }}", group: "{{ judicabot_container_gid }}" }
     - { path: "{{ judicabot_dir }}/cache", owner: "{{ judicabot_container_uid }}", group: "{{ judicabot_container_gid }}" }
 
+- name: Refuse to deploy judicabot without its gate password
+  assert:
+    that: vault_judicabot_password | length >= 12
+    fail_msg: "vault_judicabot_password must be set (12+ chars); an empty one leaves the app open"
+  no_log: true
+
 - name: Create judicabot .env file
   template:
     src: env.j2

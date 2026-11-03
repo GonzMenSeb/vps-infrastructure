@@ -19,6 +19,4 @@ services:
       - "traefik.http.routers.judicabot.rule=Host(`{{ judicabot_host }}`)"
       - "traefik.http.routers.judicabot.entrypoints=websecure"
       - "traefik.http.routers.judicabot.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.judicabot.middlewares=judicabot-auth"
-      - "traefik.http.middlewares.judicabot-auth.basicauth.users={{ judicabot_basic_auth }}"
       - "traefik.http.services.judicabot.loadbalancer.server.port={{ judicabot_app_port }}"

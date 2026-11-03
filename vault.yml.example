@@ -110,3 +110,9 @@ vault_acme_email: "CHANGE_ME"       # email used for Let's Encrypt registration
 # Public keys allowed to SSH in (yours + the Jenkins deploy key); password login is disabled
 vault_ssh_authorized_keys:
   - "ssh-ed25519 AAAA... user@host"
+
+# Cloudflare API token with Zone > DNS > Edit on the project domain (delegation + glue records)
+vault_cloudflare_api_token: "CHANGE_ME"
+
+# judicabot UI password (single password, no username); min 12 chars
+vault_judicabot_password: "CHANGE_ME_MIN_12_CHARS"

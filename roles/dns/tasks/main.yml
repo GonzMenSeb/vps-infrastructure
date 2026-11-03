@@ -66,3 +66,13 @@
 - name: Restart pdns so it serves the new zone (its zone cache only refreshes on a timer)
   command: docker restart pdns
   when: pdns_zone_create is changed
+
+- name: Ensure A records for the hosts no other role owns
+  command: >
+    docker exec pdns pdnsutil replace-rrset
+    {{ web_subdomain }} {{ item.name }} A 3600 {{ item.ip }}
+  loop: "{{ dns_a_records }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: dns_a_result
+  changed_when: "'New rrset' in dns_a_result.stdout or 'Current rrset' in dns_a_result.stdout"

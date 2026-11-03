@@ -1,0 +1,79 @@
+---
+- name: Look up the Cloudflare zone for {{ domain }}
+  uri:
+    url: "https://api.cloudflare.com/client/v4/zones?name={{ domain }}"
+    headers:
+      Authorization: "Bearer {{ vault_cloudflare_api_token }}"
+  delegate_to: localhost
+  become: false
+  run_once: true
+  register: cf_zone
+  no_log: true
+
+- name: Set the Cloudflare zone id
+  set_fact:
+    cf_zone_id: "{{ cf_zone.json.result[0].id }}"
+    cf_api: "https://api.cloudflare.com/client/v4"
+
+- name: Read the existing delegation records
+  uri:
+    url: "{{ cf_api }}/zones/{{ cf_zone_id }}/dns_records?per_page=100"
+    headers:
+      Authorization: "Bearer {{ vault_cloudflare_api_token }}"
+  delegate_to: localhost
+  become: false
+  register: cf_records
+  no_log: true
+
+- name: Set glue and delegation facts
+  set_fact:
+    cf_glue: "{{ cf_records.json.result | selectattr('type', 'eq', 'A') | selectattr('name', 'eq', 'ns1.' ~ domain) | list }}"
+    cf_ns: "{{ cf_records.json.result | selectattr('type', 'eq', 'NS') | selectattr('name', 'eq', web_subdomain) | list }}"
+
+- name: Create the ns1 glue record
+  uri:
+    url: "{{ cf_api }}/zones/{{ cf_zone_id }}/dns_records"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ vault_cloudflare_api_token }}"
+    body_format: json
+    body: { type: A, name: "ns1.{{ domain }}", content: "{{ vps_public_ip }}", ttl: 60, proxied: false }
+  delegate_to: localhost
+  become: false
+  when: cf_glue | length == 0
+  no_log: true
+
+- name: Point the ns1 glue record at this host
+  uri:
+    url: "{{ cf_api }}/zones/{{ cf_zone_id }}/dns_records/{{ cf_glue[0].id }}"
+    method: PATCH
+    headers:
+      Authorization: "Bearer {{ vault_cloudflare_api_token }}"
+    body_format: json
+    body: { content: "{{ vps_public_ip }}", proxied: false }
+  delegate_to: localhost
+  become: false
+  when: cf_glue | length > 0 and cf_glue[0].content != vps_public_ip
+  no_log: true
+
+- name: Delegate {{ web_subdomain }} to ns1
+  uri:
+    url: "{{ cf_api }}/zones/{{ cf_zone_id }}/dns_records"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ vault_cloudflare_api_token }}"
+    body_format: json
+    body: { type: NS, name: "{{ web_subdomain }}", content: "ns1.{{ domain }}", ttl: 60 }
+  delegate_to: localhost
+  become: false
+  when: cf_ns | length == 0
+  no_log: true
+
+- name: Restart traefik so it retries ACME now that the names resolve
+  command: docker restart traefik
+  when: >
+    (dns_a_result | default({})) is changed
+    or (pdns_zone_create | default({})) is changed
+    or cf_glue | length == 0
+    or (cf_glue | length > 0 and cf_glue[0].content != vps_public_ip)
+    or cf_ns | length == 0

@@ -548,10 +548,11 @@
       changed_when: false
       when: judicabot_image_check.stdout | length > 0
 
-    - name: Verify judicabot is behind basic-auth
+    - name: Verify judicabot sends unauthenticated visitors to its login
       uri:
         url: "https://{{ judicabot_host }}/"
-        status_code: 401
+        follow_redirects: none
+        status_code: 303
       delegate_to: localhost
       become: false
       when: judicabot_image_check.stdout | length > 0
