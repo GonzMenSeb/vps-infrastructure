@@ -11,6 +11,8 @@ docker_networks:
 
 # SSH
 ssh_allowed_users: ubuntu
+ssh_user_home: "{{ '/root' if ssh_allowed_users == 'root' else '/home/' ~ ssh_allowed_users }}"
+ssh_authorized_keys: "{{ vault_ssh_authorized_keys }}"
 ssh_max_auth_tries: 3
 
 # fail2ban

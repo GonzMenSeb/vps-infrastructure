@@ -106,3 +106,7 @@ vault_main_vps_ip: "CHANGE_ME"      # e.g. 203.0.113.10
 vault_jenkins_vps_ip: "CHANGE_ME"   # e.g. 203.0.113.11
 vault_domain: "CHANGE_ME"            # e.g. example.com
 vault_acme_email: "CHANGE_ME"       # email used for Let's Encrypt registration
+
+# Public keys allowed to SSH in (yours + the Jenkins deploy key); password login is disabled
+vault_ssh_authorized_keys:
+  - "ssh-ed25519 AAAA... user@host"
