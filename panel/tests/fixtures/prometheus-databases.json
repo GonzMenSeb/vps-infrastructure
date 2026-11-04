@@ -1,0 +1,24 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "vector",
+    "result": [
+      { "metric": { "metric": "pgScrape", "service": "miplata" }, "value": [1800000000, "1"] },
+      { "metric": { "metric": "pgUp", "service": "miplata" }, "value": [1800000000, "1"] },
+      { "metric": { "metric": "pgVersion", "service": "miplata", "short_version": "16.13.0" }, "value": [1800000000, "1"] },
+      { "metric": { "metric": "pgSize", "service": "miplata" }, "value": [1800000000, "2300000000"] },
+      { "metric": { "metric": "pgConns", "service": "miplata" }, "value": [1800000000, "14"] },
+      { "metric": { "metric": "pgMaxConns", "service": "miplata" }, "value": [1800000000, "100"] },
+      { "metric": { "metric": "pgCacheHit", "service": "miplata" }, "value": [1800000000, "99.2"] },
+      { "metric": { "metric": "pgTps", "service": "miplata" }, "value": [1800000000, "41.3"] },
+      { "metric": { "metric": "rdScrape", "service": "miplata" }, "value": [1800000000, "1"] },
+      { "metric": { "metric": "rdUp", "service": "miplata" }, "value": [1800000000, "1"] },
+      { "metric": { "metric": "rdVersion", "redis_version": "7.4.12", "service": "miplata" }, "value": [1800000000, "1"] },
+      { "metric": { "metric": "rdMem", "service": "miplata" }, "value": [1800000000, "84000000"] },
+      { "metric": { "metric": "rdMemMax", "service": "miplata" }, "value": [1800000000, "256000000"] },
+      { "metric": { "metric": "rdClients", "service": "miplata" }, "value": [1800000000, "6"] },
+      { "metric": { "metric": "rdKeys", "service": "miplata" }, "value": [1800000000, "3100"] },
+      { "metric": { "metric": "rdUptime", "service": "miplata" }, "value": [1800000000, "266400"] }
+    ]
+  }
+}

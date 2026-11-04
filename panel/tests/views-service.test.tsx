@@ -61,7 +61,7 @@ describe("service view", () => {
     expect(await page("judicabot", "auth")).toContain("Phase 6");
     expect(await page("judicabot", "builds")).toContain("Jenkins is not configured, so runs of judicabot-deploy cannot be shown.");
     const db = await page("miplata", "db");
-    expect(db).toContain("Phase 4");
+    expect(db).not.toContain("Phase 4");
     expect(db).toContain("miplata-postgres");
     expect(db).toContain(">Missing<");
   });

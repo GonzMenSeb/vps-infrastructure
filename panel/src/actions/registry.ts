@@ -64,7 +64,7 @@ export class RegistryActions {
       } catch (err) {
         return record({ ok: false, outcome: "failed", message: errMessage(err) });
       } finally {
-        if (this.deps.store) void this.deps.store.refresh(ZOT_SOURCES.repos).catch(() => {});
+        if (this.deps.store) await this.deps.store.refresh(ZOT_SOURCES.repos).catch(() => {});
       }
     });
   }

@@ -1,6 +1,7 @@
 import { Layout } from "./layout";
 import { ActionForm, ResultChipView } from "./jobs";
 import { Chip, LiveFrame, Meter, Placeholder, SourceEmpty, SourceNote, StateChip, fmtCpu, fmtMem } from "./components";
+import { DatabaseTab } from "./databases";
 import { DOCKER_HOST, fmtBytes, fmtRate, hasData, shortImage, type ContainerRow, type ServiceVM } from "./model";
 import type { Chrome } from "./overview";
 
@@ -382,30 +383,7 @@ function Builds({ vm }: { vm: ServiceVM }) {
 }
 
 function Database({ vm }: { vm: ServiceVM }) {
-  return (
-    <section class="panel" aria-label="Database">
-      <header>
-        <h2>Database</h2>
-      </header>
-      <Placeholder phase={4}>Database health from the Postgres and Redis exporters arrives in Phase 4.</Placeholder>
-      <div class="tablewrap">
-        <table>
-          <tbody>
-            {vm.service.db.map((d) => {
-              const c = vm.containers.find((x) => x.name === d.container);
-              return (
-                <tr>
-                  <td class="mono">{d.container}</td>
-                  <td>{d.kind}</td>
-                  <td>{c ? containerChip(c, vm.service.host === DOCKER_HOST, hasData(vm.sources.docker)) : null}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+  return <DatabaseTab vm={vm.databases} />;
 }
 
 const TABS = { summary: Summary, config: Config, auth: Auth, builds: Builds, db: Database };

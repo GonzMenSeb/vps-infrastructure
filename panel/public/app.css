@@ -253,3 +253,32 @@ dialog.confirm .what{font-size:13px;color:var(--ink-3);margin-bottom:4px}
 dialog.confirm .btns{display:flex;gap:8px;justify-content:flex-end}
 dialog.confirm .btn.go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 dialog.confirm .btn.stop{background:var(--bad);border-color:var(--bad);color:#fff}
+
+textarea{font:inherit;color:inherit}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+.metric .label{font-size:13.5px;color:var(--ink-2)}
+.metric .val{font-size:22px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+.metric .val small{font-size:13px;font-weight:400;color:var(--ink-3);margin-left:3px}
+.metric .hint{margin-top:2px}
+.field{display:grid;gap:4px;font-size:13.5px;color:var(--ink-2);min-width:0}
+.field input,.field select,.field textarea,.bar select,.bar input{background:var(--raised);border:1px solid var(--line);border-radius:7px;padding:6px 10px;color:var(--ink);min-width:0}
+.field textarea{resize:vertical;min-height:34px;font:12.5px/1.5 var(--mono)}
+.field input[readonly]{opacity:.7}
+.form-row{display:grid;grid-template-columns:90px 1fr 1.4fr 90px auto;gap:10px;align-items:end;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--raised)}
+.form-row .form-actions{display:flex;gap:8px}
+.form-row .form-error{grid-column:1/-1}
+form.filter{display:flex;gap:8px;margin:0}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check input{margin-top:4px;flex:none}
+.review .what{font-size:13px;color:var(--ink-3);margin:12px 0 4px}
+.review .alert{margin:0 0 12px}
+.review-form{display:grid;gap:14px;margin-top:14px}
+.review-form .btns{display:flex;gap:8px;justify-content:flex-end}
+tbody tr.selected{background:var(--accent-soft)}
+@media (max-width:1040px){
+  .form-row{grid-template-columns:1fr 1fr}
+  .form-row .form-actions{grid-column:1/-1}
+}
+@media (max-width:560px){
+  .form-row{grid-template-columns:1fr}
+}

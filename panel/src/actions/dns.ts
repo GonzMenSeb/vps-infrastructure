@@ -67,7 +67,7 @@ export class DnsActions {
       } catch (err) {
         return record({ ok: false, outcome: "failed", message: errMessage(err) });
       } finally {
-        if (this.deps.store) void this.deps.store.refresh(PDNS_SOURCES.zones).catch(() => {});
+        if (this.deps.store) await this.deps.store.refresh(PDNS_SOURCES.zones).catch(() => {});
       }
     });
   }

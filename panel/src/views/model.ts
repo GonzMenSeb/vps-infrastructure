@@ -10,6 +10,8 @@ import { hourLabels } from "../lib/charts";
 import { squarify } from "../lib/treemap";
 import { indexManifest, type Manifest, type ManifestIndex, type Service, type ServiceHost } from "../manifest";
 import type { Snapshot, Store } from "../store";
+import { buildServiceDatabases, type ServiceDatabasesVM } from "./databases-model";
+import type { DatabasesView, DnsView, RegistryView } from "./phase4-input";
 
 export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins"];
 export const DOCKER_HOST: ServiceHost = "vps";
@@ -58,7 +60,7 @@ export interface UpVM {
   building: number;
 }
 
-export type ExtraSourceKey = "jenkins" | "loki";
+export type ExtraSourceKey = "jenkins" | "loki" | "registry" | "dns" | "pdns" | "databases";
 
 export interface SourceStatus {
   key: SourceKey | ExtraSourceKey;
@@ -345,6 +347,7 @@ export interface ServiceVM {
   sources: { prom: SourceStatus; docker: SourceStatus; df: SourceStatus };
   builds: ServiceBuildsVM | null;
   logsHref: string | null;
+  databases: ServiceDatabasesVM | null;
 }
 
 export interface ViewInput {
@@ -354,6 +357,9 @@ export interface ViewInput {
   csrf?: string;
   jenkins?: JenkinsView;
   logs?: LogsView;
+  registry?: RegistryView;
+  dns?: DnsView;
+  databases?: DatabasesView;
 }
 
 const AUTH_MIDDLEWARE: Record<string, string> = {
@@ -896,8 +902,11 @@ export function buildService(input: ViewInput, id: string, tab?: string): Servic
     sources: { prom: ctx.promStatus(), docker: ctx.status.docker, df: ctx.status.df },
     builds: tab === "builds" ? buildServiceBuilds(input, svc) : null,
     logsHref: logsHref(svc.host, svc.containers[0]!),
+    databases: tab === "db" ? buildServiceDatabases(input, svc) : null,
   };
 }
+
+export const upOf = (input: ViewInput): UpVM => new Ctx(input).up();
 
 export interface JenkinsBuildData {
   job: string;

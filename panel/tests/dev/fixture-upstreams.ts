@@ -2,14 +2,18 @@ import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DB_QUERY } from "../../src/collectors/databases";
 import { QUERIES, seriesQuery } from "../../src/collectors/prometheus";
 import { start } from "../../src/server";
 import hostsFixture from "../fixtures/prometheus-hosts.json";
 import containersFixture from "../fixtures/prometheus-containers.json";
+import databasesFixture from "../fixtures/prometheus-databases.json";
 import seriesFixture from "../fixtures/prometheus-series.json";
 import { dockerContainers, dockerDf } from "./docker-fixture";
 import { startFakeJenkins, type FakeJenkins } from "./jenkins-fixture";
 import { startFakeLoki, type FakeLoki } from "./loki-fixture";
+import { startFakePdns, type FakePdns } from "./pdns-fixture";
+import { startFakeZot, type FakeZot } from "./zot-fixture";
 
 type Matrix = { status: string; data: { resultType: string; result: { metric: Record<string, string>; values: [number, string][] }[] } };
 
@@ -35,6 +39,8 @@ export interface FixtureUpstreams {
   dockerSocket: string;
   jenkins: FakeJenkins;
   loki: FakeLoki;
+  zot: FakeZot;
+  pdns: FakePdns;
   stop: () => Promise<void>;
 }
 
@@ -52,6 +58,7 @@ export async function startFixtureUpstreams(): Promise<FixtureUpstreams> {
       if (path === "/api/v1/query") {
         if (query === QUERIES.hosts) return Response.json(hostsFixture);
         if (query === QUERIES.containers) return Response.json(containersFixture);
+        if (query === DB_QUERY) return Response.json(databasesFixture);
         return promError("fixture has no answer for this instant query");
       }
       if (path === "/api/v1/query_range") {
@@ -74,14 +81,20 @@ export async function startFixtureUpstreams(): Promise<FixtureUpstreams> {
   });
   const jenkins = startFakeJenkins();
   const loki = startFakeLoki();
+  const zot = startFakeZot();
+  const pdns = startFakePdns();
   return {
     promUrl: `http://127.0.0.1:${prom.port}`,
     dockerSocket,
     jenkins,
     loki,
+    zot,
+    pdns,
     stop: async () => {
       await jenkins.stop();
       await loki.stop();
+      await zot.stop();
+      await pdns.stop();
       await prom.stop(true);
       await docker.stop(true);
       rmSync(dir, { recursive: true, force: true });
@@ -110,9 +123,14 @@ if (import.meta.main) {
     JENKINS_USER: "admin",
     JENKINS_TOKEN: "dev-token",
     LOKI_URL: up.loki.url,
+    ZOT_URL: up.zot.url,
+    ZOT_USER: "ci",
+    ZOT_PASSWORD: "dev-password",
+    PDNS_API_URL: up.pdns.url,
+    PDNS_API_KEY: up.pdns.apiKey,
     TIME_ZONE: process.env.TIME_ZONE ?? "UTC",
   });
-  console.log(`fixture panel on http://localhost:${port}/auth/dev (prometheus ${up.promUrl}, docker ${up.dockerSocket}, jenkins ${up.jenkins.url}, loki ${up.loki.url})`);
+  console.log(`fixture panel on http://localhost:${port}/auth/dev (prometheus ${up.promUrl}, docker ${up.dockerSocket}, jenkins ${up.jenkins.url}, loki ${up.loki.url}, zot ${up.zot.url}, pdns ${up.pdns.url})`);
   const shutdown = async () => {
     await app.stop();
     await up.stop();
