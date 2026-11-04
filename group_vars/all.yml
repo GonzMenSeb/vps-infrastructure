@@ -474,8 +474,6 @@ panel_secret_editable:
   - vault_judicabot_password
   - vault_miplata_admin_password
   - vault_miplata_jwt_secret
-  - vault_pdns_admin_secret_key
-  - vault_pdns_api_key
   - vault_strava_client_id
   - vault_strava_client_secret
   - vault_vaultwarden_admin_token
@@ -485,6 +483,8 @@ panel_secret_locked:
   vault_zot_htpasswd_hash: "It must change together with vault_zot_registry_password."
   vault_categorizer_api_token: "The Jenkins host keeps a copy as the categorizer-api-token credential, and vps-deploy does not update that host."
   vault_observability_push_token: "The agent on the Jenkins host sends with it and vps-deploy does not update that host, so metrics and logs would stop arriving."
+  vault_pdns_api_key: "PowerDNS-Admin may keep its own copy of the API key, so changing it here could update PowerDNS and leave the DNS admin UI talking with the old one; check that before unlocking."
+  vault_pdns_admin_secret_key: "PowerDNS-Admin signs its sessions and may store data encrypted with it; changing it can lock the DNS admin UI out of its own data; check that before unlocking."
   vault_pdns_db_root_password: "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database."
   vault_pdns_db_password: "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database."
   vault_miplata_db_password: "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database."
@@ -518,8 +518,6 @@ panel_secret_min_length:
   vault_judicabot_password: 12
   vault_miplata_admin_password: 12
   vault_miplata_jwt_secret: 12
-  vault_pdns_admin_secret_key: 12
-  vault_pdns_api_key: 12
   vault_vaultwarden_admin_token: 12
 
 panel_secret_vars: >-

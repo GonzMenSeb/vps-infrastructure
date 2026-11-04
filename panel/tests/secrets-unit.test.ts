@@ -28,8 +28,6 @@ describe("allowlist and credentials", () => {
       "vault_judicabot_password",
       "vault_miplata_admin_password",
       "vault_miplata_jwt_secret",
-      "vault_pdns_admin_secret_key",
-      "vault_pdns_api_key",
       "vault_strava_client_id",
       "vault_strava_client_secret",
       "vault_vaultwarden_admin_token",

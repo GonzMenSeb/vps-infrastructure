@@ -1,4 +1,58 @@
 {
+  "secrets": {
+    "editable": [
+      "vault_brujula_password",
+      "vault_decabot_gemini_api_key",
+      "vault_decabot_password",
+      "vault_grafana_oauth_client_id",
+      "vault_grafana_oauth_client_secret",
+      "vault_huella_password",
+      "vault_judicabot_password",
+      "vault_miplata_admin_password",
+      "vault_miplata_jwt_secret",
+      "vault_strava_client_id",
+      "vault_strava_client_secret",
+      "vault_vaultwarden_admin_token"
+    ],
+    "locked": {
+      "vault_categorizer_api_token": "The Jenkins host keeps a copy as the categorizer-api-token credential, and vps-deploy does not update that host.",
+      "vault_categorizer_db_password": "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database.",
+      "vault_grafana_admin_password": "Grafana reads admin_password only when it first creates its database.",
+      "vault_grafana_secret_key": "Grafana encrypts the secrets it stores with it and cannot read them back after the change.",
+      "vault_metabase_admin_password": "The metabase role uses it only to create the admin during first setup.",
+      "vault_metabase_db_password": "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database.",
+      "vault_miplata_db_password": "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database.",
+      "vault_miplata_encryption_key": "It is an encryption key: data already encrypted with the old key cannot be read after the change.",
+      "vault_miplata_ro_password": "The playbook changes the Postgres role, but Metabase keeps its own copy of the password, written only during its first setup.",
+      "vault_observability_push_token": "The agent on the Jenkins host sends with it and vps-deploy does not update that host, so metrics and logs would stop arriving.",
+      "vault_panel_github_client_id": "It is the panel's own sign-in, and a wrong value locks the panel out.",
+      "vault_panel_github_client_secret": "It is the panel's own sign-in, and a wrong value locks the panel out.",
+      "vault_panel_jenkins_token": "The panel uses it to reach Jenkins, including this edit.",
+      "vault_panel_session_secret": "It is the panel's own sign-in, and changing it signs everyone out mid-flow.",
+      "vault_pdns_admin_secret_key": "PowerDNS-Admin signs its sessions and may store data encrypted with it; changing it can lock the DNS admin UI out of its own data; check that before unlocking.",
+      "vault_pdns_api_key": "PowerDNS-Admin may keep its own copy of the API key, so changing it here could update PowerDNS and leave the DNS admin UI talking with the old one; check that before unlocking.",
+      "vault_pdns_db_password": "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database.",
+      "vault_pdns_db_root_password": "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database.",
+      "vault_zot_htpasswd_hash": "It must change together with vault_zot_registry_password.",
+      "vault_zot_registry_password": "It must change together with vault_zot_htpasswd_hash, the Jenkins registry credential and every docker login, and vps-deploy does not update the Jenkins host."
+    },
+    "min_length": {
+      "vault_brujula_password": 12,
+      "vault_decabot_password": 12,
+      "vault_huella_password": 12,
+      "vault_judicabot_password": 12,
+      "vault_miplata_admin_password": 12,
+      "vault_miplata_jwt_secret": 12,
+      "vault_vaultwarden_admin_token": 12
+    },
+    "rotatable": [
+      "vault_vaultwarden_admin_token",
+      "vault_decabot_password",
+      "vault_brujula_password",
+      "vault_huella_password",
+      "vault_judicabot_password"
+    ]
+  },
   "services": [
     {
       "auth": {
@@ -571,61 +625,5 @@
       "role": "jenkins",
       "tags": []
     }
-  ],
-  "secrets": {
-    "editable": [
-      "vault_brujula_password",
-      "vault_decabot_gemini_api_key",
-      "vault_decabot_password",
-      "vault_grafana_oauth_client_id",
-      "vault_grafana_oauth_client_secret",
-      "vault_huella_password",
-      "vault_judicabot_password",
-      "vault_miplata_admin_password",
-      "vault_miplata_jwt_secret",
-      "vault_pdns_admin_secret_key",
-      "vault_pdns_api_key",
-      "vault_strava_client_id",
-      "vault_strava_client_secret",
-      "vault_vaultwarden_admin_token"
-    ],
-    "locked": {
-      "vault_categorizer_api_token": "The Jenkins host keeps a copy as the categorizer-api-token credential, and vps-deploy does not update that host.",
-      "vault_categorizer_db_password": "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database.",
-      "vault_grafana_admin_password": "Grafana reads admin_password only when it first creates its database.",
-      "vault_grafana_secret_key": "Grafana encrypts the secrets it stores with it and cannot read them back after the change.",
-      "vault_metabase_admin_password": "The metabase role uses it only to create the admin during first setup.",
-      "vault_metabase_db_password": "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database.",
-      "vault_miplata_db_password": "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database.",
-      "vault_miplata_encryption_key": "It is an encryption key: data already encrypted with the old key cannot be read after the change.",
-      "vault_miplata_ro_password": "The playbook changes the Postgres role, but Metabase keeps its own copy of the password, written only during its first setup.",
-      "vault_observability_push_token": "The agent on the Jenkins host sends with it and vps-deploy does not update that host, so metrics and logs would stop arriving.",
-      "vault_panel_github_client_id": "It is the panel's own sign-in, and a wrong value locks the panel out.",
-      "vault_panel_github_client_secret": "It is the panel's own sign-in, and a wrong value locks the panel out.",
-      "vault_panel_jenkins_token": "The panel uses it to reach Jenkins, including this edit.",
-      "vault_panel_session_secret": "It is the panel's own sign-in, and changing it signs everyone out mid-flow.",
-      "vault_pdns_db_password": "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database.",
-      "vault_pdns_db_root_password": "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database.",
-      "vault_zot_htpasswd_hash": "It must change together with vault_zot_registry_password.",
-      "vault_zot_registry_password": "It must change together with vault_zot_htpasswd_hash, the Jenkins registry credential and every docker login, and vps-deploy does not update the Jenkins host."
-    },
-    "min_length": {
-      "vault_brujula_password": 12,
-      "vault_decabot_password": 12,
-      "vault_huella_password": 12,
-      "vault_judicabot_password": 12,
-      "vault_miplata_admin_password": 12,
-      "vault_miplata_jwt_secret": 12,
-      "vault_pdns_admin_secret_key": 12,
-      "vault_pdns_api_key": 12,
-      "vault_vaultwarden_admin_token": 12
-    },
-    "rotatable": [
-      "vault_vaultwarden_admin_token",
-      "vault_decabot_password",
-      "vault_brujula_password",
-      "vault_huella_password",
-      "vault_judicabot_password"
-    ]
-  }
+  ]
 }
