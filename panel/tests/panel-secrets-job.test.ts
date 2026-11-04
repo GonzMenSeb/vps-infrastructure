@@ -213,6 +213,17 @@ suite("panel-secrets job script", () => {
     expect(originHead(r)).toBe(before);
   });
 
+  test("verification does not depend on a default vault password file that may be missing, as ansible-core 2.20 errors on it", () => {
+    const shim = join(r.dir, "shim");
+    mkdirSync(shim);
+    const real = Bun.which("ansible-playbook") as string;
+    writeFileSync(join(shim, "ansible-playbook"), `#!/bin/sh\n[ -f "$ANSIBLE_VAULT_PASSWORD_FILE" ] || { echo "[ERROR]: The vault password file $ANSIBLE_VAULT_PASSWORD_FILE was not found"; exit 1; }\nexec ${real} "$@"\n`);
+    chmodSync(join(shim, "ansible-playbook"), 0o755);
+    const value = "alpha-NEW-1234567890";
+    ok(run(r, "vault_alpha", value, { PATH: `${shim}:${process.env.PATH}`, ANSIBLE_VAULT_PASSWORD_FILE: ".vault_pass" }));
+    expect(originVault(r)).toBe(replaceLine(PLAIN, "vault_alpha:", `vault_alpha: "${value}"`));
+  });
+
   test("the repository's ansible.cfg in the working directory, as the pipeline workspace has it, does not break the edit", () => {
     const ws = join(r.dir, "workspace-with-checkout");
     mkdirSync(ws);
