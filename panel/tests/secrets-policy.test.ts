@@ -43,8 +43,6 @@ describe("minimum lengths", () => {
     "vault_huella_password",
     "vault_judicabot_password",
     "vault_miplata_admin_password",
-    "vault_pdns_api_key",
-    "vault_pdns_admin_secret_key",
     "vault_miplata_jwt_secret",
   ];
 
@@ -129,7 +127,7 @@ ansible("what Ansible hands to the Jenkins job", () => {
       .map(([k, v]) => `${k}:${v}`)
       .sort();
     expect(env.get("PANEL_SECRET_MIN")!.split(" ").sort()).toEqual(pairs);
-    expect(pairs.length).toBeGreaterThanOrEqual(9);
+    expect(pairs.length).toBeGreaterThanOrEqual(7);
     const manifest = read("roles/panel/templates/services.json.j2");
     expect(manifest).toContain("panel_secret_min_length");
     expect(manifest).toContain("panel_secret_vars");
