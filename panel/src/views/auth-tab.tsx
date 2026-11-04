@@ -112,7 +112,7 @@ function RotateForm({ row, vm }: { row: AuthRowVM; vm: AuthTabVM }) {
     <form
       method="post"
       action={row.rotateUrl}
-      class="inline"
+      class="inline acct-rotate"
       data-turbo="false"
       data-controller="csrf-field confirm"
       data-action="submit->confirm#ask"
@@ -141,20 +141,18 @@ function Row({ row, vm }: { row: AuthRowVM; vm: AuthTabVM }) {
           {row.alsoUsedBy.length ? <div class="small muted">Also used by {row.alsoUsedBy.join(", ")}</div> : null}
         </div>
         <Value row={row} vm={vm} />
-        <div class="acct-acts">
-          {row.editable ? (
-            busy ? (
-              <span class="muted small">Locked while pending</span>
-            ) : (
-              <>
-                <EditForm row={row} vm={vm} />
-                {row.rotatable ? <RotateForm row={row} vm={vm} /> : null}
-              </>
-            )
+        {row.editable ? (
+          busy ? (
+            <span class="muted small acct-lock">Locked while pending</span>
           ) : (
-            <span class="small muted">Read-only</span>
-          )}
-        </div>
+            <>
+              <EditForm row={row} vm={vm} />
+              {row.rotatable ? <RotateForm row={row} vm={vm} /> : null}
+            </>
+          )
+        ) : (
+          <span class="small muted acct-lock">Read-only</span>
+        )}
       </div>
       {!row.editable && row.readOnlyReason ? <p class="hint acct-why">{row.readOnlyReason}</p> : null}
       {row.note && row.editable ? <p class="hint acct-why">{row.note}</p> : null}

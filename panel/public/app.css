@@ -257,16 +257,21 @@ dialog.confirm .btn.stop{background:var(--bad);border-color:var(--bad);color:#ff
 .acct-list{border-top:1px solid var(--line)}
 .acct-wrap{border-bottom:1px solid var(--line)}
 .acct-wrap:last-child{border-bottom:0}
-.acct{display:grid;grid-template-columns:minmax(140px,.9fr) minmax(220px,2fr) auto;gap:12px;align-items:center;padding:12px 16px}
-.acct .who{min-width:0;overflow-wrap:anywhere}
-.acct .pwcell{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
+.acct{display:grid;grid-template-columns:minmax(170px,1fr) minmax(240px,2fr) 112px 72px;gap:8px 12px;align-items:center;padding:12px 16px}
+.acct>*{min-width:0}
+.acct .who{grid-row:1;grid-column:1;overflow-wrap:anywhere}
+.acct .pwcell{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.acct>.pwcell{grid-row:1;grid-column:2}
 .acct .masked{letter-spacing:.08em;color:var(--ink-3)}
-.acct-acts{display:flex;gap:6px;justify-content:flex-end;align-items:flex-start;flex-wrap:wrap}
+.acct-lock{grid-row:1;grid-column:3 / span 2;justify-self:end;text-align:right}
+.acct-edit{grid-row:1;grid-column:3;justify-self:end}
+.acct-edit[open]{grid-row:2;grid-column:1 / -1;justify-self:stretch}
+.acct-rotate{grid-row:1;grid-column:4;justify-self:end}
 .acct [hidden],.once [hidden]{display:none!important}
 .reveal{background:var(--bg);border:1px solid var(--line);padding:1px 8px;border-radius:5px;color:var(--warn);overflow-wrap:anywhere;user-select:all}
 .acct-why{padding:0 16px 10px}
 .acct-state{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 16px 12px;font-size:13.5px}
-.acct-edit summary{list-style:none;cursor:pointer}
+.acct-edit summary{list-style:none;cursor:pointer;display:inline-flex;width:max-content}
 .acct-edit summary::-webkit-details-marker{display:none}
 .acct-edit[open]{flex-basis:100%}
 .acct-edit[open] summary{margin-bottom:8px}
@@ -274,4 +279,7 @@ dialog.confirm .btn.stop{background:var(--bad);border-color:var(--bad);color:#ff
 .editform input[type="text"]{flex:1;min-width:200px;background:var(--raised);border:1px solid var(--line);border-radius:7px;padding:6px 10px;color:var(--ink)}
 .once .pwcell{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .once .reveal{font-size:1.05em;padding:4px 10px}
-@media (max-width:1040px){.acct{grid-template-columns:1fr}.acct-acts{justify-content:flex-start}}
+@media (max-width:1040px){
+  .acct{grid-template-columns:1fr}
+  .acct .who,.acct>.pwcell,.acct-lock,.acct-edit,.acct-edit[open],.acct-rotate{grid-row:auto;grid-column:1;justify-self:start;text-align:left}
+}

@@ -267,6 +267,24 @@ suite("panel-secrets job script", () => {
       expect(everything(r, res)).not.toContain(line);
     });
 
+    test.skipIf(!pyBcrypt)("edits the real group_vars/all.yml of this repository and changes exactly one line", () => {
+      const real = readFileSync(resolve(import.meta.dir, "../../group_vars/all.yml"), "utf8");
+      writeFileSync(join(r.work, "group_vars", "all.yml"), real);
+      git(r.work, "add", "-A");
+      git(r.work, "commit", "--quiet", "-m", "use the real group_vars");
+      git(r.work, "push", "--quiet", "origin", "main");
+      const line = makeLine();
+      ok(run(r, "traefik_dashboard_auth", line));
+      const after = originFile(r, "group_vars/all.yml");
+      const was = real.split("\n");
+      const now = after.split("\n");
+      expect(now.length).toBe(was.length);
+      const differing = was.flatMap((l, i) => (l === now[i] ? [] : [i]));
+      expect(differing).toHaveLength(1);
+      expect(was[differing[0]!]).toStartWith("traefik_dashboard_auth: ");
+      expect(now[differing[0]!]).toBe(`traefik_dashboard_auth: "${line.replaceAll("$", "$$$$")}"`);
+    });
+
     for (const bad of ["admin:plaintext", "admin:$2y$05$short", "no-colon$2y$05$0123456789012345678901uAbCdEfGhIjKlMnOpQrStUvWxYz01234", "a b:$2y$05$0123456789012345678901uAbCdEfGhIjKlMnOpQrStUvWxYz01234"]) {
       test(`refuses a malformed hash line (${bad.slice(0, 18)})`, () => {
         const before = originHead(r);
