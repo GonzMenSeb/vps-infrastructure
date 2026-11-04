@@ -93,6 +93,8 @@ fi
 [ -d "$SHM_DIR" ] && [ -w "$SHM_DIR" ] && [ -x "$SHM_DIR" ] || die "$SHM_DIR is not usable; refusing to write the decrypted vault to disk"
 work=$(mktemp -d "$SHM_DIR/panel-secrets.XXXXXX")
 trap 'rm -rf "$work"' EXIT
+printf '[defaults]\n' >"$work/ansible.cfg"
+export ANSIBLE_CONFIG="$work/ansible.cfg"
 
 # Replaces the value of one top-level "key: scalar" line. Reads the value from
 # EDIT_VALUE (never from argv, since awk -v would process backslash escapes) and
