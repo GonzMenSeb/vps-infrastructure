@@ -20,6 +20,12 @@ export interface LayoutProps {
   children?: Child;
 }
 
+export const FAVICON = "/public/favicon.svg";
+
+export function Mark({ size, label }: { size: number; label?: string }) {
+  return <img class="mark" src={FAVICON} width={size} height={size} alt={label ?? ""} />;
+}
+
 const NAV = [
   { id: "overview", label: "Overview", href: "/", count: null },
   { id: "hosts", label: "Hosts", href: "/hosts/vps", count: null },
@@ -79,7 +85,7 @@ export function Layout({ title, login, csrf, current, up, refresh, noCache, chil
         <meta name="color-scheme" content="dark light" />
         {noCache ? <meta name="turbo-cache-control" content="no-cache" /> : null}
         <title>{title} · Vespiridion</title>
-        <link rel="icon" href="data:," />
+        <link rel="icon" href={FAVICON} type="image/svg+xml" sizes="any" />
         <link rel="stylesheet" href="/public/app.css" />
         <script src="/public/theme.js"></script>
         <script src="/public/turbo.js" defer></script>
@@ -96,7 +102,10 @@ export function Layout({ title, login, csrf, current, up, refresh, noCache, chil
           <div class="app">
             <nav class="rail" aria-label="Primary">
               <div class="brand">
-                Vespiridion<small data-rail="note">{rail?.note ?? "Admin panel"}</small>
+                <Mark size={28} />
+                <span>
+                  Vespiridion<small data-rail="note">{rail?.note ?? "Admin panel"}</small>
+                </span>
               </div>
               {NAV.map((n) => (
                 <a class="nav" href={n.href} aria-current={n.id === current ? "page" : undefined}>
