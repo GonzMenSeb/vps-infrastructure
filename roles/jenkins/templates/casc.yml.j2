@@ -23,6 +23,8 @@ jenkins:
             value: "{{ panel_secret_vars | join(' ') }}"
           - key: "PANEL_HASH_VARS"
             value: "{{ panel_hash_vars | join(' ') }}"
+          - key: "PANEL_SECRETS_REPO"
+            value: "{{ github_repo_ssh_url }}"
 
 credentials:
   system:

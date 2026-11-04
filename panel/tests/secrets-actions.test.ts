@@ -265,6 +265,24 @@ describe("tracking", () => {
     expect(row(a, 2).stage).toBe("unverified");
   });
 
+  test("when pushes coalesce, a later apply build that started after the push counts, and an earlier one does not", async () => {
+    const a = make();
+    await start(a);
+    fake.queue = { executable: { number: 5 } };
+    fake.build = { building: false, result: "SUCCESS", description: `commit ${SHA}`, timestamp: 5_000_000, duration: 30_000 };
+    await a.tick();
+    await a.tick();
+    expect(row(a)).toMatchObject({ stage: "deploying", edit_done_at: 5_030_000 });
+    const other = (n: number, at: number, result: string | null, building = false) => ({ number: n, timestamp: at, building, result, actions: [{ lastBuiltRevision: { SHA1: "e".repeat(40) } }] });
+    fake.apply = { builds: [other(40, 5_029_999, "SUCCESS")] };
+    await a.tick();
+    expect(row(a).stage).toBe("deploying");
+    fake.apply = { builds: [other(42, 5_040_000, null, true), other(41, 5_031_000, "SUCCESS"), other(40, 5_029_999, "SUCCESS")] };
+    await a.tick();
+    expect(row(a)).toMatchObject({ stage: "applied", deploy_build: 41 });
+    expect(row(a).message).toContain("vps-deploy #41 started after the commit was pushed");
+  });
+
   test("a failed deploy says the change is committed but not applied", async () => {
     const a = make();
     await start(a);

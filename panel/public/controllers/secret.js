@@ -16,6 +16,10 @@
 
   class CsrfFieldController extends Controller {
     connect() {
+      this.fill();
+    }
+
+    fill() {
       const field = this.element.querySelector('input[name="_csrf"]');
       if (field) field.value = pageCsrf();
     }

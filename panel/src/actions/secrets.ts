@@ -25,6 +25,7 @@ export interface EditRow {
   queue_id: number | null;
   edit_build: number | null;
   commit_sha: string | null;
+  edit_done_at: number | null;
   deploy_build: number | null;
   message: string | null;
 }
@@ -46,6 +47,7 @@ export class EditStore {
         queue_id INTEGER,
         edit_build INTEGER,
         commit_sha TEXT,
+        edit_done_at INTEGER,
         deploy_build INTEGER,
         message TEXT
       );
@@ -61,7 +63,7 @@ export class EditStore {
     );
   }
 
-  update(id: number, patch: Partial<Pick<EditRow, "stage" | "queue_id" | "edit_build" | "commit_sha" | "deploy_build" | "message">>, now: number): void {
+  update(id: number, patch: Partial<Pick<EditRow, "stage" | "queue_id" | "edit_build" | "commit_sha" | "edit_done_at" | "deploy_build" | "message">>, now: number): void {
     const keys = Object.keys(patch) as (keyof typeof patch)[];
     const sets = [...keys.map((k) => `${k} = ?`), "updated_at = ?"].join(", ");
     this.db.query(`UPDATE secret_edits SET ${sets} WHERE id = ?`).run(...keys.map((k) => patch[k] ?? null), now, id);
@@ -117,11 +119,18 @@ const jobSchema = z.object({
   property: z.array(z.object({ parameterDefinitions: z.array(z.object({ name: z.string() })).optional() })).optional(),
 });
 const queueSchema = z.object({ cancelled: z.boolean().optional(), executable: z.object({ number: z.number() }).nullish() });
-const buildSchema = z.object({ building: z.boolean().optional(), result: z.string().nullish(), description: z.string().nullish() });
+const buildSchema = z.object({
+  building: z.boolean().optional(),
+  result: z.string().nullish(),
+  description: z.string().nullish(),
+  timestamp: z.number().optional(),
+  duration: z.number().optional(),
+});
 const applySchema = z.object({
   builds: z.array(
     z.object({
       number: z.number(),
+      timestamp: z.number().optional(),
       building: z.boolean().optional(),
       result: z.string().nullish(),
       actions: z.array(z.object({ lastBuiltRevision: z.object({ SHA1: z.string().optional() }).nullish() })).optional(),
@@ -130,7 +139,7 @@ const applySchema = z.object({
 });
 
 const PREFLIGHT_TREE = encodeURIComponent("buildable,property[parameterDefinitions[name]]");
-const APPLY_TREE = encodeURIComponent("builds[number,building,result,actions[lastBuiltRevision[SHA1]]]{0,25}");
+const APPLY_TREE = encodeURIComponent("builds[number,timestamp,building,result,actions[lastBuiltRevision[SHA1]]]{0,25}");
 const COMMIT_DESCRIPTION = /^commit ([0-9a-f]{40})$/;
 
 const errMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
@@ -283,7 +292,7 @@ export class SecretActions {
       return;
     }
     if (row.stage === "editing") {
-      const b = buildSchema.parse(await client.getJson(`/job/${j}/${row.edit_build}/api/json?tree=building,result,description`));
+      const b = buildSchema.parse(await client.getJson(`/job/${j}/${row.edit_build}/api/json?tree=building,result,description,timestamp,duration`));
       if (b.building) return;
       if (b.result !== "SUCCESS") {
         this.finish(row, "failed", `${job} #${row.edit_build} finished as ${b.result ?? "unknown"}. Nothing was committed; open its console for the reason.`);
@@ -291,20 +300,27 @@ export class SecretActions {
       }
       const desc = (b.description ?? "").trim();
       const commit = COMMIT_DESCRIPTION.exec(desc)?.[1];
-      if (commit) this.store.update(row.id, { stage: "deploying", commit_sha: commit }, now);
+      if (commit) this.store.update(row.id, { stage: "deploying", commit_sha: commit, edit_done_at: (b.timestamp ?? now) + (b.duration ?? 0) }, now);
       else if (desc === "unchanged") this.finish(row, "unchanged", "The stored value already equals the new one, so nothing was committed.");
       else this.finish(row, "unverified", `${job} #${row.edit_build} succeeded but did not report a commit.`);
       return;
     }
     if (row.stage === "deploying") {
       const apply = applySchema.parse(await client.getJson(`/job/${encodeURIComponent(applyJob)}/api/json?tree=${APPLY_TREE}`));
-      const build = apply.builds.find((b) => (b.actions ?? []).some((a) => a.lastBuiltRevision?.SHA1 === row.commit_sha));
+      const exact = apply.builds.find((b) => (b.actions ?? []).some((a) => a.lastBuiltRevision?.SHA1 === row.commit_sha));
+      const later = exact
+        ? undefined
+        : apply.builds
+            .filter((b) => row.edit_done_at !== null && b.timestamp !== undefined && b.timestamp >= row.edit_done_at)
+            .sort((a, b) => a.number - b.number)[0];
+      const build = exact ?? later;
       if (!build) return;
+      const note = later ? `${applyJob} #${later.number} started after the commit was pushed, so it includes it.` : null;
       if (build.building) {
         if (row.deploy_build !== build.number) this.store.update(row.id, { deploy_build: build.number }, now);
         return;
       }
-      if (build.result === "SUCCESS") this.finish(row, "applied", null, { deploy_build: build.number });
+      if (build.result === "SUCCESS") this.finish(row, "applied", note, { deploy_build: build.number });
       else this.finish(row, "failed", `The change is committed (${row.commit_sha?.slice(0, 7)}) but ${applyJob} #${build.number} finished as ${build.result ?? "unknown"}, so it is not applied yet.`, { deploy_build: build.number });
     }
   }

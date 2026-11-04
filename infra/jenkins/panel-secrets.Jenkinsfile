@@ -1,18 +1,15 @@
 pipeline {
     agent any
 
+    // Concurrency, build retention and the VAR_NAME/VAR_VALUE parameters are job properties
+    // set by Job DSL in casc.yml.j2. Declaring any of them here would make Declarative rewrite them.
     options {
-        disableConcurrentBuilds()
         timeout(time: 10, unit: 'MINUTES')
-        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
 
     stages {
         stage('Edit and push') {
             steps {
-                script {
-                    env.REPO_URL = scm.userRemoteConfigs[0].url
-                }
                 withCredentials([string(credentialsId: 'ansible-vault-pass', variable: 'VAULT_PASS')]) {
                     sshagent(credentials: ['github-write-ssh-key']) {
                         sh '''
@@ -25,7 +22,7 @@ pipeline {
                             trap 'rm -rf "$scratch" "$WORKSPACE/repo"' EXIT
                             printf %s "$VAULT_PASS" > "$scratch/vault-pass"
                             rm -rf "$WORKSPACE/repo" "$WORKSPACE/result.txt"
-                            git clone --quiet --branch main --single-branch "$REPO_URL" "$WORKSPACE/repo"
+                            git clone --quiet --branch main --single-branch "$PANEL_SECRETS_REPO" "$WORKSPACE/repo"
                             cp "$WORKSPACE/repo/infra/jenkins/panel-secrets.sh" "$WORKSPACE/repo/infra/jenkins/panel-secrets-verify.yml" "$scratch/"
                             VAULT_PASSWORD_FILE="$scratch/vault-pass" \
                                 WORK_DIR="$WORKSPACE/repo" \

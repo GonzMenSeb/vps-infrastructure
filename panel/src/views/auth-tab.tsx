@@ -66,8 +66,9 @@ function EditForm({ row, vm }: { row: AuthRowVM; vm: AuthTabVM }) {
         method="post"
         action={row.editUrl}
         class="editform"
+        data-turbo="false"
         data-controller="csrf-field confirm secret-gen"
-        data-action="submit->confirm#ask"
+        data-action="submit->csrf-field#fill submit->confirm#ask"
         data-confirm-title-value={row.edit.title}
         data-confirm-body-value={row.edit.body}
         data-confirm-request-value={row.edit.request}
@@ -115,7 +116,7 @@ function RotateForm({ row, vm }: { row: AuthRowVM; vm: AuthTabVM }) {
       class="inline acct-rotate"
       data-turbo="false"
       data-controller="csrf-field confirm"
-      data-action="submit->confirm#ask"
+      data-action="submit->csrf-field#fill submit->confirm#ask"
       data-confirm-title-value={row.rotate.title}
       data-confirm-body-value={row.rotate.body}
       data-confirm-request-value={row.rotate.request}
@@ -179,7 +180,9 @@ export function AuthTab({ vm }: { vm: AuthTabVM }) {
           <div class="alert info mt">
             <span>ⓘ</span>
             <span>
-              Your sign-in is older than {s.reauthMinutes} minutes. <a href={s.reauthHref}>Sign in again</a> to show or change a secret.
+              Your sign-in is older than {s.reauthMinutes} minutes. <a href={s.reauthHref} data-turbo="false">
+                Sign in again
+              </a> to show or change a secret.
             </span>
           </div>
         ) : null}

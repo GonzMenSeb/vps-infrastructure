@@ -54,6 +54,12 @@ try {
   const hidden = await wait(`document.querySelector('[data-secret-url-value$="DECABOT_PASSWORD/reveal"] code[hidden]')`, (Number(process.env.REVEAL_SECONDS ?? 20) + 4) * 1000);
   check(hidden, `the value hides itself after ${process.env.REVEAL_SECONDS ?? 20} s`);
 
+  // A refresh morphs the frame; the forms must still submit afterwards.
+  await page.eval(`document.getElementById("live").reload()`);
+  await Bun.sleep(1500);
+  const csrfAfterReload = await page.eval<string>(`document.querySelector('form[action$="DECABOT_PASSWORD"] input[name=_csrf]').value`);
+  console.log(`info the hidden csrf field after a refresh is ${csrfAfterReload ? "kept" : "blank, so it is refilled on submit"}`);
+
   // Edit with confirmation
   await page.eval(`document.querySelector('details[data-k="edit:DECABOT_PASSWORD"] summary').click()`);
   await page.eval(`document.querySelector('details[data-k="edit:DECABOT_PASSWORD"] [data-action="secret-gen#fill"]').click()`);
