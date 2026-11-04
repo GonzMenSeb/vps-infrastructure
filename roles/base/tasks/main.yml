@@ -15,10 +15,28 @@
     mode: "0644"
 
 # SSH hardening
-- name: Configure SSH hardening
+- name: Authorize SSH public keys
+  lineinfile:
+    path: "{{ ssh_user_home }}/.ssh/authorized_keys"
+    line: "{{ item }}"
+    create: true
+    owner: "{{ ssh_allowed_users }}"
+    group: "{{ ssh_allowed_users }}"
+    mode: "0600"
+  loop: "{{ ssh_authorized_keys }}"
+  loop_control:
+    label: "{{ item.split()[-1] }}"
+
+- name: Remove legacy SSH hardening file
+  file:
+    path: /etc/ssh/sshd_config.d/99-hardening.conf
+    state: absent
+  notify: restart sshd
+
+- name: Configure SSH hardening (00- so it wins over cloud-init's 50- file)
   template:
     src: sshd-hardening.conf.j2
-    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
     mode: "0644"
   notify: restart sshd
 

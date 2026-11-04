@@ -106,3 +106,19 @@ vault_main_vps_ip: "CHANGE_ME"      # e.g. 203.0.113.10
 vault_jenkins_vps_ip: "CHANGE_ME"   # e.g. 203.0.113.11
 vault_domain: "CHANGE_ME"            # e.g. example.com
 vault_acme_email: "CHANGE_ME"       # email used for Let's Encrypt registration
+
+# Public keys allowed to SSH in (yours + the Jenkins deploy key); password login is disabled
+vault_ssh_authorized_keys:
+  - "ssh-ed25519 AAAA... user@host"
+
+# Cloudflare API token with Zone > DNS > Edit on the project domain (delegation + glue records)
+vault_cloudflare_api_token: "CHANGE_ME"
+
+# judicabot UI password (single password, no username); min 12 chars
+vault_judicabot_password: "CHANGE_ME_MIN_12_CHARS"
+
+# Panel (admin panel at panel.web.<domain>); the Zot login reuses vault_zot_registry_password
+vault_panel_github_client_id: "CHANGE_ME_GITHUB_OAUTH_CLIENT_ID"
+vault_panel_github_client_secret: "CHANGE_ME_GITHUB_OAUTH_CLIENT_SECRET"
+vault_panel_session_secret: "CHANGE_ME_32_BYTE_HEX"
+vault_panel_jenkins_token: "CHANGE_ME_JENKINS_API_TOKEN"   # created by hand for user admin; JCasC cannot provision it

@@ -1,0 +1,6 @@
+{"status":"success","data":[
+{"compose_project":"traefik","compose_service":"traefik","container":"traefik","env":"prod","host":"vps","service_name":"traefik"},
+{"host":"jenkins","service_name":"jenkins","compose_project":"jenkins","compose_service":"jenkins","container":"jenkins","env":"prod"},
+{"env":"prod","host":"vps","service_name":"grafana","compose_project":"monitoring","compose_service":"grafana","container":"grafana"},
+{"host":"vps","env":"prod","unit":"ssh.service"}
+]}

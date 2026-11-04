@@ -1,0 +1,1240 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "grafana"
+    },
+    "value": [
+     1793739856.395,
+     "0.6711872814507537"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "pdns-db"
+    },
+    "value": [
+     1793739856.395,
+     "0.7368920220750227"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "blackbox-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "0.3312913418247196"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "0.045090260625769034"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "process-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "1.0728376120090988"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "pdns-admin"
+    },
+    "value": [
+     1793739856.395,
+     "1.6427657992565279"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "0.7808444126117402"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "1.9160586585721702"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "tempo"
+    },
+    "value": [
+     1793739856.395,
+     "0.2748182316462191"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "loki"
+    },
+    "value": [
+     1793739856.395,
+     "0.7777495407144709"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "vaultwarden"
+    },
+    "value": [
+     1793739856.395,
+     "0.2094938386113651"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "2.3938713667799014"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "prometheus"
+    },
+    "value": [
+     1793739856.395,
+     "0.9086805391345392"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "alertmanager"
+    },
+    "value": [
+     1793739856.395,
+     "0.12682995997342456"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "pdns"
+    },
+    "value": [
+     1793739856.395,
+     "0.013566833717779028"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "zot"
+    },
+    "value": [
+     1793739856.395,
+     "0.505520592847866"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "metabase-db"
+    },
+    "value": [
+     1793739856.395,
+     "0.6408066838203801"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "metabase"
+    },
+    "value": [
+     1793739856.395,
+     "0.7890863951417193"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "buildx_buildkit_decabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0.12471753458459325"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "0.0008647437692657356"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "buildx_buildkit_coros-brujula-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0.017046309365845173"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "buildx_buildkit_coros-huella-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0.05710860308367925"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "0.0915512840508761"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "0.4445208993819772"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "1.8545891934654126"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "jenkins"
+    },
+    "value": [
+     1793739856.395,
+     "0.8701881040259167"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct",
+     "name": "buildx_buildkit_judicabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0.020516849286749822"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct",
+     "name": "judicabot"
+    },
+    "value": [
+     1793739856.395,
+     "0.8349034922969616"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "grafana"
+    },
+    "value": [
+     1793739856.395,
+     "267456512"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "pdns-db"
+    },
+    "value": [
+     1793739856.395,
+     "94707712"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "blackbox-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "34623488"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "7237632"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "process-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "26865664"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "pdns-admin"
+    },
+    "value": [
+     1793739856.395,
+     "341028864"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "40218624"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "76693504"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "tempo"
+    },
+    "value": [
+     1793739856.395,
+     "96866304"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "loki"
+    },
+    "value": [
+     1793739856.395,
+     "89980928"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "vaultwarden"
+    },
+    "value": [
+     1793739856.395,
+     "31006720"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "485158912"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "prometheus"
+    },
+    "value": [
+     1793739856.395,
+     "186421248"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "alertmanager"
+    },
+    "value": [
+     1793739856.395,
+     "36347904"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "pdns"
+    },
+    "value": [
+     1793739856.395,
+     "57884672"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "zot"
+    },
+    "value": [
+     1793739856.395,
+     "53673984"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "metabase-db"
+    },
+    "value": [
+     1793739856.395,
+     "58888192"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "metabase"
+    },
+    "value": [
+     1793739856.395,
+     "1068175360"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "buildx_buildkit_decabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "262897664"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "4243456"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "jenkins"
+    },
+    "value": [
+     1793739856.395,
+     "818765824"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "buildx_buildkit_coros-brujula-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "118415360"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "buildx_buildkit_coros-huella-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "125321216"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "37699584"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "163278848"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "38760448"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memBytes",
+     "name": "buildx_buildkit_judicabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "71766016"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memBytes",
+     "name": "judicabot"
+    },
+    "value": [
+     1793739856.395,
+     "47026176"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "grafana"
+    },
+    "value": [
+     1793739856.395,
+     "19.809709685289096"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "pdns-db"
+    },
+    "value": [
+     1793739856.395,
+     "22.15716878131838"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "blackbox-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "3113.479113147931"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "531.4076461669034"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "process-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "32.51505459993661"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "pdns-admin"
+    },
+    "value": [
+     1793739856.395,
+     "52.19330855018587"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "19854.850261873857"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "165.39044816838347"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "tempo"
+    },
+    "value": [
+     1793739856.395,
+     "11.886910861104399"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "loki"
+    },
+    "value": [
+     1793739856.395,
+     "672.5526646108966"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "vaultwarden"
+    },
+    "value": [
+     1793739856.395,
+     "23.502716311117"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "15769.400004981278"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "prometheus"
+    },
+    "value": [
+     1793739856.395,
+     "27495.12098998975"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "alertmanager"
+    },
+    "value": [
+     1793739856.395,
+     "121.4976745693497"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "pdns"
+    },
+    "value": [
+     1793739856.395,
+     "40.313102074862954"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "zot"
+    },
+    "value": [
+     1793739856.395,
+     "37.33568462216718"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "metabase-db"
+    },
+    "value": [
+     1793739856.395,
+     "125.95723825277216"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "metabase"
+    },
+    "value": [
+     1793739856.395,
+     "88.73014554549565"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "buildx_buildkit_decabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "8.37860543265192"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "371.39386577588834"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "jenkins"
+    },
+    "value": [
+     1793739856.395,
+     "57.76983371635058"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "buildx_buildkit_coros-brujula-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "buildx_buildkit_coros-huella-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "3685.1174540929824"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "48.92708581481007"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps",
+     "name": "buildx_buildkit_judicabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps",
+     "name": "judicabot"
+    },
+    "value": [
+     1793739856.395,
+     "1.1411780087598875"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "grafana"
+    },
+    "value": [
+     1793739856.395,
+     "14.247377409124178"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "pdns-db"
+    },
+    "value": [
+     1793739856.395,
+     "42.716213491453026"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "blackbox-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "1684.9920784812166"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "14011.958460086016"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "process-exporter"
+    },
+    "value": [
+     1793739856.395,
+     "511.7987725818999"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "pdns-admin"
+    },
+    "value": [
+     1793739856.395,
+     "186.14976101964947"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "10446.200217855172"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "10670.53453014663"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "tempo"
+    },
+    "value": [
+     1793739856.395,
+     "66.18209926819614"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "loki"
+    },
+    "value": [
+     1793739856.395,
+     "69.70787163804798"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "vaultwarden"
+    },
+    "value": [
+     1793739856.395,
+     "70.16861004372598"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "22731.8411636267"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "prometheus"
+    },
+    "value": [
+     1793739856.395,
+     "2083.9757231812087"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "alertmanager"
+    },
+    "value": [
+     1793739856.395,
+     "141.67301366089225"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "pdns"
+    },
+    "value": [
+     1793739856.395,
+     "22.857201127649937"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "zot"
+    },
+    "value": [
+     1793739856.395,
+     "100.12048111677245"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "metabase-db"
+    },
+    "value": [
+     1793739856.395,
+     "81.93193653127489"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "metabase"
+    },
+    "value": [
+     1793739856.395,
+     "132.05231146920656"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "alloy"
+    },
+    "value": [
+     1793739856.395,
+     "6859.4773952716705"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "buildx_buildkit_decabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "jenkins"
+    },
+    "value": [
+     1793739856.395,
+     "703.7922576351973"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "traefik"
+    },
+    "value": [
+     1793739856.395,
+     "774.7392092973631"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "buildx_buildkit_coros-brujula-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "buildx_buildkit_coros-huella-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "cadvisor"
+    },
+    "value": [
+     1793739856.395,
+     "1904.134063880083"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "docker-proxy"
+    },
+    "value": [
+     1793739856.395,
+     "162.04984598151782"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps",
+     "name": "buildx_buildkit_judicabot-builder0"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps",
+     "name": "judicabot"
+    },
+    "value": [
+     1793739856.395,
+     "0"
+    ]
+   }
+  ]
+ }
+}

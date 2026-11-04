@@ -1,0 +1,529 @@
+{
+    "services": [
+        {
+            "auth": {
+                "env_keys": [],
+                "kind": "basic-auth-hash",
+                "vault_vars": []
+            },
+            "containers": [
+                "traefik",
+                "docker-proxy"
+            ],
+            "core": true,
+            "db": [],
+            "dir": "/opt/traefik",
+            "host": "vps",
+            "hostname": "traefik.web.example.test",
+            "id": "traefik",
+            "images": [
+                "traefik:v3.6.13",
+                "nginx:alpine"
+            ],
+            "jenkins_job": "vps-deploy",
+            "name": "Traefik",
+            "playbook": "playbook.yml",
+            "role": "traefik",
+            "tags": [
+                "traefik"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "DB_ROOT_PASSWORD",
+                    "DB_PASSWORD",
+                    "ADMIN_SECRET_KEY",
+                    "PDNS_API_KEY"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_pdns_db_root_password",
+                    "vault_pdns_db_password",
+                    "vault_pdns_admin_secret_key",
+                    "vault_pdns_api_key"
+                ]
+            },
+            "containers": [
+                "pdns",
+                "pdns-db",
+                "pdns-admin"
+            ],
+            "core": true,
+            "db": [
+                {
+                    "container": "pdns-db",
+                    "kind": "mariadb"
+                }
+            ],
+            "dir": "/opt/dns",
+            "host": "vps",
+            "hostname": "dns.web.example.test",
+            "id": "dns",
+            "images": [
+                "powerdns/pdns-auth-49:4.9.13",
+                "mariadb:10.11",
+                "powerdnsadmin/pda-legacy:0.4.2"
+            ],
+            "jenkins_job": "vps-deploy",
+            "name": "PowerDNS",
+            "playbook": "playbook.yml",
+            "role": "dns",
+            "tags": [
+                "dns"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "ADMIN_TOKEN"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_vaultwarden_admin_token"
+                ]
+            },
+            "containers": [
+                "vaultwarden"
+            ],
+            "core": false,
+            "db": [],
+            "dir": "/opt/vaultwarden",
+            "host": "vps",
+            "hostname": "vault.web.example.test",
+            "id": "vaultwarden",
+            "images": [
+                "vaultwarden/server:1.35.7"
+            ],
+            "jenkins_job": "vps-deploy",
+            "name": "Vaultwarden",
+            "playbook": "playbook.yml",
+            "role": "vaultwarden",
+            "tags": [
+                "vaultwarden"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [],
+                "kind": "vault",
+                "vault_vars": [
+                    "vault_grafana_admin_password",
+                    "vault_grafana_oauth_client_id",
+                    "vault_grafana_oauth_client_secret",
+                    "vault_grafana_secret_key",
+                    "vault_observability_push_token"
+                ]
+            },
+            "containers": [
+                "prometheus",
+                "loki",
+                "grafana",
+                "alloy",
+                "process-exporter",
+                "cadvisor",
+                "blackbox-exporter",
+                "tempo",
+                "alertmanager"
+            ],
+            "core": false,
+            "db": [],
+            "dir": "/opt/monitoring",
+            "host": "vps",
+            "hostname": "grafana.web.example.test",
+            "id": "monitoring",
+            "images": [
+                "prom/prometheus:v3.11.2",
+                "grafana/loki:3.7.1",
+                "grafana/grafana:12.4.3",
+                "grafana/alloy:v1.15.1",
+                "ncabatoff/process-exporter:0.8.7",
+                "ghcr.io/google/cadvisor:0.56.2",
+                "prom/blackbox-exporter:v0.28.0",
+                "grafana/tempo:2.10.4",
+                "prom/alertmanager:v0.32.0"
+            ],
+            "jenkins_job": "vps-deploy",
+            "name": "Monitoring",
+            "playbook": "playbook.yml",
+            "role": "monitoring",
+            "tags": [
+                "monitoring"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [],
+                "kind": "vault",
+                "vault_vars": [
+                    "vault_zot_registry_password",
+                    "vault_zot_htpasswd_hash"
+                ]
+            },
+            "containers": [
+                "zot"
+            ],
+            "core": true,
+            "db": [],
+            "dir": "/opt/zot",
+            "host": "vps",
+            "hostname": "zot.web.example.test",
+            "id": "zot",
+            "images": [
+                "ghcr.io/project-zot/zot-linux-amd64:v2.1.16"
+            ],
+            "jenkins_job": "vps-deploy",
+            "name": "Zot registry",
+            "playbook": "playbook.yml",
+            "role": "zot",
+            "tags": [
+                "zot"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "POSTGRES_PASSWORD",
+                    "JWT_SECRET",
+                    "ENCRYPTION_KEY",
+                    "ADMIN_PASSWORD",
+                    "CATEGORIZER_API_TOKEN"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_miplata_db_password",
+                    "vault_miplata_jwt_secret",
+                    "vault_miplata_encryption_key",
+                    "vault_miplata_admin_password",
+                    "vault_categorizer_api_token"
+                ]
+            },
+            "containers": [
+                "miplata-api",
+                "miplata-web",
+                "miplata-postgres",
+                "miplata-redis",
+                "postgres-exporter",
+                "redis-exporter"
+            ],
+            "core": false,
+            "db": [
+                {
+                    "container": "miplata-postgres",
+                    "kind": "postgres"
+                },
+                {
+                    "container": "miplata-redis",
+                    "kind": "redis"
+                }
+            ],
+            "dir": "/opt/miplata",
+            "host": "vps",
+            "hostname": "miplata.web.example.test",
+            "id": "miplata",
+            "images": [
+                "zot.web.example.test/miplata/api:latest",
+                "zot.web.example.test/miplata/web:latest"
+            ],
+            "jenkins_job": "miplata-deploy",
+            "name": "Miplata",
+            "playbook": "playbook.yml",
+            "role": "miplata",
+            "tags": [
+                "miplata"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "MB_DB_PASS",
+                    "POSTGRES_PASSWORD"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_metabase_db_password",
+                    "vault_miplata_ro_password",
+                    "vault_metabase_admin_password"
+                ]
+            },
+            "containers": [
+                "metabase",
+                "metabase-db"
+            ],
+            "core": false,
+            "db": [
+                {
+                    "container": "metabase-db",
+                    "kind": "postgres"
+                }
+            ],
+            "dir": "/opt/metabase",
+            "host": "vps",
+            "hostname": "metabase.web.example.test",
+            "id": "metabase",
+            "images": [
+                "metabase/metabase:v0.60.1",
+                "postgres:16-alpine"
+            ],
+            "jenkins_job": "vps-deploy",
+            "name": "Metabase",
+            "playbook": "playbook.yml",
+            "role": "metabase",
+            "tags": [
+                "metabase"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [],
+                "kind": "none",
+                "vault_vars": []
+            },
+            "containers": [
+                "llama-server"
+            ],
+            "core": false,
+            "db": [],
+            "dir": "/opt/llm_inference",
+            "host": "vps",
+            "hostname": null,
+            "id": "llm_inference",
+            "images": [
+                "ghcr.io/ggml-org/llama.cpp:server"
+            ],
+            "jenkins_job": "vps-deploy",
+            "name": "LLM inference",
+            "playbook": "playbook.yml",
+            "role": "llm_inference",
+            "tags": [
+                "llm_inference"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "POSTGRES_PASSWORD",
+                    "CATEGORIZER_API_TOKEN"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_categorizer_db_password",
+                    "vault_categorizer_api_token"
+                ]
+            },
+            "containers": [
+                "categorizer-api",
+                "categorizer-postgres"
+            ],
+            "core": false,
+            "db": [
+                {
+                    "container": "categorizer-postgres",
+                    "kind": "postgres"
+                }
+            ],
+            "dir": "/opt/categorizer",
+            "host": "vps",
+            "hostname": "categorizer.web.example.test",
+            "id": "categorizer",
+            "images": [
+                "zot.web.example.test/miplata/categorizer:latest",
+                "pgvector/pgvector:pg16"
+            ],
+            "jenkins_job": "categorizer-deploy",
+            "name": "Categorizer",
+            "playbook": "playbook.yml",
+            "role": "categorizer",
+            "tags": [
+                "categorizer"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "DECABOT_PASSWORD",
+                    "GEMINI_API_KEY"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_decabot_password",
+                    "vault_decabot_gemini_api_key"
+                ]
+            },
+            "containers": [
+                "decabot"
+            ],
+            "core": false,
+            "db": [],
+            "dir": "/opt/decabot",
+            "host": "vps",
+            "hostname": "decabot.web.example.test",
+            "id": "decabot",
+            "images": [
+                "zot.web.example.test/losprompteros/decabot:latest"
+            ],
+            "jenkins_job": "decabot-deploy",
+            "name": "DecaBot",
+            "playbook": "playbook.yml",
+            "role": "decabot",
+            "tags": [
+                "decabot"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "BRUJULA_PASSWORD",
+                    "GEMINI_API_KEY"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_brujula_password",
+                    "vault_decabot_gemini_api_key"
+                ]
+            },
+            "containers": [
+                "brujula"
+            ],
+            "core": false,
+            "db": [],
+            "dir": "/opt/brujula",
+            "host": "vps",
+            "hostname": "brujula.web.example.test",
+            "id": "brujula",
+            "images": [
+                "zot.web.example.test/coros/brujula:latest"
+            ],
+            "jenkins_job": "brujula-deploy",
+            "name": "Brujula",
+            "playbook": "playbook.yml",
+            "role": "brujula",
+            "tags": [
+                "brujula"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "HUELLA_PASSWORD",
+                    "GEMINI_API_KEY",
+                    "STRAVA_CLIENT_ID",
+                    "STRAVA_CLIENT_SECRET"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_huella_password",
+                    "vault_decabot_gemini_api_key",
+                    "vault_strava_client_id",
+                    "vault_strava_client_secret"
+                ]
+            },
+            "containers": [
+                "huella"
+            ],
+            "core": false,
+            "db": [],
+            "dir": "/opt/huella",
+            "host": "vps",
+            "hostname": "huella.web.example.test",
+            "id": "huella",
+            "images": [
+                "zot.web.example.test/coros/huella:latest"
+            ],
+            "jenkins_job": "huella-deploy",
+            "name": "Huella",
+            "playbook": "playbook.yml",
+            "role": "huella",
+            "tags": [
+                "huella"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [
+                    "JUDICABOT_PASSWORD"
+                ],
+                "kind": "env",
+                "vault_vars": [
+                    "vault_judicabot_password"
+                ]
+            },
+            "containers": [
+                "judicabot"
+            ],
+            "core": false,
+            "db": [],
+            "dir": "/opt/judicabot",
+            "host": "vps",
+            "hostname": "judicabot.web.example.test",
+            "id": "judicabot",
+            "images": [
+                "zot.web.example.test/judicabot/judicabot:latest"
+            ],
+            "jenkins_job": "judicabot-deploy",
+            "name": "Judicabot",
+            "playbook": "playbook.yml",
+            "role": "judicabot",
+            "tags": [
+                "judicabot"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [],
+                "kind": "vault",
+                "vault_vars": [
+                    "vault_panel_github_client_id",
+                    "vault_panel_github_client_secret",
+                    "vault_panel_session_secret",
+                    "vault_panel_jenkins_token"
+                ]
+            },
+            "containers": [
+                "panel"
+            ],
+            "core": true,
+            "db": [],
+            "dir": "/opt/panel",
+            "host": "vps",
+            "hostname": "panel.web.example.test",
+            "id": "panel",
+            "images": [
+                "zot.web.example.test/panel/panel:latest"
+            ],
+            "jenkins_job": "panel-deploy",
+            "name": "Panel",
+            "playbook": "playbook.yml",
+            "role": "panel",
+            "tags": [
+                "panel"
+            ]
+        },
+        {
+            "auth": {
+                "env_keys": [],
+                "kind": "vault",
+                "vault_vars": [
+                    "vault_jenkins_admin_password"
+                ]
+            },
+            "containers": [
+                "jenkins"
+            ],
+            "core": true,
+            "db": [],
+            "dir": "/opt/jenkins",
+            "host": "jenkins",
+            "hostname": "jenkins.web.example.test",
+            "id": "jenkins",
+            "images": [
+                "jenkins-ansible:latest"
+            ],
+            "jenkins_job": null,
+            "name": "Jenkins",
+            "playbook": "jenkins-playbook.yml",
+            "role": "jenkins",
+            "tags": []
+        }
+    ]
+}

@@ -1,0 +1,35 @@
+networks:
+  proxy:
+    external: true
+  pdns:
+    external: true
+    name: {{ panel_pdns_network }}
+
+services:
+  panel:
+    image: {{ panel_image }}
+    container_name: panel
+    restart: unless-stopped
+    user: "{{ panel_container_uid }}"
+    group_add:
+      - "{{ panel_host_docker_gid }}"
+      - "{{ panel_host_env_gid }}"
+    networks: [proxy, pdns]
+    env_file: .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt:/opt
+    mem_limit: {{ panel_mem_limit }}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:{{ panel_app_port }}/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.panel.rule=Host(`{{ panel_host }}`)"
+      - "traefik.http.routers.panel.entrypoints=websecure"
+      - "traefik.http.routers.panel.tls.certresolver=letsencrypt"
+      - "traefik.http.services.panel.loadbalancer.server.port={{ panel_app_port }}"

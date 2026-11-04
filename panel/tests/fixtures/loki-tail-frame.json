@@ -1,0 +1,4 @@
+{"streams":[
+{"stream":{"compose_project":"traefik","compose_service":"traefik","container":"traefik","env":"prod","host":"vps","service_name":"traefik"},
+ "values":[["1793754104995537447","\u001b[90m2026-11-04T01:01:44\u001b[0m \u001b[94m[INFO] \u001b[0m: request \u001b[93m192.0.2.1\u001b[0m for url \u001b[93m/loki/api/v1/push\u001b[0m"]]}
+]}

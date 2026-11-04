@@ -294,6 +294,7 @@ prometheus.scrape "blackbox_probes" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ decabot_host }}/ping",        "instance" = "decabot",           "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ brujula_host }}/ping",        "instance" = "brujula",           "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ huella_host }}/ping",         "instance" = "huella",            "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ panel_host }}/healthz",       "instance" = "panel",             "job" = "blackbox"},
   ]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "30s"
@@ -336,6 +337,7 @@ prometheus.scrape "blackbox_tls" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ decabot_host }}:443",           "instance" = "decabot-tls",            "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ brujula_host }}:443",           "instance" = "brujula-tls",            "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ huella_host }}:443",            "instance" = "huella-tls",             "job" = "blackbox_tls"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ panel_host }}:443",             "instance" = "panel-tls",              "job" = "blackbox_tls"},
   ]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
   scrape_interval = "5m"

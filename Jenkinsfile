@@ -13,13 +13,32 @@ pipeline {
     }
 
     stages {
+        stage('Scope') {
+            steps {
+                script {
+                    def base = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT
+                    def known = base && sh(returnStatus: true, script: "git cat-file -e ${base}^{commit}") == 0
+                    env.SKIP_INFRA = 'false'
+                    if (known) {
+                        def changed = sh(returnStdout: true, script: "git diff --name-only ${base} ${env.GIT_COMMIT}").trim()
+                        if (changed && changed.split('\n').every { it.startsWith('panel/') }) {
+                            env.SKIP_INFRA = 'true'
+                            echo 'Only panel/ changed since the last successful build; panel-deploy handles it.'
+                        }
+                    }
+                }
+            }
+        }
+
         stage('Setup') {
+            when { not { environment name: 'SKIP_INFRA', value: 'true' } }
             steps {
                 sh 'ansible-galaxy collection install -r requirements.yml'
             }
         }
 
         stage('Lint') {
+            when { not { environment name: 'SKIP_INFRA', value: 'true' } }
             steps {
                 withCredentials([string(credentialsId: 'ansible-vault-pass', variable: 'VAULT_PASS')]) {
                     sh '''
@@ -33,6 +52,7 @@ pipeline {
         }
 
         stage('Syntax Check') {
+            when { not { environment name: 'SKIP_INFRA', value: 'true' } }
             steps {
                 withCredentials([string(credentialsId: 'ansible-vault-pass', variable: 'VAULT_PASS')]) {
                     sh '''
@@ -47,6 +67,7 @@ pipeline {
         }
 
         stage('Dry Run') {
+            when { not { environment name: 'SKIP_INFRA', value: 'true' } }
             steps {
                 withCredentials([
                     string(credentialsId: 'ansible-vault-pass', variable: 'VAULT_PASS'),
@@ -65,6 +86,7 @@ pipeline {
         }
 
         stage('Deploy') {
+            when { not { environment name: 'SKIP_INFRA', value: 'true' } }
             steps {
                 withCredentials([
                     string(credentialsId: 'ansible-vault-pass', variable: 'VAULT_PASS'),
@@ -83,6 +105,7 @@ pipeline {
         }
 
         stage('Health Check') {
+            when { not { environment name: 'SKIP_INFRA', value: 'true' } }
             steps {
                 withCredentials([
                     string(credentialsId: 'ansible-vault-pass', variable: 'VAULT_PASS'),

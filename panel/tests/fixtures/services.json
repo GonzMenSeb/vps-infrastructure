@@ -1,0 +1,32 @@
+{
+  "services": [
+    {
+      "id": "traefik", "name": "Traefik", "role": "traefik", "tags": ["traefik"], "playbook": "playbook.yml",
+      "host": "vps", "dir": "/opt/traefik", "containers": ["traefik", "docker-proxy"],
+      "images": ["traefik:v3.1", "nginx:alpine"], "hostname": "traefik.web.example.test",
+      "jenkins_job": "vps-deploy", "db": [], "core": true,
+      "auth": { "kind": "basic-auth-hash", "vault_vars": [], "env_keys": [] }
+    },
+    {
+      "id": "miplata", "name": "Miplata", "role": "miplata", "tags": ["miplata"], "playbook": "playbook.yml",
+      "host": "vps", "dir": "/opt/miplata", "containers": ["miplata-api", "miplata-postgres", "miplata-redis"],
+      "images": ["zot.example.test/miplata/api:latest"], "hostname": "miplata.web.example.test",
+      "jenkins_job": "miplata-deploy",
+      "db": [{ "kind": "postgres", "container": "miplata-postgres" }, { "kind": "redis", "container": "miplata-redis" }],
+      "core": false,
+      "auth": { "kind": "env", "vault_vars": ["vault_miplata_db_password"], "env_keys": ["POSTGRES_PASSWORD"] }
+    },
+    {
+      "id": "llm_inference", "name": "LLM inference", "role": "llm_inference", "tags": [], "playbook": "playbook.yml",
+      "host": "vps", "dir": "/opt/llm_inference", "containers": ["llama-server"], "images": ["llama:1"],
+      "hostname": null, "jenkins_job": null, "db": [], "core": false,
+      "auth": { "kind": "none", "vault_vars": [], "env_keys": [] }
+    },
+    {
+      "id": "jenkins", "name": "Jenkins", "role": "jenkins", "tags": [], "playbook": "jenkins-playbook.yml",
+      "host": "jenkins", "dir": "/opt/jenkins", "containers": ["jenkins"], "images": ["jenkins-ansible:latest"],
+      "hostname": "jenkins.web.example.test", "jenkins_job": null, "db": [], "core": true,
+      "auth": { "kind": "vault", "vault_vars": ["vault_jenkins_admin_password"], "env_keys": [] }
+    }
+  ]
+}

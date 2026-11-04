@@ -1,0 +1,187 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'IMAGE_REPO', defaultValue: 'panel/panel', description: 'Repository path inside Zot (must match the panel_image variable).')
+        string(name: 'VPS_APP_DIR', defaultValue: '/opt/panel', description: 'Compose directory on the VPS.')
+        booleanParam(name: 'FORCE_DEPLOY', defaultValue: false, description: 'Build and deploy even when no image-bearing path changed.')
+    }
+
+    environment {
+        APP_URL = "${env.PANEL_URL}"
+    }
+
+    options {
+        disableConcurrentBuilds()
+        timeout(time: 20, unit: 'MINUTES')
+    }
+
+    stages {
+        stage('Scope') {
+            steps {
+                script {
+                    ['REGISTRY', 'VPS_HOST', 'PANEL_URL'].each { v ->
+                        if (!env[v]) { error "Global environment variable ${v} is empty. Re-run jenkins-playbook.yml." }
+                    }
+                    env.IMAGE = "${env.REGISTRY}/${params.IMAGE_REPO}"
+                    env.GIT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                    env.SOURCE_URL = sh(returnStdout: true, script: 'git config --get remote.origin.url || true').trim()
+
+                    def head = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+                    def mainRef = sh(returnStdout: true,
+                        script: 'git rev-parse --verify -q refs/remotes/origin/main || true').trim()
+                    env.ON_MAIN = (mainRef && head == mainRef) ? 'true' : 'false'
+
+                    def base = env.GIT_PREVIOUS_SUCCESSFUL_COMMIT
+                    def known = base && sh(returnStatus: true, script: "git cat-file -e ${base}^{commit}") == 0
+                    def changed = known
+                        ? sh(returnStdout: true, script: "git diff --name-only ${base} ${env.GIT_COMMIT} -- panel/").trim().split('\n') as List
+                        : null
+
+                    def imagePaths = ~/^panel\/(src\/|public\/|Dockerfile$|package\.json$|bun\.lock$|tsconfig\.json$)/
+                    def testPaths  = ~/^panel\/(tests\/|infra\/jenkins\/)/
+
+                    if (changed == null) {
+                        env.RUN_TESTS = 'true'
+                        env.RUN_IMAGE = 'true'
+                    } else {
+                        def hitImage = changed.findAll { it =~ imagePaths }
+                        def hitTest = changed.findAll { it =~ testPaths }
+                        env.RUN_IMAGE = hitImage ? 'true' : 'false'
+                        env.RUN_TESTS = (hitImage || hitTest) ? 'true' : 'false'
+                    }
+                    if (params.FORCE_DEPLOY) {
+                        env.RUN_TESTS = 'true'
+                        env.RUN_IMAGE = 'true'
+                    }
+                    echo "sha=${env.GIT_SHA} onMain=${env.ON_MAIN} tests=${env.RUN_TESTS} image=${env.RUN_IMAGE}"
+                    currentBuild.description = env.GIT_SHA
+                }
+            }
+        }
+
+        stage('Test') {
+            when { expression { env.RUN_TESTS == 'true' } }
+            agent {
+                docker {
+                    image 'oven/bun:1-alpine'
+                    reuseNode true
+                    args '-e HOME=${WORKSPACE}/.bun-home'
+                }
+            }
+            steps {
+                sh '''
+                    cd panel
+                    bun install --frozen-lockfile
+                    bunx tsc --noEmit
+                    bun test
+                '''
+            }
+        }
+
+        stage('Build & Push') {
+            when {
+                allOf {
+                    expression { env.ON_MAIN == 'true' }
+                    expression { env.RUN_IMAGE == 'true' }
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'zot-registry-creds',
+                    usernameVariable: 'REG_USER',
+                    passwordVariable: 'REG_PASS'
+                )]) {
+                    sh '''
+                        echo "$REG_PASS" | docker login $REGISTRY -u "$REG_USER" --password-stdin
+                        docker buildx inspect panel-builder >/dev/null 2>&1 \
+                          || docker buildx create --name panel-builder --driver docker-container --bootstrap
+
+                        docker buildx build --builder panel-builder \
+                            --provenance=false --sbom=false \
+                            --label org.opencontainers.image.revision=$GIT_SHA \
+                            --label org.opencontainers.image.source=$SOURCE_URL \
+                            --cache-from type=registry,ref=$IMAGE:buildcache \
+                            --cache-to type=registry,ref=$IMAGE:buildcache,mode=max,oci-mediatypes=true,ignore-error=true \
+                            --output type=image,\\"name=$IMAGE:$GIT_SHA,$IMAGE:latest\\",oci-mediatypes=true,push=true \
+                            panel
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                allOf {
+                    expression { env.ON_MAIN == 'true' }
+                    expression { env.RUN_IMAGE == 'true' }
+                }
+            }
+            steps {
+                sshagent(credentials: ['vps-ssh-key']) {
+                    script {
+                        env.PREV_SHA = sh(
+                            returnStdout: true,
+                            script: '''
+                                ssh -o StrictHostKeyChecking=no $VPS_HOST \
+                                  "docker inspect --format '{{index .Config.Labels \\"org.opencontainers.image.revision\\"}}' $IMAGE:latest 2>/dev/null || true"
+                            '''
+                        ).trim()
+                        echo "Currently live: ${env.PREV_SHA ?: 'unlabelled'}"
+
+                        sh '''
+                            ssh -o StrictHostKeyChecking=no $VPS_HOST \
+                              "cd $VPS_APP_DIR && docker compose pull && docker compose up -d"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Health') {
+            when {
+                allOf {
+                    expression { env.ON_MAIN == 'true' }
+                    expression { env.RUN_IMAGE == 'true' }
+                }
+            }
+            steps {
+                script {
+                    def healthy = sh(returnStatus: true, script: '''
+                        for i in $(seq 1 20); do
+                            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 $APP_URL/healthz || true)
+                            [ "$code" = "200" ] && exit 0
+                            sleep 3
+                        done
+                        echo "healthz never returned 200 (last: $code)"
+                        exit 1
+                    ''') == 0
+
+                    if (healthy) {
+                        echo "Live: ${env.GIT_SHA}"
+                        return
+                    }
+                    if (!env.PREV_SHA) {
+                        error 'Health check failed and there is no labelled previous revision to roll back to. Inspect the host.'
+                    }
+                    echo "Health check failed, rolling back to ${env.PREV_SHA}"
+                    sshagent(credentials: ['vps-ssh-key']) {
+                        sh '''
+                            ssh -o StrictHostKeyChecking=no $VPS_HOST \
+                              "docker pull $IMAGE:$PREV_SHA \
+                               && docker tag $IMAGE:$PREV_SHA $IMAGE:latest \
+                               && cd $VPS_APP_DIR && docker compose up -d"
+                        '''
+                    }
+                    error "Health check failed after deploying ${env.GIT_SHA}. Rolled back to ${env.PREV_SHA}."
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker logout $REGISTRY || true'
+        }
+    }
+}

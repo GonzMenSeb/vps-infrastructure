@@ -10,6 +10,15 @@ jenkins:
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "REGISTRY"
+            value: "{{ zot_host }}"
+          - key: "VPS_HOST"
+            value: "ubuntu@{{ vault_main_vps_ip }}"
+          - key: "PANEL_URL"
+            value: "https://{{ panel_host }}"
 
 credentials:
   system:
@@ -167,6 +176,29 @@ jobs:
         }
       }
   - script: |
+      pipelineJob('judicabot-deploy') {
+        description('Test judicabot, push to self-hosted Zot registry, deploy + health-check on VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ judicabot_repo_url }}')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  - script: |
       pipelineJob('categorizer-deploy') {
         description('Build miplata-categorizer, push to self-hosted Zot registry, deploy + migrate on VPS')
         definition {
@@ -232,6 +264,30 @@ jobs:
               }
             }
             scriptPath('infra/jenkins/Jenkinsfile')
+          }
+        }
+        triggers {
+          githubPush()
+        }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  - script: |
+      pipelineJob('panel-deploy') {
+        description('Build the panel from the vps-infrastructure monorepo (panel/), push to self-hosted Zot registry, deploy + health-check on VPS')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ github_repo_ssh_url }}')
+                  credentials('github-ssh-key')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('panel/infra/jenkins/Jenkinsfile')
           }
         }
         triggers {

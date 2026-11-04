@@ -1,0 +1,22 @@
+networks:
+  proxy:
+    external: true
+
+services:
+  judicabot:
+    image: {{ judicabot_image }}
+    container_name: judicabot
+    restart: unless-stopped
+    networks: [proxy]
+    env_file: .env
+    volumes:
+      - {{ judicabot_dir }}/casos:/data/casos
+      - {{ judicabot_dir }}/cache:/home/app/.cache/tutela2
+    mem_limit: {{ judicabot_mem_limit }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.judicabot.rule=Host(`{{ judicabot_host }}`)"
+      - "traefik.http.routers.judicabot.entrypoints=websecure"
+      - "traefik.http.routers.judicabot.tls.certresolver=letsencrypt"
+      - "traefik.http.services.judicabot.loadbalancer.server.port={{ judicabot_app_port }}"

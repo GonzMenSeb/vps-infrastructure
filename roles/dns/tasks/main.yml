@@ -29,3 +29,50 @@
     project_src: "{{ dns_dir }}"
     state: present
     pull: missing
+
+- name: Check whether the PowerDNS schema is loaded
+  shell: >
+    docker exec pdns-db sh -c
+    'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" pdns -Nse "SHOW TABLES LIKE \"domains\""'
+  register: pdns_schema_check
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: pdns_schema_check.rc == 0
+  no_log: true
+
+- name: Load the PowerDNS schema into a fresh database
+  shell: >
+    docker run --rm --entrypoint cat {{ pdns_image }} /usr/local/share/doc/pdns/schema.mysql.sql
+    | docker exec -i pdns-db sh -c 'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" pdns'
+  when: pdns_schema_check.stdout | length == 0
+  register: pdns_schema_load
+  no_log: true
+
+- name: Wait for pdns to accept commands
+  command: docker exec pdns pdnsutil list-all-zones
+  register: pdns_zones
+  changed_when: false
+  retries: 12
+  delay: 5
+  until: pdns_zones.rc == 0
+
+- name: Create the {{ web_subdomain }} zone
+  command: docker exec pdns pdnsutil create-zone {{ web_subdomain }} ns1.{{ domain }}.
+  when: web_subdomain not in pdns_zones.stdout_lines
+  register: pdns_zone_create
+  changed_when: true
+
+- name: Restart pdns so it serves the new zone (its zone cache only refreshes on a timer)
+  command: docker restart pdns
+  when: pdns_zone_create is changed
+
+- name: Ensure A records for the hosts no other role owns
+  command: >
+    docker exec pdns pdnsutil replace-rrset
+    {{ web_subdomain }} {{ item.name }} A 3600 {{ item.ip }}
+  loop: "{{ dns_a_records }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: dns_a_result
+  changed_when: "'New rrset' in dns_a_result.stdout or 'Current rrset' in dns_a_result.stdout"
