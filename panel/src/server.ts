@@ -8,8 +8,16 @@ import { etag } from "hono/etag";
 import { secureHeaders } from "hono/secure-headers";
 import { devAuthRoutes } from "./auth/dev";
 import { authRoutes, githubClient, type GithubClient } from "./auth/github";
-import { type AppEnv, csrfGuard, originGuard, requireSession } from "./auth/session";
+import { type AppEnv, type AuthedSession, csrfGuard, originGuard, requireSession } from "./auth/session";
+import { ActionRuntime, ServiceActions, ServiceLocks } from "./actions/service";
+import { RollbackActions } from "./actions/rollback";
+import { noCompose, SpawnComposeRunner, type ComposeRunner } from "./actions/compose";
+import { SocketEngine } from "./actions/engine";
+import { rollbackRepos } from "./actions/rollback-select";
 import { DockerClient, registerDockerSources } from "./collectors/docker";
+import { ZOT_TAG_SOURCE, ZotTagsClient, registerZotTagSource, type ZotRepoTags } from "./collectors/zot-tags";
+import { serviceActionRoutes, type ServiceDeps } from "./routes/service-actions";
+import type { ServiceView } from "./views/service-actions-model";
 import {
   JENKINS_SOURCES,
   JENKINS_TTL,
@@ -22,14 +30,18 @@ import {
 } from "./collectors/jenkins";
 import { FilterError, LOKI_SOURCES, LOKI_TTL, LokiClient, normalizeFilter, registerLokiSources, type LogTargets } from "./collectors/loki";
 import { PromClient, registerPrometheusSources } from "./collectors/prometheus";
-import { type Config, loadConfig } from "./config";
+import { type Config, configWarnings, loadConfig } from "./config";
 import { openDataDb } from "./db";
-import { JobActions, type JobActionResult } from "./actions/jobs";
+import { JobActions } from "./actions/jobs";
+import { SecretActions, isActive as isActiveEdit } from "./actions/secrets";
 import { TailHub } from "./logs/hub";
 import { serveLogStream } from "./logs/sse";
 import { loadManifest, type Manifest } from "./manifest";
 import { Poller } from "./poller";
+import { secretRoutes, secretsSignature, secretsView } from "./routes/secrets";
+import { buildPhase4, registerPhase4Routes, type Phase4 } from "./routes/phase4";
 import { Store } from "./store";
+import type { SecretsView } from "./views/auth-model";
 import { HostsFrame, HostsPage } from "./views/hosts";
 import { jenkinsSnapshot, lokiSnapshot } from "./views/jenkins-data";
 import { JobsFrame, JobsPage } from "./views/jobs";
@@ -71,6 +83,9 @@ export interface Deps {
   poller: Poller;
   jenkins?: JenkinsDeps;
   loki?: { client: LokiClient; hub: TailHub };
+  service?: ServiceDeps;
+  secrets?: SecretActions;
+  phase4?: Phase4;
 }
 
 export interface JenkinsDeps {
@@ -80,6 +95,7 @@ export interface JenkinsDeps {
 }
 
 const SERVER_IDLE_TIMEOUT_S = 60;
+const SECRET_TRACK_INTERVAL_MS = 4000;
 
 export function isLoopbackUrl(url: string): boolean {
   try {
@@ -134,7 +150,7 @@ type Node = { toString(): string | Promise<string> };
 
 const html = async (node: Node) => String(await node.toString());
 
-interface LiveSpec {
+export interface LiveSpec {
   key: string;
   sources: readonly SourceKey[];
   page: (input: ViewInput, chrome: Chrome) => Node;
@@ -142,10 +158,12 @@ interface LiveSpec {
   clock?: boolean;
   clockMs?: number;
   extra?: readonly string[];
+  secrets?: (s: AuthedSession) => SecretsView;
 }
 
 export function createApp(deps: Deps): Hono<AppEnv> {
-  const { cfg, db, store, gh, lagMs, manifest, poller, jenkins, loki } = deps;
+  const { cfg, db, store, gh, lagMs, manifest, poller, jenkins, loki, service, phase4 } = deps;
+  const secrets = deps.secrets ?? null;
   const app = new Hono<AppEnv>();
   const manifestHash = sha([JSON.stringify(manifest)]);
 
@@ -204,7 +222,13 @@ export function createApp(deps: Deps): Hono<AppEnv> {
   const jenkinsView = (): JenkinsView | undefined => {
     if (!jenkins) return undefined;
     const raw = registered.has(JENKINS_SOURCES.jobs) ? store.peek<JenkinsJobs>(JENKINS_SOURCES.jobs) : null;
-    return { snapshot: raw ? jenkinsSnapshot(raw) : null, baseUrl: cfg.JENKINS_URL ?? null, actions: jenkins.actions !== null, ttlMs: JENKINS_TTL.jobsMs };
+    return {
+      snapshot: raw ? jenkinsSnapshot(raw) : null,
+      baseUrl: cfg.JENKINS_URL ?? null,
+      actions: jenkins.actions !== null,
+      ttlMs: JENKINS_TTL.jobsMs,
+      noRun: [cfg.SECRETS_JOB],
+    };
   };
 
   const lokiView = (): LogsView => {
@@ -224,6 +248,23 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     return ["jenkins", st.state, st.error ?? "", snap?.hash ?? "", snap?.breaker ?? "", st.state === "stale" ? fmtAge(st.ageMs) : ""].join("\u0001");
   };
 
+  const serviceView = (): ServiceView | undefined =>
+    service
+      ? {
+          dryRun: service.dryRun,
+          registryHost: service.registryHost,
+          zotConfigured: service.zotConfigured,
+          zot: registered.has(ZOT_TAG_SOURCE) ? store.peek<ZotRepoTags>(ZOT_TAG_SOURCE) : null,
+          locked: (id) => service.locks.has(id),
+          verifyTimeoutMs: service.verifyTimeoutMs,
+        }
+      : undefined;
+
+  const serviceSig = (id: string): string => {
+    const z = service && registered.has(ZOT_TAG_SOURCE) ? store.peek<ZotRepoTags>(ZOT_TAG_SOURCE) : null;
+    return ["service", service?.locks.has(id) ? "locked" : "", z?.hash ?? "", z?.lastError ?? "", z?.breaker ?? ""].join("\u0001");
+  };
+
   const viewInput = (csrf: string, sources: Sources): ViewInput => ({
     manifest,
     sources,
@@ -231,19 +272,26 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     csrf,
     jenkins: jenkinsView(),
     logs: lokiView(),
+    service: serviceView(),
+    ...phase4?.views(),
   });
 
   const live = async (c: Context<AppEnv>, spec: LiveSpec): Promise<Response> => {
     const s = c.get("session");
     const sources = readSources(store);
     const frame = c.req.header("turbo-frame") === LIVE_FRAME;
-    const clock = spec.clock ? String(Math.floor(Date.now() / (spec.clockMs ?? CLOCK_BUCKET_MS))) : "";
-    const etag = `W/"${sha([BUILD_ID, manifestHash, cfg.TIME_ZONE, spec.key, frame ? "frame" : "page", s.csrf, extraSig(), clock, ...(spec.extra ?? []), ...spec.sources.map((k) => sourceSig(k, sources))])}"`;
+    const sv = spec.secrets?.(s);
+    const active = Boolean(sv?.edits.some((e) => isActiveEdit({ stage: e.stage })));
+    const ticks = spec.clock || Boolean(sv?.edits.length);
+    const clockMs = spec.clockMs ?? (sv && !active ? IDLE_CLOCK_BUCKET_MS : CLOCK_BUCKET_MS);
+    const clock = ticks ? String(Math.floor(Date.now() / clockMs)) : "";
+    const etag = `W/"${sha([BUILD_ID, manifestHash, cfg.TIME_ZONE, spec.key, frame ? "frame" : "page", s.csrf, extraSig(), clock, ...(spec.extra ?? []), ...(sv ? secretsSignature(sv) : []), ...spec.sources.map((k) => sourceSig(k, sources))])}"`;
     c.header("etag", etag);
     c.header("cache-control", "private, no-cache");
     c.header("vary", "Turbo-Frame, Cookie");
     if (etagMatches(c.req.header("if-none-match"), etag)) return c.body(null, 304);
     const input = viewInput(s.csrf, sources);
+    if (sv) input.secrets = sv;
     if (frame) return c.html(await html(spec.frame(input)));
     return c.html(DOCTYPE + (await html(spec.page(input, { login: s.login, csrf: s.csrf }))));
   };
@@ -296,12 +344,16 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     const svc = manifest.services.find((s) => s.id === id);
     if (!svc) return notFound(c, `There is no service called ${id} in the manifest.`);
     const tab = serviceTabs(svc).find((t) => t.id === c.req.query("tab"))?.id ?? "summary";
+    const flash = readFlash(c);
     return live(c, {
       key: `service:${id}:${tab}`,
-      clock: tab === "builds",
+      clock: tab === "builds" || tab === "summary",
+      clockMs: tab === "builds" ? undefined : IDLE_CLOCK_BUCKET_MS,
+      extra: [serviceSig(id), ...(tab === "db" ? (phase4?.databaseSig() ?? []) : []), ...(flash ? [`flash:${flash.ok}:${flash.text}`] : [])],
+      secrets: tab === "auth" ? (sess) => secretsView({ cfg, manifest, secrets }, id, sess) : undefined,
       sources: BASE_SOURCES,
-      page: (input, chrome) => ServicePage({ chrome, vm: buildService(input, id, tab)! }),
-      frame: (input) => ServiceFrame({ vm: buildService(input, id, tab)! }),
+      page: (input, chrome) => ServicePage({ chrome, vm: buildService(input, id, tab, flash)! }),
+      frame: (input) => ServiceFrame({ vm: buildService(input, id, tab, flash)! }),
 
     });
   });
@@ -327,7 +379,7 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     }
   };
 
-  const setFlash = (c: Context<AppEnv>, r: JobActionResult) =>
+  const setFlash = (c: Context<AppEnv>, r: { ok: boolean; message: string }) =>
     setCookie(c, FLASH_COOKIE, JSON.stringify({ ok: r.ok, text: r.message.slice(0, FLASH_MAX) }), {
       httpOnly: true,
       secure: cfg.secureCookies,
@@ -391,6 +443,8 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     }
   });
 
+  if (service) app.route("/", serviceActionRoutes({ session, service, flash: setFlash }));
+
   app.get("/logs", session, demand, async (c) => {
     const s = c.get("session");
     const vm = buildLogs(viewInput(s.csrf, readSources(store)), { host: c.req.query("host"), container: c.req.query("container") });
@@ -417,6 +471,10 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     });
   });
 
+  app.route("/", secretRoutes({ cfg, db, manifest, session, apiSession, secrets }));
+
+  if (phase4) registerPhase4Routes(app, phase4, { session, demand, live, readFlash, setFlash, baseSources: BASE_SOURCES });
+
   return app;
 }
 
@@ -426,14 +484,56 @@ export interface Running {
   stop: () => Promise<void>;
 }
 
-export async function start(env: Record<string, string | undefined> = process.env): Promise<Running> {
+export interface StartOverrides {
+  compose?: ComposeRunner;
+}
+
+function serviceDeps(cfg: Config, manifest: Manifest, db: Database, store: Store, dockerClient: DockerClient, base: { timeoutMs: number; failureThreshold: number; cooldownMs: number }, overrides: StartOverrides): ServiceDeps {
+  const dryRun = cfg.dryRunActions || (cfg.devAuthBypass && !overrides.compose);
+  if (dryRun && !cfg.dryRunActions) console.warn("DEV_AUTH_BYPASS=1 without an injected compose runner: switch and rollback run as a dry run");
+  const compose = overrides.compose ?? (dryRun ? noCompose : new SpawnComposeRunner(cfg.DOCKER_SOCKET));
+  const registryHost = cfg.ZOT_REGISTRY_HOST ?? manifest.services.find((s) => s.id === "zot")?.hostname ?? null;
+  const zotConfigured = Boolean(cfg.ZOT_URL && cfg.ZOT_USER && cfg.ZOT_PASSWORD);
+  const zot = zotConfigured ? new ZotTagsClient(cfg.ZOT_URL!, cfg.ZOT_USER, cfg.ZOT_PASSWORD) : null;
+  if (zot) registerZotTagSource(store, zot, () => rollbackRepos(manifest, registryHost), base);
+  const locks = new ServiceLocks();
+  const runtime = new ActionRuntime({
+    db,
+    manifest,
+    engine: new SocketEngine(dockerClient),
+    compose,
+    locks,
+    dryRun,
+    store,
+    verifyTimeoutMs: cfg.ACTION_VERIFY_TIMEOUT_MS,
+    composeTimeoutMs: cfg.COMPOSE_TIMEOUT_MS,
+    pullTimeoutMs: cfg.ACTION_PULL_TIMEOUT_MS,
+  });
+  return {
+    actions: new ServiceActions(runtime),
+    rollback: new RollbackActions({
+      runtime,
+      registryHost,
+      tags: zot ? (repo) => zot.repoTags(repo) : null,
+      credentials: zotConfigured ? { user: cfg.ZOT_USER!, password: cfg.ZOT_PASSWORD! } : null,
+    }),
+    locks,
+    dryRun,
+    registryHost,
+    zotConfigured,
+    verifyTimeoutMs: cfg.ACTION_VERIFY_TIMEOUT_MS,
+  };
+}
+
+export async function start(env: Record<string, string | undefined> = process.env, overrides: StartOverrides = {}): Promise<Running> {
   const cfg = loadConfig(env);
   const manifest = await loadManifest(cfg.SERVICES_MANIFEST_PATH);
   const db = openDataDb(cfg.DATA_DIR);
   const store = new Store();
   const base = { timeoutMs: cfg.UPSTREAM_TIMEOUT_MS, failureThreshold: cfg.BREAKER_FAILURE_THRESHOLD, cooldownMs: cfg.BREAKER_COOLDOWN_MS };
   registerPrometheusSources(store, new PromClient(cfg.PROMETHEUS_URL), base);
-  registerDockerSources(store, new DockerClient(cfg.DOCKER_SOCKET), base);
+  const dockerClient = new DockerClient(cfg.DOCKER_SOCKET);
+  registerDockerSources(store, dockerClient, base);
   const jenkinsClient = jenkinsClientFromConfig(cfg);
   let jenkinsDeps: JenkinsDeps | undefined;
   if (jenkinsClient) {
@@ -445,25 +545,40 @@ export async function start(env: Record<string, string | undefined> = process.en
       ]);
     const mutable = !cfg.devAuthBypass || isLoopbackUrl(cfg.JENKINS_URL!);
     if (!mutable) console.warn("DEV_AUTH_BYPASS=1 with a non-local JENKINS_URL: build and stop actions are disabled");
-    jenkinsDeps = { client: jenkinsClient, knownJobs, actions: mutable ? new JobActions({ client: jenkinsClient, db, knownJobs, store }) : null };
+    jenkinsDeps = { client: jenkinsClient, knownJobs, actions: mutable ? new JobActions({ client: jenkinsClient, db, knownJobs: () => [...knownJobs()].filter((j) => j !== cfg.SECRETS_JOB), store }) : null };
   }
+  const secretActions = new SecretActions({
+    client: jenkinsClient,
+    editBlocked: jenkinsDeps && !jenkinsDeps.actions ? "DEV_AUTH_BYPASS=1 with a non-local JENKINS_URL: editing is disabled so a dev session cannot start a real build." : null,
+    db,
+    manifest,
+    job: cfg.SECRETS_JOB,
+    applyJob: cfg.SECRETS_APPLY_JOB,
+    trackTimeoutMs: cfg.SECRETS_TRACK_TIMEOUT_SECONDS * 1000,
+    envRoot: cfg.ENV_FILES_ROOT,
+  });
+  const secretTimer = setInterval(() => void secretActions.tick(), SECRET_TRACK_INTERVAL_MS);
+  secretTimer.unref();
   let lokiDeps: { client: LokiClient; hub: TailHub } | undefined;
   if (cfg.LOKI_URL) {
     const client = new LokiClient(cfg.LOKI_URL, { timeoutMs: cfg.UPSTREAM_TIMEOUT_MS });
     registerLokiSources(store, client, base);
     lokiDeps = { client, hub: new TailHub(client) };
   }
+  const service = serviceDeps(cfg, manifest, db, store, dockerClient, base, overrides);
   const poller = new Poller(store, {
     demandWindowMs: cfg.POLL_DEMAND_WINDOW_MS,
     idleIntervalMs: cfg.POLL_IDLE_INTERVAL_MS,
     tickMs: cfg.POLL_TICK_MS,
   });
+  const phase4 = buildPhase4({ cfg, db, store, base, isLoopbackUrl });
   const lag = monitorLoopLag();
-  const app = createApp({ cfg, db, store, gh: githubClient(cfg), lagMs: lag.read, manifest, poller, jenkins: jenkinsDeps, loki: lokiDeps });
+  const app = createApp({ cfg, db, store, gh: githubClient(cfg), lagMs: lag.read, manifest, poller, jenkins: jenkinsDeps, loki: lokiDeps, service, secrets: secretActions, phase4 });
   const server = Bun.serve({ port: cfg.PORT, idleTimeout: SERVER_IDLE_TIMEOUT_S, ...(cfg.devAuthBypass ? { hostname: "127.0.0.1" } : {}), fetch: app.fetch });
 
 
   poller.start();
+  for (const warning of configWarnings(cfg)) console.warn(warning);
   if (cfg.devAuthBypass) console.warn(`DEV_AUTH_BYPASS=1: ${cfg.origin}/auth/dev signs anyone in as ${cfg.GITHUB_ALLOWED_LOGIN}`);
   return {
     cfg,
@@ -471,6 +586,7 @@ export async function start(env: Record<string, string | undefined> = process.en
     stop: async () => {
       poller.stop();
       lag.stop();
+      clearInterval(secretTimer);
       lokiDeps?.hub.closeAll();
       await server.stop(true);
       db.close();

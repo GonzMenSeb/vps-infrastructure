@@ -16,6 +16,7 @@ export interface LayoutProps {
   current?: string;
   up?: Up;
   refresh?: boolean;
+  noCache?: boolean;
   children?: Child;
 }
 
@@ -25,6 +26,9 @@ const NAV = [
   { id: "services", label: "Services", href: "/services", count: "services" },
   { id: "jobs", label: "Jobs", href: "/jobs", count: "jobs" },
   { id: "logs", label: "Logs", href: "/logs", count: null },
+  { id: "databases", label: "Databases", href: "/databases", count: null },
+  { id: "registry", label: "Registry", href: "/registry", count: null },
+  { id: "dns", label: "DNS", href: "/dns", count: null },
 ] as const;
 
 export const railState = (up: Up): Record<string, string> => ({
@@ -65,7 +69,7 @@ function RefreshBar() {
   );
 }
 
-export function Layout({ title, login, csrf, current, up, refresh, children }: LayoutProps) {
+export function Layout({ title, login, csrf, current, up, refresh, noCache, children }: LayoutProps) {
   const rail = up ? railState(up) : null;
   return (
     <html lang="en" data-theme="dark">
@@ -73,6 +77,7 @@ export function Layout({ title, login, csrf, current, up, refresh, children }: L
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="dark light" />
+        {noCache ? <meta name="turbo-cache-control" content="no-cache" /> : null}
         <title>{title} · Vespiridion</title>
         <link rel="icon" href="data:," />
         <link rel="stylesheet" href="/public/app.css" />
@@ -83,6 +88,7 @@ export function Layout({ title, login, csrf, current, up, refresh, children }: L
         <script src="/public/controllers/usage.js" defer></script>
         <script src="/public/controllers/console.js" defer></script>
         <script src="/public/controllers/logs.js" defer></script>
+        <script src="/public/controllers/secret.js" defer></script>
         <script src="/public/app.js" defer></script>
       </head>
       <body>

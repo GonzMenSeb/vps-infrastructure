@@ -1,8 +1,11 @@
+import { AuthTab } from "./auth-tab";
 import { Layout } from "./layout";
 import { ActionForm, ResultChipView } from "./jobs";
 import { Chip, LiveFrame, Meter, Placeholder, SourceEmpty, SourceNote, StateChip, fmtCpu, fmtMem } from "./components";
+import { DatabaseTab } from "./databases";
 import { DOCKER_HOST, fmtBytes, fmtRate, hasData, shortImage, type ContainerRow, type ServiceVM } from "./model";
 import type { Chrome } from "./overview";
+import { ActionBanner, RollbackRow, SwitchControl } from "./service-actions";
 
 const NA = "—";
 
@@ -51,9 +54,7 @@ function Summary({ vm }: { vm: ServiceVM }) {
               <dt>Status</dt>
               <dd>{primary?.status ?? (onDocker ? (dockerOk ? "No container" : "Unknown") : "Read-only host")}</dd>
             </dl>
-            <div class="rollback">
-              <span class="muted">Rolling back to the previous image arrives in Phase 5.</span>
-            </div>
+            <RollbackRow a={vm.actions} />
           </div>
         </section>
         <section class="panel" aria-label="Containers">
@@ -295,29 +296,7 @@ function Config({ vm }: { vm: ServiceVM }) {
 }
 
 function Auth({ vm }: { vm: ServiceVM }) {
-  const a = vm.service.auth;
-  const kind: Record<typeof a.kind, string> = {
-    "basic-auth-hash": "Traefik basic-auth (only the hash is stored)",
-    env: "Secrets rendered into .env",
-    vault: "Secrets kept in vault.yml",
-    none: "No secrets",
-  };
-  return (
-    <section class="panel" aria-label="Auth">
-      <header>
-        <h2>Auth</h2>
-      </header>
-      <Placeholder phase={6}>Revealing and editing logins and secrets arrives in Phase 6, through the panel-secrets Jenkins job.</Placeholder>
-      <div class="body">
-        <dl class="kv">
-          <dt>Manifest kind</dt>
-          <dd>{kind[a.kind]}</dd>
-          <dt>Gate at Traefik</dt>
-          <dd>{vm.summary.protection.label}</dd>
-        </dl>
-      </div>
-    </section>
-  );
+  return vm.auth ? <AuthTab vm={vm.auth} /> : null;
 }
 
 function Builds({ vm }: { vm: ServiceVM }) {
@@ -382,30 +361,7 @@ function Builds({ vm }: { vm: ServiceVM }) {
 }
 
 function Database({ vm }: { vm: ServiceVM }) {
-  return (
-    <section class="panel" aria-label="Database">
-      <header>
-        <h2>Database</h2>
-      </header>
-      <Placeholder phase={4}>Database health from the Postgres and Redis exporters arrives in Phase 4.</Placeholder>
-      <div class="tablewrap">
-        <table>
-          <tbody>
-            {vm.service.db.map((d) => {
-              const c = vm.containers.find((x) => x.name === d.container);
-              return (
-                <tr>
-                  <td class="mono">{d.container}</td>
-                  <td>{d.kind}</td>
-                  <td>{c ? containerChip(c, vm.service.host === DOCKER_HOST, hasData(vm.sources.docker)) : null}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+  return <DatabaseTab vm={vm.databases} />;
 }
 
 const TABS = { summary: Summary, config: Config, auth: Auth, builds: Builds, db: Database };
@@ -436,11 +392,14 @@ export function ServiceFrame({ vm }: { vm: ServiceVM }) {
             on {svc.host} · <span class="mono">{svc.dir}</span>
           </div>
         </div>
-        {vm.logsHref ? (
+        {vm.logsHref || vm.actions?.toggle ? (
           <div class="acts">
-            <a class="btn" href={vm.logsHref}>
-              View logs
-            </a>
+            {vm.logsHref ? (
+              <a class="btn" href={vm.logsHref}>
+                View logs
+              </a>
+            ) : null}
+            {vm.actions?.toggle ? <SwitchControl t={vm.actions.toggle} /> : null}
           </div>
         ) : null}
       </div>
@@ -458,6 +417,7 @@ export function ServiceFrame({ vm }: { vm: ServiceVM }) {
           </span>
         </div>
       ) : null}
+      <ActionBanner a={vm.actions} core={svc.core} />
       <nav class="tabs" aria-label={`${svc.name} sections`}>
         {vm.tabs.map((t) => (
           <a href={serviceHref(svc.id, t.id)} aria-current={t.id === vm.tab ? "page" : undefined}>

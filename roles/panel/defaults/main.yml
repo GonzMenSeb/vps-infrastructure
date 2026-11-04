@@ -4,7 +4,17 @@ panel_app_port: 3000
 panel_container_uid: 1000
 panel_mem_limit: "512m"
 panel_pdns_network: dns_dns_internal
+panel_github_allowed_id: ""
 panel_time_zone: UTC
 panel_poll_demand_window_ms: 60000
 panel_poll_idle_interval_ms: 60000
 panel_poll_tick_ms: 1000
+panel_dry_run_actions: 0
+panel_action_verify_timeout_ms: 60000
+panel_action_pull_timeout_ms: 300000
+panel_compose_timeout_ms: 120000
+panel_secrets_job: panel-secrets
+panel_secrets_apply_job: vps-deploy
+panel_secrets_reauth_seconds: 900
+panel_secrets_reveal_seconds: 20
+panel_secrets_track_timeout_seconds: 2400

@@ -4,8 +4,8 @@
     "rootDirectory": "/var/lib/registry",
     "dedupe": true,
     "gc": true,
-    "gcDelay": "1h",
-    "gcInterval": "24h"
+    "gcDelay": "{{ zot_gc_delay }}",
+    "gcInterval": "{{ zot_gc_interval }}"
   },
   "http": {
     "address": "0.0.0.0",

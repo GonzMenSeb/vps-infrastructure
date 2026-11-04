@@ -14,7 +14,7 @@ describe("service view", () => {
     expect(html).toContain("Up · healthy");
     expect(html).toContain("47 MB of 8 GB host");
     expect(html).toContain("2 MB");
-    expect(html).toContain("Phase 5");
+    expect(html).toContain("Service actions are not configured on this panel.");
     expect(html).toContain('aria-current="page">Summary</a>');
     expect(styleAttrs(html)).toEqual([]);
   });
@@ -58,10 +58,9 @@ describe("service view", () => {
   });
 
   test("later-phase tabs are labeled placeholders", async () => {
-    expect(await page("judicabot", "auth")).toContain("Phase 6");
     expect(await page("judicabot", "builds")).toContain("Jenkins is not configured, so runs of judicabot-deploy cannot be shown.");
     const db = await page("miplata", "db");
-    expect(db).toContain("Phase 4");
+    expect(db).not.toContain("Phase 4");
     expect(db).toContain("miplata-postgres");
     expect(db).toContain(">Missing<");
   });

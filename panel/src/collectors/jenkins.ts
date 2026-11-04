@@ -24,10 +24,11 @@ export class JenkinsClient {
     this.auth = `Basic ${Buffer.from(`${user}:${token}`).toString("base64")}`;
   }
 
-  async request(method: "GET" | "POST", path: string, signal?: AbortSignal): Promise<Response> {
+  async request(method: "GET" | "POST", path: string, signal?: AbortSignal, form?: URLSearchParams): Promise<Response> {
     const res = await fetch(`${this.base}${path}`, {
       method,
-      headers: { authorization: this.auth },
+      headers: form ? { authorization: this.auth, "content-type": "application/x-www-form-urlencoded" } : { authorization: this.auth },
+      ...(form ? { body: form.toString() } : {}),
       redirect: "manual",
       signal: signal ?? AbortSignal.timeout(this.timeoutMs),
     });

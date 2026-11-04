@@ -1,4 +1,19 @@
 ---
+- name: Refuse to deploy panel while a secret variable is unclassified or both editable and locked
+  assert:
+    that:
+      - panel_secret_unclassified | length == 0
+      - panel_secret_overlap | length == 0
+    fail_msg: >-
+      Classify every vault variable of panel_service_auth as exactly one of panel_secret_editable and
+      panel_secret_locked in group_vars/all.yml.
+      Unclassified: {{ panel_secret_unclassified | join(', ') }}.
+      In both lists: {{ panel_secret_overlap | join(', ') }}.
+  vars:
+    panel_secret_referenced: "{{ panel_service_auth.values() | map(attribute='vault_vars') | flatten | unique | list }}"
+    panel_secret_unclassified: "{{ panel_secret_referenced | difference(panel_secret_editable) | difference(panel_secret_locked.keys() | list) }}"
+    panel_secret_overlap: "{{ panel_secret_editable | intersect(panel_secret_locked.keys() | list) }}"
+
 - name: Get host docker group GID
   command: getent group docker
   register: panel_docker_group
@@ -52,6 +67,7 @@
     owner: root
     group: "{{ ssh_allowed_users }}"
     mode: "0644"
+  register: panel_manifest
 
 - name: Copy docker-compose file
   template:
@@ -100,6 +116,10 @@
     state: present
     pull: never
   when: panel_pull.rc == 0
+
+- name: Restart panel so it reloads the services manifest
+  command: docker restart panel
+  when: panel_pull.rc == 0 and panel_manifest.changed
 
 - name: Warn when the panel image is not yet in the registry
   debug:

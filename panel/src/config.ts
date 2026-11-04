@@ -16,6 +16,7 @@ const schema = z
     GITHUB_CLIENT_ID: z.string().min(1),
     GITHUB_CLIENT_SECRET: z.string().min(1),
     GITHUB_ALLOWED_LOGIN: z.string().min(1),
+    GITHUB_ALLOWED_ID: optional(z.coerce.number().int().positive()),
     SESSION_SECRET: z.string().min(32),
     SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 12),
     PROMETHEUS_URL: z.string().url().default("http://prometheus:9090"),
@@ -23,8 +24,11 @@ const schema = z
     ZOT_URL: optional(z.string().url()),
     ZOT_USER: optional(z.string()),
     ZOT_PASSWORD: optional(z.string()),
+    ZOT_GC_DELAY: z.string().min(1).default("1h"),
+    ZOT_GC_INTERVAL: z.string().min(1).default("24h"),
     PDNS_API_URL: optional(z.string().url()),
     PDNS_API_KEY: optional(z.string()),
+    PDNS_DB_CONTAINER: z.string().min(1).default("pdns-db"),
     JENKINS_URL: optional(z.string().url()),
     JENKINS_USER: optional(z.string()),
     JENKINS_TOKEN: optional(z.string()),
@@ -39,7 +43,18 @@ const schema = z
     HEALTH_MAX_LOOP_LAG_MS: z.coerce.number().int().positive().default(500),
     HEALTH_MIN_SNAPSHOT_AGE_MS: z.coerce.number().int().positive().default(120000),
     AUDIT_ANON_MAX_ROWS: z.coerce.number().int().positive().default(10_000),
+    SECRETS_JOB: z.string().min(1).default("panel-secrets"),
+    SECRETS_APPLY_JOB: z.string().min(1).default("vps-deploy"),
+    SECRETS_REAUTH_SECONDS: z.coerce.number().int().positive().default(900),
+    SECRETS_REVEAL_SECONDS: z.coerce.number().int().positive().default(20),
+    SECRETS_TRACK_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(2400),
+    ENV_FILES_ROOT: optional(z.string().startsWith("/")),
     DEV_AUTH_BYPASS: optional(z.enum(["0", "1"])),
+    DRY_RUN_ACTIONS: optional(z.enum(["0", "1"])),
+    ZOT_REGISTRY_HOST: optional(z.string().regex(/^[a-z0-9.-]+(:\d+)?$/)),
+    ACTION_VERIFY_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+    ACTION_PULL_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
+    COMPOSE_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
   })
   .superRefine((v, ctx) => {
     if (v.DEV_AUTH_BYPASS === "1" && !DEV_ENVS.includes(v.NODE_ENV)) {
@@ -52,7 +67,7 @@ const schema = z
     }
   });
 
-export type Config = z.infer<typeof schema> & { origin: string; secureCookies: boolean; devAuthBypass: boolean };
+export type Config = z.infer<typeof schema> & { origin: string; secureCookies: boolean; devAuthBypass: boolean; dryRunActions: boolean };
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
   const parsed = schema.safeParse(env);
@@ -66,6 +81,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     origin: url.origin,
     secureCookies: url.protocol === "https:",
     devAuthBypass: parsed.data.DEV_AUTH_BYPASS === "1" && DEV_ENVS.includes(parsed.data.NODE_ENV),
+    dryRunActions: parsed.data.DRY_RUN_ACTIONS === "1",
 
   };
+}
+
+export function configWarnings(cfg: Pick<Config, "GITHUB_ALLOWED_ID">): string[] {
+  return cfg.GITHUB_ALLOWED_ID === undefined
+    ? ["GITHUB_ALLOWED_ID is not set: sign-in is pinned to the GitHub login only, so a renamed or recycled login would be admitted. Set it to the numeric account id"]
+    : [];
 }

@@ -20,11 +20,20 @@ const service = z.object({
     kind: z.enum(["basic-auth-hash", "env", "vault", "none"]),
     vault_vars: z.array(z.string()),
     env_keys: z.array(z.string()),
+    env_vars: z.record(z.string().min(1), z.string().min(1)).default({}),
+    hash: z.object({ var: z.string().min(1), user: z.string().min(1), note: z.string().optional() }).optional(),
   }),
 });
 
+const secrets = z.object({
+  editable: z.array(z.string().min(1)).default([]),
+  locked: z.record(z.string().min(1), z.string()).default({}),
+  rotatable: z.array(z.string().min(1)).default([]),
+  min_length: z.record(z.string().min(1), z.number().int().positive()).default({}),
+});
+
 const manifestSchema = z
-  .object({ services: z.array(service).min(1) })
+  .object({ services: z.array(service).min(1), secrets: secrets.default({ editable: [], locked: {}, rotatable: [], min_length: {} }) })
   .superRefine((m, ctx) => {
     const ids = new Set<string>();
     const containers = new Set<string>();
@@ -45,6 +54,14 @@ const manifestSchema = z
       }
       if (s.auth.kind === "env" && s.auth.env_keys.length === 0) {
         ctx.addIssue({ code: "custom", path: ["services", i, "auth", "env_keys"], message: "env auth needs env_keys" });
+      }
+      for (const [key, v] of Object.entries(s.auth.env_vars)) {
+        if (!s.auth.env_keys.includes(key)) {
+          ctx.addIssue({ code: "custom", path: ["services", i, "auth", "env_vars", key], message: `env_vars key not in env_keys: ${key}` });
+        }
+        if (!s.auth.vault_vars.includes(v)) {
+          ctx.addIssue({ code: "custom", path: ["services", i, "auth", "env_vars", key], message: `env_vars value not in vault_vars: ${v}` });
+        }
       }
     });
   });

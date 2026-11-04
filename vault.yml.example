@@ -47,6 +47,12 @@ vault_jenkins_coros_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   (GitHub deploy key for the corosBot repo)
   -----END OPENSSH PRIVATE KEY-----
+# Write-scoped deploy key for this repo (GitHub "Allow write access"). Only the panel-secrets
+# job uses it, to push vault edits made from the admin panel to main.
+vault_jenkins_github_write_ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  (GitHub deploy key with write access for vps-infrastructure)
+  -----END OPENSSH PRIVATE KEY-----
 vault_jenkins_vps_ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   (VPS deploy key private key)

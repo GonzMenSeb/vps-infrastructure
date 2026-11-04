@@ -19,6 +19,14 @@ jenkins:
             value: "ubuntu@{{ vault_main_vps_ip }}"
           - key: "PANEL_URL"
             value: "https://{{ panel_host }}"
+          - key: "PANEL_SECRET_VARS"
+            value: "{{ panel_secret_vars | join(' ') }}"
+          - key: "PANEL_HASH_VARS"
+            value: "{{ panel_hash_vars | join(' ') }}"
+          - key: "PANEL_SECRET_MIN"
+            value: "{{ panel_secret_min_length | dictsort | map('join', ':') | join(' ') }}"
+          - key: "PANEL_SECRETS_REPO"
+            value: "{{ github_repo_ssh_url }}"
 
 credentials:
   system:
@@ -70,6 +78,18 @@ credentials:
                 directEntry:
                   privateKey: |
                     {{ vault_jenkins_coros_ssh_key | indent(20) }}
+          # Write-scoped, unlike the deploy keys above, and GLOBAL like every credential here: any
+          # Jenkins job can bind it and push to main. panel-secrets is the only job that does today,
+          # but Jenkins does not enforce that. The GitHub deploy key for this repo must have write access.
+          - basicSSHUserPrivateKey:
+              scope: GLOBAL
+              id: "github-write-ssh-key"
+              username: "git"
+              description: "GitHub write key (vps-infrastructure, global scope; used by panel-secrets)"
+              privateKeySource:
+                directEntry:
+                  privateKey: |
+                    {{ vault_jenkins_github_write_ssh_key | indent(20) }}
           - basicSSHUserPrivateKey:
               scope: GLOBAL
               id: "vps-ssh-key"
@@ -293,6 +313,42 @@ jobs:
         triggers {
           githubPush()
         }
+        properties {
+          disableConcurrentBuilds()
+        }
+      }
+  # Started only by the panel (no trigger). The parameters are declared here rather than in the
+  # Jenkinsfile because a Jenkinsfile registers them after the first run, and the panel's first
+  # buildWithParameters would be refused. Job DSL has no passwordParam, so VAR_VALUE is added as
+  # the core PasswordParameterDefinition through configure.
+  - script: |
+      pipelineJob('panel-secrets') {
+        description('Set one allowlisted variable in vault.yml (or group_vars for hash variables), commit and push to main. Started by the admin panel.')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('{{ github_repo_ssh_url }}')
+                  credentials('github-ssh-key')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('infra/jenkins/panel-secrets.Jenkinsfile')
+          }
+        }
+        parameters {
+          stringParam('VAR_NAME', '', 'Variable to set; must be in PANEL_SECRET_VARS or PANEL_HASH_VARS')
+        }
+        configure { project ->
+          project / 'properties' / 'hudson.model.ParametersDefinitionProperty' / 'parameterDefinitions' << 'hudson.model.PasswordParameterDefinition' {
+            name('VAR_VALUE')
+            description('New value. Never printed; kept only encrypted in the build record.')
+            defaultValue('')
+          }
+        }
+        logRotator(-1, 10)
         properties {
           disableConcurrentBuilds()
         }

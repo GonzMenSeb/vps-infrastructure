@@ -10,6 +10,10 @@ import { hourLabels } from "../lib/charts";
 import { squarify } from "../lib/treemap";
 import { indexManifest, type Manifest, type ManifestIndex, type Service, type ServiceHost } from "../manifest";
 import type { Snapshot, Store } from "../store";
+import { buildServiceActions, type ServiceActionsVM, type ServiceView } from "./service-actions-model";
+import { buildAuthTab, type AuthTabVM, type SecretsView } from "./auth-model";
+import { buildServiceDatabases, type ServiceDatabasesVM } from "./databases-model";
+import type { DatabasesView, DnsView, RegistryView } from "./phase4-input";
 
 export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins"];
 export const DOCKER_HOST: ServiceHost = "vps";
@@ -58,7 +62,7 @@ export interface UpVM {
   building: number;
 }
 
-export type ExtraSourceKey = "jenkins" | "loki";
+export type ExtraSourceKey = "jenkins" | "loki" | "registry" | "dns" | "pdns" | "databases";
 
 export interface SourceStatus {
   key: SourceKey | ExtraSourceKey;
@@ -345,6 +349,9 @@ export interface ServiceVM {
   sources: { prom: SourceStatus; docker: SourceStatus; df: SourceStatus };
   builds: ServiceBuildsVM | null;
   logsHref: string | null;
+  actions: ServiceActionsVM | null;
+  auth: AuthTabVM | null;
+  databases: ServiceDatabasesVM | null;
 }
 
 export interface ViewInput {
@@ -354,6 +361,11 @@ export interface ViewInput {
   csrf?: string;
   jenkins?: JenkinsView;
   logs?: LogsView;
+  service?: ServiceView;
+  secrets?: SecretsView;
+  registry?: RegistryView;
+  dns?: DnsView;
+  databases?: DatabasesView;
 }
 
 const AUTH_MIDDLEWARE: Record<string, string> = {
@@ -876,7 +888,7 @@ export function serviceTabs(svc: Service): { id: ServiceTab; label: string }[] {
   return tabs;
 }
 
-export function buildService(input: ViewInput, id: string, tab?: string): ServiceVM | null {
+export function buildService(input: ViewInput, id: string, tab?: string, flash: Flash | null = null): ServiceVM | null {
   const svc = input.manifest.services.find((s) => s.id === id);
   if (!svc) return null;
   const ctx = new Ctx(input);
@@ -896,8 +908,13 @@ export function buildService(input: ViewInput, id: string, tab?: string): Servic
     sources: { prom: ctx.promStatus(), docker: ctx.status.docker, df: ctx.status.df },
     builds: tab === "builds" ? buildServiceBuilds(input, svc) : null,
     logsHref: logsHref(svc.host, svc.containers[0]!),
+    actions: buildServiceActions(input, svc, ctx.containerRows(svc), flash, hasData(ctx.status.docker)),
+    auth: tab === "auth" ? buildAuthTab(input, svc, ctx.summary(svc).protection.label) : null,
+    databases: tab === "db" ? buildServiceDatabases(input, svc) : null,
   };
 }
+
+export const upOf = (input: ViewInput): UpVM => new Ctx(input).up();
 
 export interface JenkinsBuildData {
   job: string;
@@ -931,6 +948,7 @@ export interface JenkinsView {
   actions: boolean;
   ttlMs: number;
   now?: number;
+  noRun?: readonly string[];
 }
 
 export interface LogContainer {
@@ -1124,6 +1142,7 @@ class JenkinsCtx {
   readonly data: JenkinsData | undefined;
   readonly services: Map<string, Service[]>;
   readonly parameterized: ReadonlySet<string>;
+  readonly noRun: ReadonlySet<string>;
 
   constructor(
     private input: ViewInput,
@@ -1135,6 +1154,7 @@ class JenkinsCtx {
     this.status = snapshotStatus("jenkins", "Jenkins", jv?.ttlMs ?? 5000, jv?.snapshot ?? null);
     this.data = jv?.snapshot?.data;
     this.parameterized = new Set(this.data?.parameterized ?? []);
+    this.noRun = new Set(jv?.noRun ?? []);
     this.services = new Map();
     for (const s of input.manifest.services) {
       if (!s.jenkins_job) continue;
@@ -1168,7 +1188,7 @@ class JenkinsCtx {
   }
 
   runAction(job: string, running: number): ActionVM | null {
-    if (!this.actionsEnabled) return null;
+    if (!this.actionsEnabled || this.noRun.has(job)) return null;
     const busy = running > 0 ? ` ${running === 1 ? "A run is" : `${running} runs are`} already in progress.` : "";
     return {
       label: "Run now",
