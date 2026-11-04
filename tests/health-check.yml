@@ -172,15 +172,24 @@
       when: metabase_container_check.stdout | length > 0
 
     # ── Container health status ──
+    - name: Check whether llama-server GGUF model file is present on the host
+      stat:
+        path: "/opt/llm_inference/models/Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
+      register: llm_model_host_stat
+
     - name: Check container health statuses
       shell: docker ps --filter "health=unhealthy" --format "{% raw %}{{.Names}}{% endraw %}"
       register: unhealthy
       changed_when: false
 
+    - name: Ignore llama-server while its GGUF model has not been copied in
+      set_fact:
+        unhealthy_names: "{{ unhealthy.stdout_lines | reject('equalto', 'llama-server') | list if not llm_model_host_stat.stat.exists else unhealthy.stdout_lines }}"
+
     - name: Report unhealthy containers
       fail:
-        msg: "Unhealthy containers found: {{ unhealthy.stdout }}"
-      when: unhealthy.stdout | length > 0
+        msg: "Unhealthy containers found: {{ unhealthy_names | join(', ') }}"
+      when: unhealthy_names | length > 0
 
     # ── TLS ──
     - name: Verify Vaultwarden TLS is valid
@@ -255,11 +264,6 @@
     # ── LLM inference (llama-server) ──
     # The GGUF model file must be present on disk or the container will not
     # come up. Mirror miplata's "skip assertions when image not yet pulled" pattern.
-    - name: Check whether llama-server GGUF model file is present on the host
-      stat:
-        path: "/opt/llm_inference/models/Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
-      register: llm_model_host_stat
-
     - name: Verify llama-server is running
       assert:
         that: "'llama-server' in running_containers.stdout_lines"
