@@ -25,6 +25,9 @@ const NAV = [
   { id: "services", label: "Services", href: "/services", count: "services" },
   { id: "jobs", label: "Jobs", href: "/jobs", count: "jobs" },
   { id: "logs", label: "Logs", href: "/logs", count: null },
+  { id: "databases", label: "Databases", href: "/databases", count: null },
+  { id: "registry", label: "Registry", href: "/registry", count: null },
+  { id: "dns", label: "DNS", href: "/dns", count: null },
 ] as const;
 
 export const railState = (up: Up): Record<string, string> => ({

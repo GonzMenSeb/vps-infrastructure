@@ -11,12 +11,12 @@ import { openDb } from "../src/db";
 import { loadManifest } from "../src/manifest";
 import { FakeCompose, FakeDocker } from "./dev/docker-fixture";
 import { REGISTRY_HOST, REGISTRY_PASSWORD, REGISTRY_USER, digestOf } from "./dev/registry-fixture";
-import { startFakeZot, type FakeZot } from "./dev/zot-fixture";
+import { startFakeRollbackZot, type FakeRollbackZot } from "./dev/zot-rollback-fixture";
 
 export interface Rig {
   docker: FakeDocker;
   compose: FakeCompose;
-  zot: FakeZot;
+  zot: FakeRollbackZot;
   db: Database;
   locks: ServiceLocks;
   runtime: ActionRuntime;
@@ -42,7 +42,7 @@ export async function actionsRig(o: RigOptions = {}): Promise<Rig> {
   const dir = mkdtempSync(join(tmpdir(), "vesp-act-"));
   const socket = join(dir, "docker.sock");
   const server = Bun.serve({ unix: socket, fetch: (req) => docker.handle(req) });
-  const zot = startFakeZot({ now: clock.now });
+  const zot = startFakeRollbackZot({ now: clock.now });
   const compose = new FakeCompose(docker);
   const db = openDb(":memory:");
   const manifest = await loadManifest("tests/fixtures/dev-services.json");

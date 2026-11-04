@@ -12,6 +12,8 @@ import { indexManifest, type Manifest, type ManifestIndex, type Service, type Se
 import type { Snapshot, Store } from "../store";
 import { buildServiceActions, type ServiceActionsVM, type ServiceView } from "./service-actions-model";
 import { buildAuthTab, type AuthTabVM, type SecretsView } from "./auth-model";
+import { buildServiceDatabases, type ServiceDatabasesVM } from "./databases-model";
+import type { DatabasesView, DnsView, RegistryView } from "./phase4-input";
 
 export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins"];
 export const DOCKER_HOST: ServiceHost = "vps";
@@ -60,7 +62,7 @@ export interface UpVM {
   building: number;
 }
 
-export type ExtraSourceKey = "jenkins" | "loki";
+export type ExtraSourceKey = "jenkins" | "loki" | "registry" | "dns" | "pdns" | "databases";
 
 export interface SourceStatus {
   key: SourceKey | ExtraSourceKey;
@@ -349,6 +351,7 @@ export interface ServiceVM {
   logsHref: string | null;
   actions: ServiceActionsVM | null;
   auth: AuthTabVM | null;
+  databases: ServiceDatabasesVM | null;
 }
 
 export interface ViewInput {
@@ -360,6 +363,9 @@ export interface ViewInput {
   logs?: LogsView;
   service?: ServiceView;
   secrets?: SecretsView;
+  registry?: RegistryView;
+  dns?: DnsView;
+  databases?: DatabasesView;
 }
 
 const AUTH_MIDDLEWARE: Record<string, string> = {
@@ -904,8 +910,11 @@ export function buildService(input: ViewInput, id: string, tab?: string, flash: 
     logsHref: logsHref(svc.host, svc.containers[0]!),
     actions: buildServiceActions(input, svc, ctx.containerRows(svc), flash, hasData(ctx.status.docker)),
     auth: tab === "auth" ? buildAuthTab(input, svc, ctx.summary(svc).protection.label) : null,
+    databases: tab === "db" ? buildServiceDatabases(input, svc) : null,
   };
 }
+
+export const upOf = (input: ViewInput): UpVM => new Ctx(input).up();
 
 export interface JenkinsBuildData {
   job: string;

@@ -32,13 +32,14 @@ import { FilterError, LOKI_SOURCES, LOKI_TTL, LokiClient, normalizeFilter, regis
 import { PromClient, registerPrometheusSources } from "./collectors/prometheus";
 import { type Config, loadConfig } from "./config";
 import { openDataDb } from "./db";
-import { JobActions, type JobActionResult } from "./actions/jobs";
+import { JobActions } from "./actions/jobs";
 import { SecretActions, isActive as isActiveEdit } from "./actions/secrets";
 import { TailHub } from "./logs/hub";
 import { serveLogStream } from "./logs/sse";
 import { loadManifest, type Manifest } from "./manifest";
 import { Poller } from "./poller";
 import { secretRoutes, secretsSignature, secretsView } from "./routes/secrets";
+import { buildPhase4, registerPhase4Routes, type Phase4 } from "./routes/phase4";
 import { Store } from "./store";
 import type { SecretsView } from "./views/auth-model";
 import { HostsFrame, HostsPage } from "./views/hosts";
@@ -84,6 +85,7 @@ export interface Deps {
   loki?: { client: LokiClient; hub: TailHub };
   service?: ServiceDeps;
   secrets?: SecretActions;
+  phase4?: Phase4;
 }
 
 export interface JenkinsDeps {
@@ -148,7 +150,7 @@ type Node = { toString(): string | Promise<string> };
 
 const html = async (node: Node) => String(await node.toString());
 
-interface LiveSpec {
+export interface LiveSpec {
   key: string;
   sources: readonly SourceKey[];
   page: (input: ViewInput, chrome: Chrome) => Node;
@@ -160,7 +162,7 @@ interface LiveSpec {
 }
 
 export function createApp(deps: Deps): Hono<AppEnv> {
-  const { cfg, db, store, gh, lagMs, manifest, poller, jenkins, loki, service } = deps;
+  const { cfg, db, store, gh, lagMs, manifest, poller, jenkins, loki, service, phase4 } = deps;
   const secrets = deps.secrets ?? null;
   const app = new Hono<AppEnv>();
   const manifestHash = sha([JSON.stringify(manifest)]);
@@ -271,6 +273,7 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     jenkins: jenkinsView(),
     logs: lokiView(),
     service: serviceView(),
+    ...phase4?.views(),
   });
 
   const live = async (c: Context<AppEnv>, spec: LiveSpec): Promise<Response> => {
@@ -346,7 +349,7 @@ export function createApp(deps: Deps): Hono<AppEnv> {
       key: `service:${id}:${tab}`,
       clock: tab === "builds" || tab === "summary",
       clockMs: tab === "builds" ? undefined : IDLE_CLOCK_BUCKET_MS,
-      extra: [serviceSig(id), ...(flash ? [`flash:${flash.ok}:${flash.text}`] : [])],
+      extra: [serviceSig(id), ...(tab === "db" ? (phase4?.databaseSig() ?? []) : []), ...(flash ? [`flash:${flash.ok}:${flash.text}`] : [])],
       secrets: tab === "auth" ? (sess) => secretsView({ cfg, manifest, secrets }, id, sess) : undefined,
       sources: BASE_SOURCES,
       page: (input, chrome) => ServicePage({ chrome, vm: buildService(input, id, tab, flash)! }),
@@ -470,6 +473,8 @@ export function createApp(deps: Deps): Hono<AppEnv> {
 
   app.route("/", secretRoutes({ cfg, db, manifest, session, apiSession, secrets }));
 
+  if (phase4) registerPhase4Routes(app, phase4, { session, demand, live, readFlash, setFlash, baseSources: BASE_SOURCES });
+
   return app;
 }
 
@@ -566,8 +571,9 @@ export async function start(env: Record<string, string | undefined> = process.en
     idleIntervalMs: cfg.POLL_IDLE_INTERVAL_MS,
     tickMs: cfg.POLL_TICK_MS,
   });
+  const phase4 = buildPhase4({ cfg, db, store, base, isLoopbackUrl });
   const lag = monitorLoopLag();
-  const app = createApp({ cfg, db, store, gh: githubClient(cfg), lagMs: lag.read, manifest, poller, jenkins: jenkinsDeps, loki: lokiDeps, service, secrets: secretActions });
+  const app = createApp({ cfg, db, store, gh: githubClient(cfg), lagMs: lag.read, manifest, poller, jenkins: jenkinsDeps, loki: lokiDeps, service, secrets: secretActions, phase4 });
   const server = Bun.serve({ port: cfg.PORT, idleTimeout: SERVER_IDLE_TIMEOUT_S, ...(cfg.devAuthBypass ? { hostname: "127.0.0.1" } : {}), fetch: app.fetch });
 
 

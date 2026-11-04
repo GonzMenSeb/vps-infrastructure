@@ -8,20 +8,20 @@ import { ZOT_TAG_SOURCE, ZotTagsClient, registerZotTagSource } from "../src/coll
 import { Store } from "../src/store";
 import { FakeDocker } from "./dev/docker-fixture";
 import { REGISTRY_HOST, REGISTRY_PASSWORD, REGISTRY_USER, digestOf } from "./dev/registry-fixture";
-import { startFakeZot, type FakeZot } from "./dev/zot-fixture";
+import { startFakeRollbackZot, type FakeRollbackZot } from "./dev/zot-rollback-fixture";
 
 let dir: string;
 let docker: FakeDocker;
 let server: ReturnType<typeof Bun.serve>;
 let engine: SocketEngine;
-let zot: FakeZot;
+let zot: FakeRollbackZot;
 
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), "vesp-eng-"));
   docker = new FakeDocker();
   server = Bun.serve({ unix: join(dir, "d.sock"), fetch: (req) => docker.handle(req) });
   engine = new SocketEngine(new DockerClient(join(dir, "d.sock")));
-  zot = startFakeZot();
+  zot = startFakeRollbackZot();
 });
 afterAll(async () => {
   await server.stop(true);

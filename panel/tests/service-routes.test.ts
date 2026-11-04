@@ -158,7 +158,7 @@ describe("service page controls", () => {
 
   test("a single build in the registry disables the button with a reason", async () => {
     const { page, refresh } = await rig();
-    up.zot.rows["judicabot/judicabot"] = up.zot.rows["judicabot/judicabot"]!.filter((r) => ["latest", "c19ab44"].includes(r.tag));
+    up.zot.state.set("judicabot/judicabot", up.zot.state.get("judicabot/judicabot")!.filter((t) => ["latest", "c19ab44"].includes(t.tag)));
     await refresh();
     const html = await page("/services/judicabot");
     expect(html).toContain("Only one build is in the registry");
@@ -297,9 +297,9 @@ describe("dry run", () => {
 
 describe("registry down", () => {
   test("the page keeps rendering and says why rollback is unavailable", async () => {
-    up.zot.failing.value = true;
+    up.zot.setDown(true);
     const { page } = await rig();
-    up.zot.failing.value = false;
+    up.zot.setDown(false);
     const html = await page("/services/judicabot");
     expect(html).toContain("Zot did not answer");
     expect(html).toContain("Switch off");
