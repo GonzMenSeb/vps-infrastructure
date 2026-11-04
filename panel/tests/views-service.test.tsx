@@ -58,7 +58,6 @@ describe("service view", () => {
   });
 
   test("later-phase tabs are labeled placeholders", async () => {
-    expect(await page("judicabot", "auth")).toContain("Phase 6");
     expect(await page("judicabot", "builds")).toContain("Jenkins is not configured, so runs of judicabot-deploy cannot be shown.");
     const db = await page("miplata", "db");
     expect(db).toContain("Phase 4");

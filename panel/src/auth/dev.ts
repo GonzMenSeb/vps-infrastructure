@@ -2,9 +2,9 @@ import type { Database } from "bun:sqlite";
 import { Hono } from "hono";
 import { type Config, DEV_ENVS } from "../config";
 import { audit } from "../db";
-import { type AppEnv, createSession } from "./session";
+import { type AppEnv, DEV_LOGIN_ROUTE, createSession } from "./session";
 
-export const DEV_LOGIN_PATH = "/auth/dev";
+export const DEV_LOGIN_PATH = DEV_LOGIN_ROUTE;
 
 export function localPath(v: string | undefined, origin: string): string {
   if (!v?.startsWith("/")) return "/";
