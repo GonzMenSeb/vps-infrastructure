@@ -169,11 +169,15 @@ sha256_of() {
   printf %s "$1" | sha256sum | cut -d' ' -f1
 }
 
+verify_report() {
+  grep -vF -e "$VAR_VALUE" -e "$stored" "$work/verify.out" 2>/dev/null | grep -E 'ERROR|error|fatal|FAILED|Traceback|Error' | tail -6 | cut -c1-200 >&2 || true
+}
+
 verify_value() {
   EXPECTED_SHA256=$(sha256_of "$stored") SECRET_NAME=$VAR_NAME ANSIBLE_LOCALHOST_WARNING=False \
     ANSIBLE_INVENTORY_UNPARSED_WARNING=False ANSIBLE_NOCOLOR=True \
-    ansible-playbook -i localhost, -c local -e "plain_file=$1" "$VERIFY_PLAYBOOK" >/dev/null 2>"$work/verify.err" \
-    || die "the edited file does not parse back to the requested value"
+    ansible-playbook -i localhost, -c local -e "plain_file=$1" "$VERIFY_PLAYBOOK" >"$work/verify.out" 2>&1 \
+    || { verify_report; die "the edited file does not parse back to the requested value"; }
 }
 
 apply_edit() {
