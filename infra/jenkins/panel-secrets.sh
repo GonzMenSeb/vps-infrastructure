@@ -175,7 +175,7 @@ verify_report() {
 
 verify_value() {
   EXPECTED_SHA256=$(sha256_of "$stored") SECRET_NAME=$VAR_NAME ANSIBLE_LOCALHOST_WARNING=False \
-    ANSIBLE_INVENTORY_UNPARSED_WARNING=False ANSIBLE_NOCOLOR=True \
+    ANSIBLE_INVENTORY_UNPARSED_WARNING=False ANSIBLE_NOCOLOR=True ANSIBLE_VAULT_PASSWORD_FILE=$VAULT_PASSWORD_FILE \
     ansible-playbook -i localhost, -c local -e "plain_file=$1" "$VERIFY_PLAYBOOK" >"$work/verify.out" 2>&1 \
     || { verify_report; die "the edited file does not parse back to the requested value"; }
 }
