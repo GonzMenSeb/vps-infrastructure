@@ -7,15 +7,19 @@ import {
   deleteSession,
   findSession,
   insertSession,
+  markReauth,
   purgeExpiredSessions,
   touchSession,
 } from "../db";
 
 export const SESSION_COOKIE = "vp_session";
 export const OAUTH_STATE_COOKIE = "vp_oauth_state";
+export const OAUTH_NEXT_COOKIE = "vp_oauth_next";
 export const CSRF_FIELD = "_csrf";
 export const CSRF_HEADER = "x-csrf-token";
 export const SESSION_TOUCH_EVERY_MS = 60_000;
+export const GITHUB_LOGIN_PATH = "/auth/github";
+export const DEV_LOGIN_ROUTE = "/auth/dev";
 
 export interface AuthedSession {
   login: string;
@@ -57,6 +61,44 @@ export function createSession(db: Database, cfg: Config, c: Context, login: stri
     path: "/",
     maxAge: cfg.SESSION_TTL_SECONDS,
   });
+}
+
+export function establishLogin(
+  db: Database,
+  cfg: Config,
+  c: Context,
+  login: string,
+  now = Date.now(),
+): "reauthenticated" | "created" {
+  const token = getCookie(c, SESSION_COOKIE);
+  const row = token ? findSession(db, sha256(token), now) : null;
+  if (row && row.login.toLowerCase() === login.toLowerCase()) {
+    markReauth(db, row.id_hash, now);
+    return "reauthenticated";
+  }
+  createSession(db, cfg, c, login, now);
+  return "created";
+}
+
+export function isFresh(reauthAt: number, cfg: Pick<Config, "SECRETS_REAUTH_SECONDS">, now = Date.now()): boolean {
+  return now - reauthAt < cfg.SECRETS_REAUTH_SECONDS * 1000;
+}
+
+export function reauthHref(cfg: Pick<Config, "devAuthBypass">, next: string): string {
+  return `${cfg.devAuthBypass ? DEV_LOGIN_ROUTE : GITHUB_LOGIN_PATH}?next=${encodeURIComponent(next)}`;
+}
+
+export function requireFresh(
+  cfg: Pick<Config, "SECRETS_REAUTH_SECONDS" | "devAuthBypass">,
+  opts: { api: boolean; next: (c: Context<AppEnv>) => string },
+  clock: () => number = Date.now,
+): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    if (isFresh(c.get("session").reauthAt, cfg, clock())) return next();
+    const url = reauthHref(cfg, opts.next(c));
+    if (opts.api) return c.json({ error: "reauth-required", reauth: url }, 401);
+    return c.redirect(url, 303);
+  };
 }
 
 export function destroySession(db: Database, c: Context): void {

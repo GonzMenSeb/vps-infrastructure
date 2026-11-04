@@ -9,6 +9,7 @@ export interface FakeJenkinsOptions {
   startDelayMs?: number;
   seedRunning?: string;
   seedQueued?: string;
+  secrets?: { job: string; applyJob: string; secretRunMs?: number; deployRunMs?: number; onApply: (name: string, value: string) => void };
 }
 
 export interface FakeJenkins {
@@ -25,6 +26,10 @@ interface Running {
   estimatedMs: number;
   endedAt: number | null;
   result: string | null;
+  description?: string | null;
+  sha?: string;
+  params?: Record<string, string>;
+  applies?: { name: string; value: string };
 }
 
 interface QueueItem {
@@ -33,6 +38,7 @@ interface QueueItem {
   since: number;
   startsAt: number;
   build: number | null;
+  params?: Record<string, string>;
 }
 
 const NOTE = "\u001b[8mha:////4AFakeNoteForTheDevFixtureOnly==\u001b[0m";
@@ -45,6 +51,19 @@ export function startFakeJenkins(opts: FakeJenkinsOptions = {}): FakeJenkins {
   const seedRunning = opts.seedRunning ?? "vps-deploy";
   const seedQueued = opts.seedQueued ?? "decabot-deploy";
   const jobs = structuredClone((capture as { jobs: Raw[] }).jobs);
+  const sec = opts.secrets;
+  if (sec && !jobs.some((j) => j.name === sec.job)) {
+    jobs.push({
+      _class: "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+      name: sec.job,
+      buildable: true,
+      inQueue: false,
+      queueItem: null,
+      property: [{ parameterDefinitions: [{ name: "VAR_NAME", type: "StringParameterDefinition" }, { name: "VAR_VALUE", type: "PasswordParameterDefinition" }] }],
+      lastCompletedBuild: null,
+      builds: [],
+    });
+  }
   const t0 = now();
   const newest = Math.max(...jobs.flatMap((j) => j.builds.map((b: Raw) => b.timestamp as number)));
   const shift = t0 - 2 * 3_600_000 - newest;
@@ -55,8 +74,8 @@ export function startFakeJenkins(opts: FakeJenkinsOptions = {}): FakeJenkins {
   let nextQueueId = 900;
   const lastNumber = (job: string) => Math.max(0, ...(jobs.find((j) => j.name === job)?.builds ?? []).map((b: Raw) => b.number as number), ...runs.filter((r) => r.job === job).map((r) => r.number));
 
-  const startRun = (job: string, at: number, runMs: number, by: string): Running => {
-    const r: Running = { job, number: lastNumber(job) + 1, startedAt: at, endsAt: at + runMs, estimatedMs: runMs, endedAt: null, result: null };
+  const startRun = (job: string, at: number, runMs: number, by: string, extra: Partial<Running> = {}): Running => {
+    const r: Running = { job, number: lastNumber(job) + 1, startedAt: at, endsAt: at + runMs, estimatedMs: runMs, endedAt: null, result: null, ...extra };
     runs.push(r);
     byWho.set(`${job}#${r.number}`, by);
     return r;
@@ -65,11 +84,31 @@ export function startFakeJenkins(opts: FakeJenkinsOptions = {}): FakeJenkins {
   if (jobs.some((j) => j.name === seedRunning)) startRun(seedRunning, t0 - 40_000, seedRunMs, "owner");
   if (jobs.some((j) => j.name === seedQueued)) queue.push({ id: nextQueueId++, job: seedQueued, since: t0 - 12_000, startsAt: Number.POSITIVE_INFINITY, build: null });
 
+  let commits = 0;
+  const fakeSha = () => (++commits).toString(16).padStart(40, "a");
+
   const settle = () => {
     const t = now();
-    for (const r of runs) if (r.endedAt === null && t >= r.endsAt) Object.assign(r, { endedAt: r.endsAt, result: "SUCCESS" });
+    for (const r of [...runs]) {
+      if (r.endedAt !== null || t < r.endsAt) continue;
+      const failing = sec && r.job === sec.job && (r.params?.VAR_VALUE ?? "").includes("FAILME");
+      Object.assign(r, { endedAt: r.endsAt, result: failing ? "FAILURE" : "SUCCESS" });
+      if (!sec) continue;
+      if (r.job === sec.job && !failing && r.params) {
+        const sha = fakeSha();
+        r.description = `commit ${sha}`;
+        startRun(sec.applyJob, r.endsAt + 600, sec.deployRunMs ?? 8000, "panel-secrets", {
+          sha,
+          applies: { name: r.params.VAR_NAME ?? "", value: r.params.VAR_VALUE ?? "" },
+        });
+      } else if (r.job === sec.applyJob && r.applies) {
+        sec.onApply(r.applies.name, r.applies.value);
+      }
+    }
     for (const q of queue) {
-      if (q.build === null && t >= q.startsAt) q.build = startRun(q.job, q.startsAt, triggeredRunMs, "owner").number;
+      if (q.build !== null || t < q.startsAt) continue;
+      const isSecret = sec && q.job === sec.job;
+      q.build = startRun(q.job, q.startsAt, isSecret ? (sec.secretRunMs ?? 4000) : triggeredRunMs, "owner", q.params ? { params: q.params } : {}).number;
     }
   };
 
@@ -84,8 +123,8 @@ export function startFakeJenkins(opts: FakeJenkinsOptions = {}): FakeJenkins {
     timestamp: r.startedAt,
     duration: isBuilding(r) ? 0 : r.endedAt! - r.startedAt,
     estimatedDuration: r.estimatedMs,
-    description: null,
-    actions: [{ causes: [{ _class: "hudson.model.Cause$UserIdCause", shortDescription: `Started by user ${byWho.get(`${r.job}#${r.number}`) ?? "owner"}`, userId: "owner" }] }],
+    description: r.description ?? null,
+    actions: [...(r.sha ? [{ lastBuiltRevision: { SHA1: r.sha } }] : []), { causes: [{ _class: "hudson.model.Cause$UserIdCause", shortDescription: `Started by user ${byWho.get(`${r.job}#${r.number}`) ?? "owner"}`, userId: "owner" }] }],
   });
 
   const jobJson = (j: Raw): Raw => {
@@ -143,13 +182,14 @@ export function startFakeJenkins(opts: FakeJenkinsOptions = {}): FakeJenkins {
         if (!j) return new Response("Not Found", { status: 404 });
         const jj = jobJson(j);
         const last = jj.builds[0];
-        return Response.json({ inQueue: jj.inQueue, buildable: jj.buildable, lastBuild: last ? { number: last.number, building: last.building } : null, property: j.property });
+        return Response.json({ inQueue: jj.inQueue, buildable: jj.buildable, lastBuild: last ? { number: last.number, building: last.building } : null, property: j.property, builds: jj.builds });
       }
       m = /^\/job\/([^/]+)\/(build|buildWithParameters)$/.exec(path);
       if (m && req.method === "POST") {
         const job = decodeURIComponent(m[1]!);
         if (!jobs.some((x) => x.name === job)) return new Response("Not Found", { status: 404 });
-        const q: QueueItem = { id: nextQueueId++, job, since: now(), startsAt: now() + startDelayMs, build: null };
+        const params = m[2] === "buildWithParameters" ? Object.fromEntries(new URLSearchParams(await req.text())) : undefined;
+        const q: QueueItem = { id: nextQueueId++, job, since: now(), startsAt: now() + startDelayMs, build: null, params };
         queue.push(q);
         return new Response(null, { status: 201, headers: { location: `${u.origin}/queue/item/${q.id}/` } });
       }
@@ -164,7 +204,7 @@ export function startFakeJenkins(opts: FakeJenkinsOptions = {}): FakeJenkins {
         const r = runningOf(decodeURIComponent(m[1]!), Number(m[2]));
         const seeded = jobs.find((x) => x.name === decodeURIComponent(m![1]!))?.builds.find((b: Raw) => b.number === Number(m![2]));
         if (!r && !seeded) return new Response("Not Found", { status: 404 });
-        return Response.json(r ? { building: isBuilding(r), result: r.result } : { building: false, result: seeded.result });
+        return Response.json(r ? { building: isBuilding(r), result: r.result, description: r.description ?? null } : { building: false, result: seeded.result, description: null });
       }
       m = /^\/job\/([^/]+)\/(\d+)\/stop$/.exec(path);
       if (m && req.method === "POST") {

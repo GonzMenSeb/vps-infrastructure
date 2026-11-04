@@ -152,10 +152,7 @@ panel_services:
     jenkins_job: vps-deploy
     db: []
     core: true
-    auth:
-      kind: basic-auth-hash
-      vault_vars: []
-      env_keys: []
+    auth: "{{ panel_service_auth['traefik'] }}"
   - id: dns
     name: PowerDNS
     role: dns
@@ -170,10 +167,7 @@ panel_services:
     db:
       - { kind: mariadb, container: pdns-db }
     core: true
-    auth:
-      kind: env
-      vault_vars: [vault_pdns_db_root_password, vault_pdns_db_password, vault_pdns_admin_secret_key, vault_pdns_api_key]
-      env_keys: [DB_ROOT_PASSWORD, DB_PASSWORD, ADMIN_SECRET_KEY, PDNS_API_KEY]
+    auth: "{{ panel_service_auth['dns'] }}"
   - id: vaultwarden
     name: Vaultwarden
     role: vaultwarden
@@ -187,10 +181,7 @@ panel_services:
     jenkins_job: vps-deploy
     db: []
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_vaultwarden_admin_token]
-      env_keys: [ADMIN_TOKEN]
+    auth: "{{ panel_service_auth['vaultwarden'] }}"
   - id: monitoring
     name: Monitoring
     role: monitoring
@@ -204,10 +195,7 @@ panel_services:
     jenkins_job: vps-deploy
     db: []
     core: false
-    auth:
-      kind: vault
-      vault_vars: [vault_grafana_admin_password, vault_grafana_oauth_client_id, vault_grafana_oauth_client_secret, vault_grafana_secret_key, vault_observability_push_token]
-      env_keys: []
+    auth: "{{ panel_service_auth['monitoring'] }}"
   - id: zot
     name: Zot registry
     role: zot
@@ -221,10 +209,7 @@ panel_services:
     jenkins_job: vps-deploy
     db: []
     core: true
-    auth:
-      kind: vault
-      vault_vars: [vault_zot_registry_password, vault_zot_htpasswd_hash]
-      env_keys: []
+    auth: "{{ panel_service_auth['zot'] }}"
   - id: miplata
     name: Miplata
     role: miplata
@@ -240,10 +225,7 @@ panel_services:
       - { kind: postgres, container: miplata-postgres }
       - { kind: redis, container: miplata-redis }
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_miplata_db_password, vault_miplata_jwt_secret, vault_miplata_encryption_key, vault_miplata_admin_password, vault_categorizer_api_token]
-      env_keys: [POSTGRES_PASSWORD, JWT_SECRET, ENCRYPTION_KEY, ADMIN_PASSWORD, CATEGORIZER_API_TOKEN]
+    auth: "{{ panel_service_auth['miplata'] }}"
   - id: metabase
     name: Metabase
     role: metabase
@@ -258,10 +240,7 @@ panel_services:
     db:
       - { kind: postgres, container: metabase-db }
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_metabase_db_password, vault_miplata_ro_password, vault_metabase_admin_password]
-      env_keys: [MB_DB_PASS, POSTGRES_PASSWORD]
+    auth: "{{ panel_service_auth['metabase'] }}"
   - id: llm_inference
     name: LLM inference
     role: llm_inference
@@ -275,10 +254,7 @@ panel_services:
     jenkins_job: vps-deploy
     db: []
     core: false
-    auth:
-      kind: none
-      vault_vars: []
-      env_keys: []
+    auth: "{{ panel_service_auth['llm_inference'] }}"
   - id: categorizer
     name: Categorizer
     role: categorizer
@@ -293,10 +269,7 @@ panel_services:
     db:
       - { kind: postgres, container: categorizer-postgres }
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_categorizer_db_password, vault_categorizer_api_token]
-      env_keys: [POSTGRES_PASSWORD, CATEGORIZER_API_TOKEN]
+    auth: "{{ panel_service_auth['categorizer'] }}"
   - id: decabot
     name: DecaBot
     role: decabot
@@ -310,10 +283,7 @@ panel_services:
     jenkins_job: decabot-deploy
     db: []
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_decabot_password, vault_decabot_gemini_api_key]
-      env_keys: [DECABOT_PASSWORD, GEMINI_API_KEY]
+    auth: "{{ panel_service_auth['decabot'] }}"
   - id: brujula
     name: Brujula
     role: brujula
@@ -327,10 +297,7 @@ panel_services:
     jenkins_job: brujula-deploy
     db: []
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_brujula_password, vault_decabot_gemini_api_key]
-      env_keys: [BRUJULA_PASSWORD, GEMINI_API_KEY]
+    auth: "{{ panel_service_auth['brujula'] }}"
   - id: huella
     name: Huella
     role: huella
@@ -344,10 +311,7 @@ panel_services:
     jenkins_job: huella-deploy
     db: []
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_huella_password, vault_decabot_gemini_api_key, vault_strava_client_id, vault_strava_client_secret]
-      env_keys: [HUELLA_PASSWORD, GEMINI_API_KEY, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET]
+    auth: "{{ panel_service_auth['huella'] }}"
   - id: judicabot
     name: Judicabot
     role: judicabot
@@ -361,10 +325,7 @@ panel_services:
     jenkins_job: judicabot-deploy
     db: []
     core: false
-    auth:
-      kind: env
-      vault_vars: [vault_judicabot_password]
-      env_keys: [JUDICABOT_PASSWORD]
+    auth: "{{ panel_service_auth['judicabot'] }}"
   - id: panel
     name: Panel
     role: panel
@@ -378,10 +339,7 @@ panel_services:
     jenkins_job: panel-deploy
     db: []
     core: true
-    auth:
-      kind: vault
-      vault_vars: [vault_panel_github_client_id, vault_panel_github_client_secret, vault_panel_session_secret, vault_panel_jenkins_token]
-      env_keys: []
+    auth: "{{ panel_service_auth['panel'] }}"
   - id: jenkins
     name: Jenkins
     role: jenkins
@@ -399,3 +357,150 @@ panel_services:
       kind: vault
       vault_vars: [vault_jenkins_admin_password]
       env_keys: []
+
+# The auth block of every main-VPS service in panel_services, kept apart because the Jenkins
+# play renders panel_secret_vars, and templating panel_services itself needs image variables that
+# only the roles of playbook.yml define. Plain data only: nothing here may contain Jinja.
+panel_service_auth:
+  traefik:
+    kind: basic-auth-hash
+    vault_vars: []
+    env_keys: []
+    hash:
+      var: traefik_dashboard_auth
+      user: admin
+      note: "The same login protects the Prometheus UI. vps-deploy does not update the Jenkins host's dashboard; run jenkins-playbook.yml for that."
+  dns:
+    kind: env
+    vault_vars: [vault_pdns_db_root_password, vault_pdns_db_password, vault_pdns_admin_secret_key, vault_pdns_api_key]
+    env_keys: [DB_ROOT_PASSWORD, DB_PASSWORD, ADMIN_SECRET_KEY, PDNS_API_KEY]
+    env_vars:
+      DB_ROOT_PASSWORD: vault_pdns_db_root_password
+      DB_PASSWORD: vault_pdns_db_password
+      ADMIN_SECRET_KEY: vault_pdns_admin_secret_key
+      PDNS_API_KEY: vault_pdns_api_key
+  vaultwarden:
+    kind: env
+    vault_vars: [vault_vaultwarden_admin_token]
+    env_keys: [ADMIN_TOKEN]
+    env_vars:
+      ADMIN_TOKEN: vault_vaultwarden_admin_token
+  monitoring:
+    kind: vault
+    vault_vars: [vault_grafana_admin_password, vault_grafana_oauth_client_id, vault_grafana_oauth_client_secret, vault_grafana_secret_key, vault_observability_push_token]
+    env_keys: []
+  zot:
+    kind: vault
+    vault_vars: [vault_zot_registry_password, vault_zot_htpasswd_hash]
+    env_keys: []
+  miplata:
+    kind: env
+    vault_vars: [vault_miplata_db_password, vault_miplata_jwt_secret, vault_miplata_encryption_key, vault_miplata_admin_password, vault_categorizer_api_token]
+    env_keys: [POSTGRES_PASSWORD, JWT_SECRET, ENCRYPTION_KEY, ADMIN_PASSWORD, CATEGORIZER_API_TOKEN]
+    env_vars:
+      POSTGRES_PASSWORD: vault_miplata_db_password
+      JWT_SECRET: vault_miplata_jwt_secret
+      ENCRYPTION_KEY: vault_miplata_encryption_key
+      ADMIN_PASSWORD: vault_miplata_admin_password
+      CATEGORIZER_API_TOKEN: vault_categorizer_api_token
+  metabase:
+    kind: env
+    vault_vars: [vault_metabase_db_password, vault_miplata_ro_password, vault_metabase_admin_password]
+    env_keys: [MB_DB_PASS, POSTGRES_PASSWORD]
+    env_vars:
+      MB_DB_PASS: vault_metabase_db_password
+      POSTGRES_PASSWORD: vault_metabase_db_password
+  llm_inference:
+    kind: none
+    vault_vars: []
+    env_keys: []
+  categorizer:
+    kind: env
+    vault_vars: [vault_categorizer_db_password, vault_categorizer_api_token]
+    env_keys: [POSTGRES_PASSWORD, CATEGORIZER_API_TOKEN]
+    env_vars:
+      POSTGRES_PASSWORD: vault_categorizer_db_password
+      CATEGORIZER_API_TOKEN: vault_categorizer_api_token
+  decabot:
+    kind: env
+    vault_vars: [vault_decabot_password, vault_decabot_gemini_api_key]
+    env_keys: [DECABOT_PASSWORD, GEMINI_API_KEY]
+    env_vars:
+      DECABOT_PASSWORD: vault_decabot_password
+      GEMINI_API_KEY: vault_decabot_gemini_api_key
+  brujula:
+    kind: env
+    vault_vars: [vault_brujula_password, vault_decabot_gemini_api_key]
+    env_keys: [BRUJULA_PASSWORD, GEMINI_API_KEY]
+    env_vars:
+      BRUJULA_PASSWORD: vault_brujula_password
+      GEMINI_API_KEY: vault_decabot_gemini_api_key
+  huella:
+    kind: env
+    vault_vars: [vault_huella_password, vault_decabot_gemini_api_key, vault_strava_client_id, vault_strava_client_secret]
+    env_keys: [HUELLA_PASSWORD, GEMINI_API_KEY, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET]
+    env_vars:
+      HUELLA_PASSWORD: vault_huella_password
+      GEMINI_API_KEY: vault_decabot_gemini_api_key
+      STRAVA_CLIENT_ID: vault_strava_client_id
+      STRAVA_CLIENT_SECRET: vault_strava_client_secret
+  judicabot:
+    kind: env
+    vault_vars: [vault_judicabot_password]
+    env_keys: [JUDICABOT_PASSWORD]
+    env_vars:
+      JUDICABOT_PASSWORD: vault_judicabot_password
+  panel:
+    kind: vault
+    vault_vars: [vault_panel_github_client_id, vault_panel_github_client_secret, vault_panel_session_secret, vault_panel_jenkins_token]
+    env_keys: []
+
+# Variables the admin panel's panel-secrets job may edit; the job refuses everything else.
+# Derived from panel_service_auth (main-VPS services only, because vps-deploy runs playbook.yml and
+# never jenkins-playbook.yml) minus the locked variables below. Rendered into the Jenkins job as
+# PANEL_SECRET_VARS and PANEL_HASH_VARS and into the panel's manifest, so the list lives here only.
+panel_secret_locked:
+  vault_zot_registry_password: "It must change together with vault_zot_htpasswd_hash, the Jenkins registry credential and every docker login, and vps-deploy does not update the Jenkins host."
+  vault_zot_htpasswd_hash: "It must change together with vault_zot_registry_password."
+  vault_categorizer_api_token: "The Jenkins host keeps a copy as the categorizer-api-token credential, and vps-deploy does not update that host."
+  vault_observability_push_token: "The agent on the Jenkins host sends with it and vps-deploy does not update that host, so metrics and logs would stop arriving."
+  vault_pdns_db_root_password: "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database."
+  vault_pdns_db_password: "MariaDB reads it only when it first creates its database, and nothing in the playbook changes it inside the running database."
+  vault_miplata_db_password: "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database."
+  vault_metabase_db_password: "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database."
+  vault_categorizer_db_password: "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database."
+  vault_miplata_ro_password: "The playbook changes the Postgres role, but Metabase keeps its own copy of the password, written only during its first setup."
+  vault_metabase_admin_password: "The metabase role uses it only to create the admin during first setup."
+  vault_miplata_encryption_key: "It is an encryption key: data already encrypted with the old key cannot be read after the change."
+  vault_grafana_secret_key: "Grafana encrypts the secrets it stores with it and cannot read them back after the change."
+  vault_grafana_admin_password: "Grafana reads admin_password only when it first creates its database."
+  vault_panel_github_client_id: "It is the panel's own sign-in, and a wrong value locks the panel out."
+  vault_panel_github_client_secret: "It is the panel's own sign-in, and a wrong value locks the panel out."
+  vault_panel_session_secret: "It is the panel's own sign-in, and changing it signs everyone out mid-flow."
+  vault_panel_jenkins_token: "The panel uses it to reach Jenkins, including this edit."
+
+# Variables the panel may rotate to a random value; nothing outside the host holds a copy.
+panel_secret_rotatable:
+  - vault_vaultwarden_admin_token
+  - vault_decabot_password
+  - vault_brujula_password
+  - vault_huella_password
+  - vault_judicabot_password
+
+# Minimum lengths the roles already enforce (roles/judicabot asserts the same).
+panel_secret_min_length:
+  vault_judicabot_password: 12
+
+panel_secret_vars: >-
+  {{ panel_service_auth.values()
+     | map(attribute='vault_vars')
+     | flatten
+     | unique
+     | difference(panel_secret_locked.keys() | list)
+     | sort
+     | list }}
+panel_hash_vars: >-
+  {{ panel_service_auth.values()
+     | selectattr('hash', 'defined')
+     | map(attribute='hash.var')
+     | list }}

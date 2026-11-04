@@ -10,6 +10,7 @@ import { hourLabels } from "../lib/charts";
 import { squarify } from "../lib/treemap";
 import { indexManifest, type Manifest, type ManifestIndex, type Service, type ServiceHost } from "../manifest";
 import type { Snapshot, Store } from "../store";
+import { buildAuthTab, type AuthTabVM, type SecretsView } from "./auth-model";
 
 export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins"];
 export const DOCKER_HOST: ServiceHost = "vps";
@@ -345,6 +346,7 @@ export interface ServiceVM {
   sources: { prom: SourceStatus; docker: SourceStatus; df: SourceStatus };
   builds: ServiceBuildsVM | null;
   logsHref: string | null;
+  auth: AuthTabVM | null;
 }
 
 export interface ViewInput {
@@ -354,6 +356,7 @@ export interface ViewInput {
   csrf?: string;
   jenkins?: JenkinsView;
   logs?: LogsView;
+  secrets?: SecretsView;
 }
 
 const AUTH_MIDDLEWARE: Record<string, string> = {
@@ -896,6 +899,7 @@ export function buildService(input: ViewInput, id: string, tab?: string): Servic
     sources: { prom: ctx.promStatus(), docker: ctx.status.docker, df: ctx.status.df },
     builds: tab === "builds" ? buildServiceBuilds(input, svc) : null,
     logsHref: logsHref(svc.host, svc.containers[0]!),
+    auth: tab === "auth" ? buildAuthTab(input, svc, ctx.summary(svc).protection.label) : null,
   };
 }
 
@@ -931,6 +935,7 @@ export interface JenkinsView {
   actions: boolean;
   ttlMs: number;
   now?: number;
+  noRun?: readonly string[];
 }
 
 export interface LogContainer {
@@ -1124,6 +1129,7 @@ class JenkinsCtx {
   readonly data: JenkinsData | undefined;
   readonly services: Map<string, Service[]>;
   readonly parameterized: ReadonlySet<string>;
+  readonly noRun: ReadonlySet<string>;
 
   constructor(
     private input: ViewInput,
@@ -1135,6 +1141,7 @@ class JenkinsCtx {
     this.status = snapshotStatus("jenkins", "Jenkins", jv?.ttlMs ?? 5000, jv?.snapshot ?? null);
     this.data = jv?.snapshot?.data;
     this.parameterized = new Set(this.data?.parameterized ?? []);
+    this.noRun = new Set(jv?.noRun ?? []);
     this.services = new Map();
     for (const s of input.manifest.services) {
       if (!s.jenkins_job) continue;
@@ -1168,7 +1175,7 @@ class JenkinsCtx {
   }
 
   runAction(job: string, running: number): ActionVM | null {
-    if (!this.actionsEnabled) return null;
+    if (!this.actionsEnabled || this.noRun.has(job)) return null;
     const busy = running > 0 ? ` ${running === 1 ? "A run is" : `${running} runs are`} already in progress.` : "";
     return {
       label: "Run now",

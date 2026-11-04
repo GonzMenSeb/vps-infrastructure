@@ -83,6 +83,10 @@ export function touchSession(db: Database, idHash: string, now: number): void {
   db.query("UPDATE sessions SET last_seen_at = ? WHERE id_hash = ?").run(now, idHash);
 }
 
+export function markReauth(db: Database, idHash: string, now: number): void {
+  db.query("UPDATE sessions SET reauth_at = ?, last_seen_at = ? WHERE id_hash = ?").run(now, now, idHash);
+}
+
 export function deleteSession(db: Database, idHash: string): void {
   db.query("DELETE FROM sessions WHERE id_hash = ?").run(idHash);
 }

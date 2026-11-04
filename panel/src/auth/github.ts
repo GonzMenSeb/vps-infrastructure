@@ -4,12 +4,14 @@ import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Config } from "../config";
 import { audit, trimAudit } from "../db";
+import { localPath } from "./dev";
 import {
   OAUTH_STATE_COOKIE,
+  OAUTH_NEXT_COOKIE,
   type AppEnv,
-  createSession,
   csrfGuard,
   destroySession,
+  establishLogin,
   requireSession,
   signState,
   verifyState,
@@ -61,6 +63,16 @@ export function authRoutes(db: Database, cfg: Config, gh: GithubClient): Hono<Ap
 
   app.get("/auth/github", (c) => {
     const state = randomBytes(16).toString("base64url");
+    const next = c.req.query("next");
+    if (next) {
+      setCookie(c, OAUTH_NEXT_COOKIE, localPath(next, cfg.origin), {
+        httpOnly: true,
+        secure: cfg.secureCookies,
+        sameSite: "Lax",
+        path: "/auth/github",
+        maxAge: 600,
+      });
+    }
     setCookie(c, OAUTH_STATE_COOKIE, signState(cfg, state), {
       httpOnly: true,
       secure: cfg.secureCookies,
@@ -85,7 +97,9 @@ export function authRoutes(db: Database, cfg: Config, gh: GithubClient): Hono<Ap
 
   app.get("/auth/github/callback", async (c) => {
     const signed = getCookie(c, OAUTH_STATE_COOKIE);
+    const next = getCookie(c, OAUTH_NEXT_COOKIE);
     deleteCookie(c, OAUTH_STATE_COOKIE, { path: "/auth/github" });
+    deleteCookie(c, OAUTH_NEXT_COOKIE, { path: "/auth/github" });
     const code = c.req.query("code");
     if (!verifyState(cfg, signed, c.req.query("state")) || !code) {
       anonymous("bad-state");
@@ -103,9 +117,9 @@ export function authRoutes(db: Database, cfg: Config, gh: GithubClient): Hono<Ap
       audit(db, { actor: login, action: "login", outcome: "denied" });
       return c.text("forbidden", 403);
     }
-    createSession(db, cfg, c, login);
-    audit(db, { actor: login, action: "login", outcome: "ok" });
-    return c.redirect("/", 303);
+    const how = establishLogin(db, cfg, c, login);
+    audit(db, { actor: login, action: "login", outcome: how === "created" ? "ok" : "reauth" });
+    return c.redirect(localPath(next, cfg.origin), 303);
   });
 
   app.post("/logout", requireSession(db, cfg), csrfGuard(), (c) => {

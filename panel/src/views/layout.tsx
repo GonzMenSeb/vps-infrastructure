@@ -83,6 +83,7 @@ export function Layout({ title, login, csrf, current, up, refresh, children }: L
         <script src="/public/controllers/usage.js" defer></script>
         <script src="/public/controllers/console.js" defer></script>
         <script src="/public/controllers/logs.js" defer></script>
+        <script src="/public/controllers/secret.js" defer></script>
         <script src="/public/app.js" defer></script>
       </head>
       <body>

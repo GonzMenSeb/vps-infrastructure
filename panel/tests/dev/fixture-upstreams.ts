@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { QUERIES, seriesQuery } from "../../src/collectors/prometheus";
+import { loadManifest } from "../../src/manifest";
 import { start } from "../../src/server";
 import hostsFixture from "../fixtures/prometheus-hosts.json";
 import containersFixture from "../fixtures/prometheus-containers.json";
@@ -10,6 +11,7 @@ import seriesFixture from "../fixtures/prometheus-series.json";
 import { dockerContainers, dockerDf } from "./docker-fixture";
 import { startFakeJenkins, type FakeJenkins } from "./jenkins-fixture";
 import { startFakeLoki, type FakeLoki } from "./loki-fixture";
+import { makeFakeOpt, type FakeOpt } from "./opt-fixture";
 
 type Matrix = { status: string; data: { resultType: string; result: { metric: Record<string, string>; values: [number, string][] }[] } };
 
@@ -30,11 +32,14 @@ function rebasedSeries(startSec: number, stepSec: number): Matrix {
   };
 }
 
+const DEV_MANIFEST = "tests/fixtures/dev-services.json";
+
 export interface FixtureUpstreams {
   promUrl: string;
   dockerSocket: string;
   jenkins: FakeJenkins;
   loki: FakeLoki;
+  opt: FakeOpt;
   stop: () => Promise<void>;
 }
 
@@ -72,14 +77,26 @@ export async function startFixtureUpstreams(): Promise<FixtureUpstreams> {
       return Response.json({ message: "page not found" }, { status: 404 });
     },
   });
-  const jenkins = startFakeJenkins();
+  const manifest = await loadManifest(DEV_MANIFEST);
+  const opt = makeFakeOpt(manifest);
+  const jenkins = startFakeJenkins({
+    secrets: {
+      job: "panel-secrets",
+      applyJob: "vps-deploy",
+      secretRunMs: Number(process.env.FAKE_SECRET_RUN_MS ?? 4000),
+      deployRunMs: Number(process.env.FAKE_DEPLOY_RUN_MS ?? 8000),
+      onApply: (name, value) => opt.applyVar(name, value),
+    },
+  });
   const loki = startFakeLoki();
   return {
     promUrl: `http://127.0.0.1:${prom.port}`,
     dockerSocket,
     jenkins,
     loki,
+    opt,
     stop: async () => {
+      opt.stop();
       await jenkins.stop();
       await loki.stop();
       await prom.stop(true);
@@ -99,7 +116,8 @@ if (import.meta.main) {
     PUBLIC_URL: `http://localhost:${port}`,
     PORT: port,
     DATA_DIR: dataDir,
-    SERVICES_MANIFEST_PATH: "tests/fixtures/dev-services.json",
+    SERVICES_MANIFEST_PATH: DEV_MANIFEST,
+    ENV_FILES_ROOT: up.opt.root,
     GITHUB_CLIENT_ID: "dev",
     GITHUB_CLIENT_SECRET: "dev",
     GITHUB_ALLOWED_LOGIN: "owner",

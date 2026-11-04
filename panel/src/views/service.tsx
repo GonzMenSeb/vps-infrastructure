@@ -1,3 +1,4 @@
+import { AuthTab } from "./auth-tab";
 import { Layout } from "./layout";
 import { ActionForm, ResultChipView } from "./jobs";
 import { Chip, LiveFrame, Meter, Placeholder, SourceEmpty, SourceNote, StateChip, fmtCpu, fmtMem } from "./components";
@@ -295,29 +296,7 @@ function Config({ vm }: { vm: ServiceVM }) {
 }
 
 function Auth({ vm }: { vm: ServiceVM }) {
-  const a = vm.service.auth;
-  const kind: Record<typeof a.kind, string> = {
-    "basic-auth-hash": "Traefik basic-auth (only the hash is stored)",
-    env: "Secrets rendered into .env",
-    vault: "Secrets kept in vault.yml",
-    none: "No secrets",
-  };
-  return (
-    <section class="panel" aria-label="Auth">
-      <header>
-        <h2>Auth</h2>
-      </header>
-      <Placeholder phase={6}>Revealing and editing logins and secrets arrives in Phase 6, through the panel-secrets Jenkins job.</Placeholder>
-      <div class="body">
-        <dl class="kv">
-          <dt>Manifest kind</dt>
-          <dd>{kind[a.kind]}</dd>
-          <dt>Gate at Traefik</dt>
-          <dd>{vm.summary.protection.label}</dd>
-        </dl>
-      </div>
-    </section>
-  );
+  return vm.auth ? <AuthTab vm={vm.auth} /> : null;
 }
 
 function Builds({ vm }: { vm: ServiceVM }) {
