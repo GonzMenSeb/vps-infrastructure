@@ -55,7 +55,7 @@
   until: metabase_health.status == 200
   retries: 18
   delay: 10
-  when: metabase_compose_file.stat.exists
+  when: metabase_compose_file.stat.exists and not ansible_check_mode
 
 - name: Check if Metabase setup is needed
   uri:
@@ -66,7 +66,7 @@
   become: false
   check_mode: false
   register: metabase_props
-  when: metabase_compose_file.stat.exists
+  when: metabase_compose_file.stat.exists and not ansible_check_mode
 
 - name: Complete Metabase initial setup (admin user)
   uri:
@@ -91,7 +91,7 @@
   become: false
   no_log: true
   register: metabase_setup_result
-  when: metabase_compose_file.stat.exists and not metabase_props.json['has-user-setup']
+  when: metabase_compose_file.stat.exists and metabase_props is not skipped and not metabase_props.json['has-user-setup']
 
 - name: Add Miplata database connection
   uri:
