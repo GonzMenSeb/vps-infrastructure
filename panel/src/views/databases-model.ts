@@ -23,6 +23,12 @@ export const CONN_WARN_RATIO = 0.8;
 export const MEM_WARN_RATIO = 0.9;
 const NA = "—";
 
+export function fmtCount(n: number): string {
+  if (n >= 1_000_000) return `${fmtNum(n / 1_000_000)} M`;
+  if (n >= 1000) return `${fmtNum(n / 1000)} k`;
+  return fmtNum(n);
+}
+
 export interface DbMetricVM {
   label: string;
   value: string;
@@ -82,7 +88,10 @@ function containerHealth(c: DockerContainer | undefined, service: Service, docke
   return { label: c.health === "healthy" ? "Up · healthy" : "Up", tone: "ok", detail: c.status };
 }
 
-const containerBlocks = (h: DbHealthVM | null): h is DbHealthVM => h !== null && (h.tone === "bad" || h.label === "Stopped" || h.label === "Exited" || h.label === "Missing" || h.label === "Created" || h.label === "Paused");
+const STOPPED_LABELS: readonly string[] = ["Stopped", "Exited", "Missing", "Created", "Paused"];
+
+const containerBlocks = (container: DbHealthVM | null, fromMetrics: DbHealthVM | null): container is DbHealthVM =>
+  container !== null && (container.tone === "bad" || (STOPPED_LABELS.includes(container.label) && fromMetrics?.tone !== "ok"));
 
 function postgresCard(m: PostgresMetrics | undefined): { health: DbHealthVM | null; metrics: DbMetricVM[]; version: string | null } {
   if (!m) return { health: null, metrics: [], version: null };
@@ -115,7 +124,7 @@ function redisCard(m: RedisMetrics | undefined): { health: DbHealthVM | null; me
   const [mem, memUnit] = m.memUsedBytes === null ? [null, ""] : bytesParts(m.memUsedBytes);
   const metrics = [
     metric("Memory", mem ?? null, memUnit, m.memMaxBytes ? `of ${fmtBytes(m.memMaxBytes)}` : m.memUsedBytes === null ? null : "no limit set"),
-    metric("Keys", m.keys === null ? null : fmtNum(m.keys)),
+    metric("Keys", m.keys === null ? null : fmtCount(m.keys)),
     metric("Clients", m.clients === null ? null : fmtNum(m.clients)),
     metric("Uptime", m.uptimeSec === null ? null : fmtUptime(m.uptimeSec)),
   ];
@@ -136,7 +145,7 @@ function redisCard(m: RedisMetrics | undefined): { health: DbHealthVM | null; me
 
 function pdnsCard(s: PdnsStats, zones: { zones: number; rrsets: number } | null): { health: DbHealthVM; metrics: DbMetricVM[] } {
   const metrics = [
-    metric("Backend queries", s.backendQueries === null ? null : fmtNum(s.backendQueries), "", "since PowerDNS started"),
+    metric("Backend queries", s.backendQueries === null ? null : fmtCount(s.backendQueries), "", "since PowerDNS started"),
     metric("Backend latency", s.backendLatencyUs === null ? null : fmtNum(s.backendLatencyUs), "µs", "moving average", "Average time of a PowerDNS lookup in its database"),
     metric("SERVFAIL answers", s.servfailPackets === null ? null : fmtNum(s.servfailPackets), "", "since PowerDNS started"),
     metric("PowerDNS uptime", s.uptimeSec === null ? null : fmtUptime(s.uptimeSec)),
@@ -209,7 +218,7 @@ export function buildCards(input: ViewInput, services: readonly Service[]): { ca
       }
       const detail = version ?? tag;
       engine = detail ? `${KIND_LABEL[d.kind]} ${detail}` : KIND_LABEL[d.kind];
-      const merged = containerBlocks(fallback) ? fallback : (health ?? fallback ?? { label: "Unknown", tone: "" as ChipTone, detail: "Docker has not answered yet." });
+      const merged = containerBlocks(fallback, health) ? fallback : (health ?? fallback ?? { label: "Unknown", tone: "" as ChipTone, detail: "Docker has not answered yet." });
       cards.push({ ...base, engine, health: merged, source, sourceStatus: status, note, metrics });
     }
   }

@@ -10,7 +10,6 @@ function Repos({ vm }: { vm: RegistryVM }) {
     <section class="panel" aria-label="Repositories">
       <header>
         <h2>Repositories</h2>
-        <span class="sub">{vm.totalText}</span>
       </header>
       {vm.repos.length ? (
         <div class="tablewrap">
@@ -70,16 +69,21 @@ function TagTableRow({ r }: { r: TagRowVM }) {
             build cache
           </Chip>
         ) : null}
+        <div class="small muted" title={r.updatedTitle}>
+          {r.updatedText} · {r.sizeText}
+        </div>
       </td>
-      <td class="mono muted" title={r.digest}>
+      <td class="mono muted nowrap" title={r.digest}>
         {r.digestShort}
       </td>
-      <td class="nowrap hide-sm" title={r.updatedTitle}>
-        {r.updatedText}
-      </td>
-      <td class="num mono hide-sm">{r.sizeText}</td>
       <td class="num act">
-        {r.delete ? <ActionForm a={r.delete} /> : r.refusal ? <span class="muted small">{r.refusal}</span> : null}
+        {r.delete ? (
+          <ActionForm a={r.delete} />
+        ) : r.refusal ? (
+          <span class="muted small" title={r.refusal}>
+            Protected
+          </span>
+        ) : null}
       </td>
     </tr>
   );
@@ -103,8 +107,6 @@ function Tags({ d, vm }: { d: RepoDetailVM; vm: RegistryVM }) {
               <tr>
                 <th>Tag</th>
                 <th>Digest</th>
-                <th class="hide-sm">Updated</th>
-                <th class="num hide-sm">Size</th>
                 <th></th>
               </tr>
             </thead>

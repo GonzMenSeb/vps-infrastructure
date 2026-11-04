@@ -279,6 +279,10 @@ tbody tr.selected{background:var(--accent-soft)}
   .form-row{grid-template-columns:1fr 1fr}
   .form-row .form-actions{grid-column:1/-1}
 }
+.show-sm{display:none}
+td.cell-wrap{overflow-wrap:anywhere}
+.field textarea{height:34px}
 @media (max-width:560px){
   .form-row{grid-template-columns:1fr}
+  .show-sm{display:block;margin-top:4px}
 }

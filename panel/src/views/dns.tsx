@@ -89,7 +89,7 @@ function RecordForm({ f, vm }: { f: DnsFormVM; vm: DnsVM }) {
       </label>
       <label class="field">
         Content
-        <textarea name="content" rows={2} placeholder="203.0.113.10" required autocomplete="off">
+        <textarea name="content" rows={1} placeholder="203.0.113.10" required autocomplete="off">
           {f.content}
         </textarea>
       </label>
@@ -129,6 +129,31 @@ function ContentCell({ r }: { r: DnsRowVM }) {
   );
 }
 
+function RowActions({ r }: { r: DnsRowVM }) {
+  return (
+    <>
+      {r.editHref ? (
+        <a class="btn sm" href={r.editHref}>
+          Edit
+        </a>
+      ) : null}{" "}
+      {r.deleteHref ? (
+        <a class="btn sm danger" href={r.deleteHref}>
+          Delete
+        </a>
+      ) : null}
+    </>
+  );
+}
+
+function OwnerChip({ r }: { r: DnsRowVM }) {
+  return (
+    <Chip tone={r.ownerTone} title={r.owner === "other" ? "No managed-by: panel comment on this record set" : (r.note ?? undefined)}>
+      {r.ownerLabel}
+    </Chip>
+  );
+}
+
 function Records({ vm }: { vm: DnsVM }) {
   return (
     <div class="tablewrap">
@@ -138,40 +163,36 @@ function Records({ vm }: { vm: DnsVM }) {
             <th>Type</th>
             <th>Name</th>
             <th>Content</th>
-            <th class="num">TTL</th>
-            <th>Owner</th>
-            <th></th>
+            <th class="num hide-sm">TTL</th>
+            <th class="hide-sm">Owner</th>
+            <th class="hide-sm"></th>
           </tr>
         </thead>
         <tbody>
           {vm.rows.map((r) => (
             <tr>
               <td>
-                <b>{r.type}</b>
+                <Chip lamp={false}>{r.type}</Chip>
               </td>
-              <td class="mono" title={r.fqdn}>
+              <td class="mono cell-wrap" title={r.fqdn}>
                 {r.name}
+                <div class="show-sm">
+                  <OwnerChip r={r} />
+                </div>
               </td>
-              <td>
+              <td class="cell-wrap">
                 <ContentCell r={r} />
+                <div class="show-sm small muted">TTL {r.ttl}</div>
+                <div class="show-sm">
+                  <RowActions r={r} />
+                </div>
               </td>
-              <td class="num mono">{r.ttl}</td>
-              <td>
-                <Chip tone={r.ownerTone} lamp={false} title={r.owner === "other" ? "No managed-by: panel comment on this record set" : r.note ?? undefined}>
-                  {r.ownerLabel}
-                </Chip>
+              <td class="num mono hide-sm">{r.ttl}</td>
+              <td class="hide-sm">
+                <OwnerChip r={r} />
               </td>
-              <td class="num act">
-                {r.editHref ? (
-                  <a class="btn sm" href={r.editHref}>
-                    Edit
-                  </a>
-                ) : null}{" "}
-                {r.deleteHref ? (
-                  <a class="btn sm danger" href={r.deleteHref}>
-                    Delete
-                  </a>
-                ) : null}
+              <td class="num act hide-sm">
+                <RowActions r={r} />
               </td>
             </tr>
           ))}

@@ -25,6 +25,14 @@ const PANEL: Shot[] = [
   { name: "jobs-console", url: `${base}/jobs?job=vps-deploy&build=39`, wait: 2500 },
   { name: "logs", url: `${base}/logs`, wait: 3000 },
   { name: "logs-traefik", url: `${base}/logs?host=vps&container=traefik`, wait: 3000 },
+  { name: "registry", url: `${base}/registry` },
+  { name: "registry-judicabot", url: `${base}/registry?repo=judicabot%2Fjudicabot` },
+  { name: "databases", url: `${base}/databases` },
+  { name: "service-db", url: `${base}/services/miplata?tab=db` },
+  { name: "dns", url: `${base}/dns` },
+  { name: "dns-edit", url: `${base}/dns?edit=A:scratch.web.example.test.` },
+  { name: "dns-review", url: `${base}/dns?review=1&op=upsert&name=fresh&type=A&ttl=300&content=192.0.2.50` },
+  { name: "dns-review-overwrite", url: `${base}/dns?review=1&op=upsert&name=miplata&type=A&ttl=300&content=192.0.2.99` },
 ];
 
 const MOCKUP: Shot[] = mockup
@@ -36,6 +44,10 @@ const MOCKUP: Shot[] = mockup
       { name: "mockup-service-judicabot", url: `file://${mockup}#service/judicabot` },
       { name: "mockup-jobs", url: `file://${mockup}#jobs`, wait: 800 },
       { name: "mockup-logs", url: `file://${mockup}#logs`, wait: 1500 },
+      { name: "mockup-registry", url: `file://${mockup}#registry` },
+      { name: "mockup-databases", url: `file://${mockup}#databases` },
+      { name: "mockup-dns", url: `file://${mockup}#dns` },
+      { name: "mockup-service-db", url: `file://${mockup}#service/miplata`, before: `document.querySelector('[data-act="tab:db"]').click()` },
     ]
   : [];
 
