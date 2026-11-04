@@ -134,3 +134,268 @@ categorizer_host: "categorizer.{{ web_subdomain }}"
 categorizer_image: "{{ zot_host }}/miplata/categorizer:latest"
 categorizer_postgres_image: "pgvector/pgvector:pg16"
 categorizer_repo_ssh_url: "git@github.com:GonzMenSeb/miplata-categorizer.git"
+
+panel_host: "panel.{{ web_subdomain }}"
+panel_image: "{{ zot_host }}/panel/panel:latest"
+
+panel_services:
+  - id: traefik
+    name: Traefik
+    role: traefik
+    tags: [traefik]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/traefik
+    containers: [traefik, docker-proxy]
+    images: ["traefik:{{ traefik_version }}", "nginx:alpine"]
+    hostname: "{{ traefik_dashboard_host }}"
+    jenkins_job: vps-deploy
+    db: []
+    core: true
+    auth:
+      kind: basic-auth-hash
+      vault_vars: []
+      env_keys: []
+  - id: dns
+    name: PowerDNS
+    role: dns
+    tags: [dns]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/dns
+    containers: [pdns, pdns-db, pdns-admin]
+    images: ["{{ pdns_image }}", "{{ pdns_mariadb_image }}", "{{ pdns_admin_image }}"]
+    hostname: "{{ pdns_admin_host }}"
+    jenkins_job: vps-deploy
+    db:
+      - { kind: mariadb, container: pdns-db }
+    core: true
+    auth:
+      kind: env
+      vault_vars: [vault_pdns_db_root_password, vault_pdns_db_password, vault_pdns_admin_secret_key, vault_pdns_api_key]
+      env_keys: [DB_ROOT_PASSWORD, DB_PASSWORD, ADMIN_SECRET_KEY, PDNS_API_KEY]
+  - id: vaultwarden
+    name: Vaultwarden
+    role: vaultwarden
+    tags: [vaultwarden]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/vaultwarden
+    containers: [vaultwarden]
+    images: ["{{ vaultwarden_image }}"]
+    hostname: "{{ vaultwarden_host }}"
+    jenkins_job: vps-deploy
+    db: []
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_vaultwarden_admin_token]
+      env_keys: [ADMIN_TOKEN]
+  - id: monitoring
+    name: Monitoring
+    role: monitoring
+    tags: [monitoring]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/monitoring
+    containers: [prometheus, loki, grafana, alloy, process-exporter, cadvisor, blackbox-exporter, tempo, alertmanager]
+    images: ["{{ prometheus_image }}", "{{ loki_image }}", "{{ grafana_image }}", "{{ alloy_image }}", "{{ process_exporter_image }}", "{{ cadvisor_image }}", "{{ blackbox_exporter_image }}", "{{ tempo_image }}", "{{ alertmanager_image }}"]
+    hostname: "{{ grafana_host }}"
+    jenkins_job: vps-deploy
+    db: []
+    core: false
+    auth:
+      kind: vault
+      vault_vars: [vault_grafana_admin_password, vault_grafana_oauth_client_id, vault_grafana_oauth_client_secret, vault_grafana_secret_key, vault_observability_push_token]
+      env_keys: []
+  - id: zot
+    name: Zot registry
+    role: zot
+    tags: [zot]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/zot
+    containers: [zot]
+    images: ["{{ zot_image }}"]
+    hostname: "{{ zot_host }}"
+    jenkins_job: vps-deploy
+    db: []
+    core: true
+    auth:
+      kind: vault
+      vault_vars: [vault_zot_registry_password, vault_zot_htpasswd_hash]
+      env_keys: []
+  - id: miplata
+    name: Miplata
+    role: miplata
+    tags: [miplata]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/miplata
+    containers: [miplata-api, miplata-web, miplata-postgres, miplata-redis, postgres-exporter, redis-exporter]
+    images: ["{{ miplata_api_image }}", "{{ miplata_web_image }}"]
+    hostname: "{{ miplata_host }}"
+    jenkins_job: miplata-deploy
+    db:
+      - { kind: postgres, container: miplata-postgres }
+      - { kind: redis, container: miplata-redis }
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_miplata_db_password, vault_miplata_jwt_secret, vault_miplata_encryption_key, vault_miplata_admin_password, vault_categorizer_api_token]
+      env_keys: [POSTGRES_PASSWORD, JWT_SECRET, ENCRYPTION_KEY, ADMIN_PASSWORD, CATEGORIZER_API_TOKEN]
+  - id: metabase
+    name: Metabase
+    role: metabase
+    tags: [metabase]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/metabase
+    containers: [metabase, metabase-db]
+    images: ["{{ metabase_image }}", "{{ metabase_postgres_image }}"]
+    hostname: "{{ metabase_host }}"
+    jenkins_job: vps-deploy
+    db:
+      - { kind: postgres, container: metabase-db }
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_metabase_db_password, vault_miplata_ro_password, vault_metabase_admin_password]
+      env_keys: [MB_DB_PASS, POSTGRES_PASSWORD]
+  - id: llm_inference
+    name: LLM inference
+    role: llm_inference
+    tags: [llm_inference]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/llm_inference
+    containers: [llama-server]
+    images: ["{{ llm_inference_image }}"]
+    hostname: null
+    jenkins_job: vps-deploy
+    db: []
+    core: false
+    auth:
+      kind: none
+      vault_vars: []
+      env_keys: []
+  - id: categorizer
+    name: Categorizer
+    role: categorizer
+    tags: [categorizer]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/categorizer
+    containers: [categorizer-api, categorizer-postgres]
+    images: ["{{ categorizer_image }}", "{{ categorizer_postgres_image }}"]
+    hostname: "{{ categorizer_host }}"
+    jenkins_job: categorizer-deploy
+    db:
+      - { kind: postgres, container: categorizer-postgres }
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_categorizer_db_password, vault_categorizer_api_token]
+      env_keys: [POSTGRES_PASSWORD, CATEGORIZER_API_TOKEN]
+  - id: decabot
+    name: DecaBot
+    role: decabot
+    tags: [decabot]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/decabot
+    containers: [decabot]
+    images: ["{{ decabot_image }}"]
+    hostname: "{{ decabot_host }}"
+    jenkins_job: decabot-deploy
+    db: []
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_decabot_password, vault_decabot_gemini_api_key]
+      env_keys: [DECABOT_PASSWORD, GEMINI_API_KEY]
+  - id: brujula
+    name: Brujula
+    role: brujula
+    tags: [brujula]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/brujula
+    containers: [brujula]
+    images: ["{{ brujula_image }}"]
+    hostname: "{{ brujula_host }}"
+    jenkins_job: brujula-deploy
+    db: []
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_brujula_password, vault_decabot_gemini_api_key]
+      env_keys: [BRUJULA_PASSWORD, GEMINI_API_KEY]
+  - id: huella
+    name: Huella
+    role: huella
+    tags: [huella]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/huella
+    containers: [huella]
+    images: ["{{ huella_image }}"]
+    hostname: "{{ huella_host }}"
+    jenkins_job: huella-deploy
+    db: []
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_huella_password, vault_decabot_gemini_api_key, vault_strava_client_id, vault_strava_client_secret]
+      env_keys: [HUELLA_PASSWORD, GEMINI_API_KEY, STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET]
+  - id: judicabot
+    name: Judicabot
+    role: judicabot
+    tags: [judicabot]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/judicabot
+    containers: [judicabot]
+    images: ["{{ judicabot_image }}"]
+    hostname: "{{ judicabot_host }}"
+    jenkins_job: judicabot-deploy
+    db: []
+    core: false
+    auth:
+      kind: env
+      vault_vars: [vault_judicabot_password]
+      env_keys: [JUDICABOT_PASSWORD]
+  - id: panel
+    name: Panel
+    role: panel
+    tags: [panel]
+    playbook: playbook.yml
+    host: vps
+    dir: /opt/panel
+    containers: [panel]
+    images: ["{{ panel_image }}"]
+    hostname: "{{ panel_host }}"
+    jenkins_job: panel-deploy
+    db: []
+    core: true
+    auth:
+      kind: vault
+      vault_vars: [vault_panel_github_client_id, vault_panel_github_client_secret, vault_panel_session_secret, vault_panel_jenkins_token]
+      env_keys: []
+  - id: jenkins
+    name: Jenkins
+    role: jenkins
+    tags: []
+    playbook: jenkins-playbook.yml
+    host: jenkins
+    dir: /opt/jenkins
+    containers: [jenkins]
+    images: ["jenkins-ansible:latest"]
+    hostname: "{{ jenkins_host }}"
+    jenkins_job: null
+    db: []
+    core: true
+    auth:
+      kind: vault
+      vault_vars: [vault_jenkins_admin_password]
+      env_keys: []

@@ -557,6 +557,30 @@
       become: false
       when: judicabot_image_check.stdout | length > 0
 
+    # ── panel ──
+    - name: Check whether the panel image is present locally
+      shell: docker images -q {{ panel_image }}
+      register: panel_image_check
+      changed_when: false
+
+    - name: Verify panel container is healthy
+      command: docker inspect --format '{{ '{{' }}.State.Health.Status{{ '}}' }}' panel
+      register: panel_health
+      until: panel_health.stdout == 'healthy'
+      retries: 10
+      delay: 3
+      changed_when: false
+      when: panel_image_check.stdout | length > 0
+
+    - name: Verify panel sends unauthenticated visitors to login
+      uri:
+        url: "https://{{ panel_host }}/"
+        follow_redirects: none
+        status_code: [302, 303]
+      delegate_to: localhost
+      become: false
+      when: panel_image_check.stdout | length > 0
+
     # ── DNS ──
     - name: Verify DNS responds on port 53
       command: dig @{{ vps_public_ip }} {{ domain }} SOA +short +timeout=5

@@ -1,0 +1,330 @@
+{
+ "status": "success",
+ "data": {
+  "resultType": "vector",
+  "result": [
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cpuPct"
+    },
+    "value": [
+     1793739824.275,
+     "4.5333333333332675"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cpuPct"
+    },
+    "value": [
+     1793739824.275,
+     "2.544444445520644"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "cores"
+    },
+    "value": [
+     1793739824.275,
+     "6"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "cores"
+    },
+    "value": [
+     1793739824.275,
+     "2"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memTotal"
+    },
+    "value": [
+     1793739824.275,
+     "12238278656"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memTotal"
+    },
+    "value": [
+     1793739824.275,
+     "4005564416"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "memAvail"
+    },
+    "value": [
+     1793739824.275,
+     "8685162496"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "memAvail"
+    },
+    "value": [
+     1793739824.275,
+     "1654841344"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "swapTotal"
+    },
+    "value": [
+     1793739824.275,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "swapTotal"
+    },
+    "value": [
+     1793739824.275,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "swapFree"
+    },
+    "value": [
+     1793739824.275,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "swapFree"
+    },
+    "value": [
+     1793739824.275,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "diskTotal"
+    },
+    "value": [
+     1793739824.275,
+     "102915489792"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "diskTotal"
+    },
+    "value": [
+     1793739824.275,
+     "39973924864"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "diskAvail"
+    },
+    "value": [
+     1793739824.275,
+     "88987729920"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "diskAvail"
+    },
+    "value": [
+     1793739824.275,
+     "21983866880"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "load1"
+    },
+    "value": [
+     1793739824.275,
+     "0.73"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "load1"
+    },
+    "value": [
+     1793739824.275,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "load5"
+    },
+    "value": [
+     1793739824.275,
+     "0.39"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "load5"
+    },
+    "value": [
+     1793739824.275,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "load15"
+    },
+    "value": [
+     1793739824.275,
+     "0.35"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "load15"
+    },
+    "value": [
+     1793739824.275,
+     "0"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "uptimeSec"
+    },
+    "value": [
+     1793739824.275,
+     "30129.661865472794"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "uptimeSec"
+    },
+    "value": [
+     1793739824.275,
+     "17512077.966187716"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "os",
+     "pretty_name": "Ubuntu 26.04 LTS"
+    },
+    "value": [
+     1793739824.275,
+     "1"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "os",
+     "pretty_name": "Ubuntu 24.04.3 LTS"
+    },
+    "value": [
+     1793739824.275,
+     "1"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "rxBps"
+    },
+    "value": [
+     1793739824.275,
+     "9621.699999999999"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "rxBps"
+    },
+    "value": [
+     1793739824.275,
+     "188.64444444444442"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "txBps"
+    },
+    "value": [
+     1793739824.275,
+     "564.7333333333332"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "txBps"
+    },
+    "value": [
+     1793739824.275,
+     "7714.2777777777765"
+    ]
+   },
+   {
+    "metric": {
+     "host": "vps",
+     "metric": "containers"
+    },
+    "value": [
+     1793739824.275,
+     "19"
+    ]
+   },
+   {
+    "metric": {
+     "host": "jenkins",
+     "metric": "containers"
+    },
+    "value": [
+     1793739824.275,
+     "9"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,7 @@
+{"status":"success","data":{"resultType":"streams","result":[
+{"stream":{"compose_project":"traefik","compose_service":"traefik","container":"traefik","detected_level":"info","env":"prod","host":"vps","service_name":"traefik"},
+ "values":[["1793754094496102565","\u001b[90m2026-11-04T01:01:34\u001b[0m \u001b[94m[INFO] \u001b[0m: request \u001b[93m192.0.2.1\u001b[0m for url \u001b[93m/api/v1/write\u001b[0m"],
+           ["1793754093111364825","\u001b[90m2026-11-04T01:01:33\u001b[0m \u001b[94m[INFO] \u001b[0m: request \u001b[93m192.0.2.1\u001b[0m for url \u001b[93m/loki/api/v1/push\u001b[0m"]]},
+{"stream":{"container":"traefik","env":"prod","host":"vps"},
+ "values":[["1793754093500000000","plain <b>html</b> line",{"structured":"meta"}]]}
+],"stats":{"summary":{"totalEntriesReturned":3}}}}

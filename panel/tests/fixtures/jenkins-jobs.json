@@ -1,0 +1,3435 @@
+{
+ "_class": "hudson.model.Hudson",
+ "jobs": [
+  {
+   "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+   "name": "brujula-deploy",
+   "buildable": true,
+   "builds": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "aeda1c4ec9f6abd1065f94514bc6eb141aad6ea8"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "aeda1c4 \u2014 docs only, nothing to do",
+     "duration": 10685,
+     "estimatedDuration": 111689,
+     "number": 4,
+     "result": "SUCCESS",
+     "timestamp": 1785441783560
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "0ecee67a32bc7c75fae8083acf77b64877e204eb"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "0ecee67 \u2014 brujula",
+     "duration": 194748,
+     "estimatedDuration": 111689,
+     "number": 3,
+     "result": "SUCCESS",
+     "timestamp": 1785441042500
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "e77b3f29fd009781c9eff60b31aa52ee3fa3ac71"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "e77b3f2 \u2014 brujula",
+     "duration": 129635,
+     "estimatedDuration": 111689,
+     "number": 2,
+     "result": "SUCCESS",
+     "timestamp": 1785434518182
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "79facde5a5f38c4788e9272b143c2226f0dd597b"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "79facde \u2014 brujula",
+     "duration": 50354,
+     "estimatedDuration": 111689,
+     "number": 1,
+     "result": "FAILURE",
+     "timestamp": 1785434228159
+    }
+   ],
+   "lastCompletedBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "number": 4,
+    "result": "SUCCESS"
+   },
+   "property": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty"
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty"
+    }
+   ],
+   "inQueue": false,
+   "queueItem": null
+  },
+  {
+   "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+   "name": "categorizer-deploy",
+   "buildable": true,
+   "builds": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "7c2e9237267331e046fe7e41ea70b5c7693a32fd"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 207467,
+     "estimatedDuration": 116837,
+     "number": 24,
+     "result": "SUCCESS",
+     "timestamp": 1779294874786
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "925fca4cf77675322aca21707c8355b729fbf8ed"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 88758,
+     "estimatedDuration": 116837,
+     "number": 23,
+     "result": "SUCCESS",
+     "timestamp": 1776620489539
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "925fca4cf77675322aca21707c8355b729fbf8ed"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 33393,
+     "estimatedDuration": 116837,
+     "number": 22,
+     "result": "FAILURE",
+     "timestamp": 1776620243240
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "ab314b64e09ec6a66aec0e5656433443a31288da"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 54285,
+     "estimatedDuration": 116837,
+     "number": 21,
+     "result": "SUCCESS",
+     "timestamp": 1776612132794
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "d71f4e1c134cc15a4f929c76eeb474a71daca384"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 140119,
+     "estimatedDuration": 116837,
+     "number": 20,
+     "result": "SUCCESS",
+     "timestamp": 1776611927782
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "69f5a6db4d294ae99796cea77fd0913d0d78ceb7"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 67475,
+     "estimatedDuration": 116837,
+     "number": 19,
+     "result": "SUCCESS",
+     "timestamp": 1776611037729
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "69f5a6db4d294ae99796cea77fd0913d0d78ceb7"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 204314,
+     "estimatedDuration": 116837,
+     "number": 18,
+     "result": "FAILURE",
+     "timestamp": 1776610772701
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "583e9781b4153e386aaeca8f19bbba9d974a2120"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 151811,
+     "estimatedDuration": 116837,
+     "number": 17,
+     "result": "SUCCESS",
+     "timestamp": 1776606482416
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "583e9781b4153e386aaeca8f19bbba9d974a2120"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 17325353,
+     "estimatedDuration": 116837,
+     "number": 16,
+     "result": "FAILURE",
+     "timestamp": 1776606132386
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_EVAL",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "4299dbeb9060cef3ba2af78f051c683e7146ed3e"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 82545,
+     "estimatedDuration": 116837,
+     "number": 15,
+     "result": "FAILURE",
+     "timestamp": 1776605850539
+    }
+   ],
+   "lastCompletedBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "number": 24,
+    "result": "SUCCESS"
+   },
+   "property": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty"
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty"
+    }
+   ],
+   "inQueue": false,
+   "queueItem": null
+  },
+  {
+   "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+   "name": "decabot-deploy",
+   "buildable": true,
+   "builds": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "0d4b9c6ac8808c8a35933ebe7c2536cfed86c653"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "0d4b9c6",
+     "duration": 90270,
+     "estimatedDuration": 72008,
+     "number": 12,
+     "result": "SUCCESS",
+     "timestamp": 1785435213225
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "922d34e8258cc639096c985bf9dbda0cb377d403"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "922d34e",
+     "duration": 39440,
+     "estimatedDuration": 72008,
+     "number": 11,
+     "result": "SUCCESS",
+     "timestamp": 1785378042189
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "922d34e8258cc639096c985bf9dbda0cb377d403"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "922d34e",
+     "duration": 86314,
+     "estimatedDuration": 72008,
+     "number": 10,
+     "result": "SUCCESS",
+     "timestamp": 1785371035587
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "295434408c8100edfc83fb2baa6a70dc1487974f"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "2954344",
+     "duration": 94784,
+     "estimatedDuration": 72008,
+     "number": 9,
+     "result": "SUCCESS",
+     "timestamp": 1785356519934
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "d1567e4d07ad89f4dd3826572fc3e8923118776e"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "d1567e4",
+     "duration": 86227,
+     "estimatedDuration": 72008,
+     "number": 8,
+     "result": "SUCCESS",
+     "timestamp": 1785350744669
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "a4970679d335404522258073dbd5ff0bc201b13a"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "a497067",
+     "duration": 20329,
+     "estimatedDuration": 72008,
+     "number": 7,
+     "result": "SUCCESS",
+     "timestamp": 1785345584421
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "69999d0f459bd4121e1e8b6ca4684dc9fd3666f2"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "69999d0",
+     "duration": 118832,
+     "estimatedDuration": 72008,
+     "number": 6,
+     "result": "SUCCESS",
+     "timestamp": 1785345384406
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "69999d0f459bd4121e1e8b6ca4684dc9fd3666f2"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "69999d0 \u2014 docs only, nothing to do",
+     "duration": 9726,
+     "estimatedDuration": 72008,
+     "number": 5,
+     "result": "SUCCESS",
+     "timestamp": 1785345354404
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "84bccc858c7c4a903ec72e44f41e1a422e2a0e0e"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "84bccc8 \u2014 docs only, nothing to do",
+     "duration": 10300,
+     "estimatedDuration": 72008,
+     "number": 4,
+     "result": "SUCCESS",
+     "timestamp": 1785345204394
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "38cd341ab2f1e3e41814bdfedb2babf2394794ac"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "38cd341",
+     "duration": 29298,
+     "estimatedDuration": 72008,
+     "number": 3,
+     "result": "FAILURE",
+     "timestamp": 1785345019382
+    }
+   ],
+   "lastCompletedBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "number": 12,
+    "result": "SUCCESS"
+   },
+   "property": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty"
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty"
+    }
+   ],
+   "inQueue": false,
+   "queueItem": null
+  },
+  {
+   "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+   "name": "huella-deploy",
+   "buildable": true,
+   "builds": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "aeda1c4ec9f6abd1065f94514bc6eb141aad6ea8"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "aeda1c4 \u2014 docs only, nothing to do",
+     "duration": 10724,
+     "estimatedDuration": 87293,
+     "number": 3,
+     "result": "SUCCESS",
+     "timestamp": 1785441783556
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "RUN_LIVE_TESTS",
+         "value": false
+        },
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "0ecee67a32bc7c75fae8083acf77b64877e204eb"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "0ecee67 \u2014 huella",
+     "duration": 106369,
+     "estimatedDuration": 87293,
+     "number": 2,
+     "result": "SUCCESS",
+     "timestamp": 1785441033894
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "e77b3f29fd009781c9eff60b31aa52ee3fa3ac71"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "e77b3f2 \u2014 huella",
+     "duration": 144786,
+     "estimatedDuration": 87293,
+     "number": 1,
+     "result": "SUCCESS",
+     "timestamp": 1785434698194
+    }
+   ],
+   "lastCompletedBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "number": 3,
+    "result": "SUCCESS"
+   },
+   "property": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty"
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty"
+    }
+   ],
+   "inQueue": false,
+   "queueItem": null
+  },
+  {
+   "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+   "name": "judicabot-deploy",
+   "buildable": true,
+   "builds": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "c19ab44d0f0e1b14398430d583237b31f2e35353"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "c19ab44",
+     "duration": 99721,
+     "estimatedDuration": 86831,
+     "number": 5,
+     "result": "SUCCESS",
+     "timestamp": 1793736444698
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": true
+        }
+       ]
+      },
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "3ee016f9390ce4bdd3557e7f657724fbd4469e59"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "3ee016f",
+     "duration": 76610,
+     "estimatedDuration": 86831,
+     "number": 4,
+     "result": "SUCCESS",
+     "timestamp": 1793719828778
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "3ee016f9390ce4bdd3557e7f657724fbd4469e59"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "3ee016f",
+     "duration": 174458,
+     "estimatedDuration": 86831,
+     "number": 3,
+     "result": "FAILURE",
+     "timestamp": 1793719533759
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.model.ParametersAction",
+       "parameters": [
+        {
+         "_class": "hudson.model.BooleanParameterValue",
+         "name": "FORCE_DEPLOY",
+         "value": false
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "32f1bd4be9bed68b52d693fbcca618ef7d56a694"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "32f1bd4",
+     "duration": 84161,
+     "estimatedDuration": 86831,
+     "number": 2,
+     "result": "SUCCESS",
+     "timestamp": 1793717313624
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "6597a895c03b58803d26067b0de7fab91da76d0b"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl"
+      },
+      {},
+      {},
+      {
+       "_class": "hudson.tasks.junit.TestResultAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": "6597a89",
+     "duration": 148387,
+     "estimatedDuration": 86831,
+     "number": 1,
+     "result": "SUCCESS",
+     "timestamp": 1793716873593
+    }
+   ],
+   "lastCompletedBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "number": 5,
+    "result": "SUCCESS"
+   },
+   "property": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty"
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty"
+    },
+    {
+     "_class": "hudson.model.ParametersDefinitionProperty",
+     "parameterDefinitions": [
+      {
+       "_class": "hudson.model.BooleanParameterDefinition",
+       "name": "FORCE_DEPLOY",
+       "type": "BooleanParameterDefinition"
+      }
+     ]
+    }
+   ],
+   "inQueue": false,
+   "queueItem": null
+  },
+  {
+   "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+   "name": "miplata-deploy",
+   "buildable": true,
+   "builds": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "67992ab46de59777c02258ab95a91863aec799bf"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 342648,
+     "estimatedDuration": 253688,
+     "number": 17,
+     "result": "SUCCESS",
+     "timestamp": 1779303980220
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "8e3db3553d2ea31a299f29a58efabe3bdbe70869"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 80431,
+     "estimatedDuration": 253688,
+     "number": 16,
+     "result": "SUCCESS",
+     "timestamp": 1776620468490
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "8e3db3553d2ea31a299f29a58efabe3bdbe70869"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 16237,
+     "estimatedDuration": 253688,
+     "number": 15,
+     "result": "FAILURE",
+     "timestamp": 1776620233238
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "7c552cc1692e91fd69efdf1271ef3a1b88c4dda1"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 337984,
+     "estimatedDuration": 253688,
+     "number": 14,
+     "result": "SUCCESS",
+     "timestamp": 1776610617679
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        },
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "f8b5708956770c12fe3674949f369464dfa4dbfd"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 303417,
+     "estimatedDuration": 253688,
+     "number": 13,
+     "result": "SUCCESS",
+     "timestamp": 1776601267960
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "cf7353990bcbab926dff6e6a3653663ae022af08"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 91763,
+     "estimatedDuration": 253688,
+     "number": 12,
+     "result": "SUCCESS",
+     "timestamp": 1776375328264
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "ec21c015c7ecc14c6cadc3c2245c1d246e07b1a1"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 365674,
+     "estimatedDuration": 253688,
+     "number": 11,
+     "result": "SUCCESS",
+     "timestamp": 1776304020049
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "a8ecd0c1f85750d3bd773ce287def9658105b904"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 39127,
+     "estimatedDuration": 253688,
+     "number": 10,
+     "result": "SUCCESS",
+     "timestamp": 1776280999470
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "a8ecd0c1f85750d3bd773ce287def9658105b904"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 219024,
+     "estimatedDuration": 253688,
+     "number": 9,
+     "result": "FAILURE",
+     "timestamp": 1776280449433
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "3b17c8e43cca2d9d5a9efc765a709ed474969960"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 228685,
+     "estimatedDuration": 253688,
+     "number": 8,
+     "result": "FAILURE",
+     "timestamp": 1776279809381
+    }
+   ],
+   "lastCompletedBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "number": 17,
+    "result": "SUCCESS"
+   },
+   "property": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty"
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty"
+    }
+   ],
+   "inQueue": false,
+   "queueItem": null
+  },
+  {
+   "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+   "name": "vps-deploy",
+   "buildable": true,
+   "builds": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "hudson.model.Cause$UserIdCause",
+         "shortDescription": "Started by user admin",
+         "userId": "admin"
+        }
+       ]
+      },
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "68646cb4928c04bd2f61535fe6707e68b40d1243"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 573135,
+     "estimatedDuration": 582883,
+     "number": 38,
+     "result": "SUCCESS",
+     "timestamp": 1785440578493
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "68646cb4928c04bd2f61535fe6707e68b40d1243"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 745138,
+     "estimatedDuration": 582883,
+     "number": 37,
+     "result": "FAILURE",
+     "timestamp": 1785433992961
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "35bbc68290794d6a9cc8a86bac4f66d026b95359"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 627080,
+     "estimatedDuration": 582883,
+     "number": 36,
+     "result": "SUCCESS",
+     "timestamp": 1785432912924
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "669e0b819488d3a1968fb562d0715ad2cdc46006"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 548435,
+     "estimatedDuration": 582883,
+     "number": 35,
+     "result": "SUCCESS",
+     "timestamp": 1785345569420
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "7a6f4756da96184deb55521fe72d15a7b3980fd6"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 550893,
+     "estimatedDuration": 582883,
+     "number": 34,
+     "result": "SUCCESS",
+     "timestamp": 1785327859398
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "d47fef5488483252d109b14aaf8d257fecfffd0a"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 539887,
+     "estimatedDuration": 582883,
+     "number": 33,
+     "result": "SUCCESS",
+     "timestamp": 1785291173032
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "047cd39aae36f2ed09b60544d6e23aeb789c14cd"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 493598,
+     "estimatedDuration": 582883,
+     "number": 32,
+     "result": "SUCCESS",
+     "timestamp": 1779294834783
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "8701183da3dd01b3faf18131a7ebca42c8cd1285"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 478293,
+     "estimatedDuration": 582883,
+     "number": 31,
+     "result": "SUCCESS",
+     "timestamp": 1776681762652
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "e2ff03af8ebdc7f28f45ea04b01bc7efcc06c705"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 453743,
+     "estimatedDuration": 582883,
+     "number": 30,
+     "result": "SUCCESS",
+     "timestamp": 1776640390871
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+     "actions": [
+      {
+       "_class": "hudson.model.CauseAction",
+       "causes": [
+        {
+         "_class": "com.cloudbees.jenkins.GitHubPushCause",
+         "shortDescription": "Started by GitHub push by owner"
+        }
+       ]
+      },
+      {},
+      {
+       "_class": "jenkins.metrics.impl.TimeInQueueAction"
+      },
+      {},
+      {
+       "_class": "hudson.plugins.git.util.BuildData",
+       "lastBuiltRevision": {
+        "SHA1": "b0da517c7554cffea30fb2796ab7bd863a99dcfb"
+       }
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction"
+      },
+      {},
+      {},
+      {},
+      {},
+      {},
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+       "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      {
+       "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction"
+      },
+      {},
+      {}
+     ],
+     "building": false,
+     "description": null,
+     "duration": 435524,
+     "estimatedDuration": 582883,
+     "number": 29,
+     "result": "SUCCESS",
+     "timestamp": 1776627245179
+    }
+   ],
+   "lastCompletedBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "number": 38,
+    "result": "SUCCESS"
+   },
+   "property": [
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty"
+    },
+    {
+     "_class": "org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty"
+    }
+   ],
+   "inQueue": false,
+   "queueItem": null
+  }
+ ]
+}

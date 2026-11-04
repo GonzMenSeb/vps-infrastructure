@@ -7,6 +7,7 @@
   delegate_to: localhost
   become: false
   run_once: true
+  check_mode: false
   register: cf_zone
   no_log: true
 
@@ -22,6 +23,7 @@
       Authorization: "Bearer {{ vault_cloudflare_api_token }}"
   delegate_to: localhost
   become: false
+  check_mode: false
   register: cf_records
   no_log: true
 

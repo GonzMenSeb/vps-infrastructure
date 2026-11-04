@@ -116,3 +116,9 @@ vault_cloudflare_api_token: "CHANGE_ME"
 
 # judicabot UI password (single password, no username); min 12 chars
 vault_judicabot_password: "CHANGE_ME_MIN_12_CHARS"
+
+# Panel (admin panel at panel.web.<domain>); the Zot login reuses vault_zot_registry_password
+vault_panel_github_client_id: "CHANGE_ME_GITHUB_OAUTH_CLIENT_ID"
+vault_panel_github_client_secret: "CHANGE_ME_GITHUB_OAUTH_CLIENT_SECRET"
+vault_panel_session_secret: "CHANGE_ME_32_BYTE_HEX"
+vault_panel_jenkins_token: "CHANGE_ME_JENKINS_API_TOKEN"   # created by hand for user admin; JCasC cannot provision it
