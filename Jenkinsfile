@@ -75,7 +75,7 @@ pipeline {
                 ]) {
                     sh '''
                         echo "$VAULT_PASS" > .vault_pass_tmp
-                        ansible-playbook --check --diff \
+                        ansible-playbook --check \
                             --vault-password-file .vault_pass_tmp \
                             --private-key "$SSH_KEY" \
                             playbook.yml

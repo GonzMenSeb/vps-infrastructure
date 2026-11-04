@@ -59,7 +59,7 @@ ansible-vault view vault.yml
 cp vault.yml.example vault.yml && ansible-vault encrypt vault.yml
 ```
 
-CI (Jenkinsfile) runs: `galaxy install → ansible-lint → --syntax-check → --check --diff → deploy → health-check`. Vault password and SSH key are injected from Jenkins credentials (`ansible-vault-pass`, `vps-ssh-key`) — never write them to disk outside the build workspace.
+CI (Jenkinsfile) runs: `galaxy install → ansible-lint → --syntax-check → --check → deploy → health-check`. CI deliberately omits `--diff`: template diffs print old and new `.env`/`grafana.ini`/`pdns.conf` contents, and Jenkins keeps those console logs forever. Vault password and SSH key are injected from Jenkins credentials (`ansible-vault-pass`, `vps-ssh-key`) — never write them to disk outside the build workspace.
 
 ## Architecture: how the pieces fit
 
