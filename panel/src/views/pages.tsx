@@ -1,10 +1,13 @@
-import { Layout } from "./layout";
+import { Layout, Mark } from "./layout";
 import type { Chrome } from "./overview";
 
 export function LoginPage({ error, dev }: { error?: string; dev?: boolean }) {
   return (
     <Layout title="Sign in">
       <section class="panel login">
+        <div class="markrow">
+          <Mark size={48} label="Vespiridion" />
+        </div>
         <header>
           <h2>Sign in</h2>
         </header>
