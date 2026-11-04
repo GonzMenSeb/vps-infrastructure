@@ -254,6 +254,7 @@ prometheus.scrape "categorizer_api" {
   metrics_path    = "/metrics"
 }
 
+{% if llm_inference_enabled | bool %}
 prometheus.scrape "llama_server" {
   targets         = [{"__address__" = "llama-server:{{ llm_inference_port }}", "job" = "llama-server", "host" = "vps", "service" = "categorizer"}]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
@@ -261,6 +262,7 @@ prometheus.scrape "llama_server" {
   metrics_path    = "/metrics"
 }
 
+{% endif %}
 prometheus.scrape "process_exporter" {
   targets         = [{"__address__" = "process-exporter:9256", "job" = "process_exporter", "host" = "vps"}]
   forward_to      = [prometheus.relabel.drop_noise.receiver]
@@ -312,6 +314,7 @@ prometheus.scrape "blackbox_categorizer_healthz" {
   params          = { module = ["http_categorizer_bearer"] }
 }
 
+{% if llm_inference_enabled | bool %}
 prometheus.scrape "blackbox_llama_health" {
   targets = [
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "http://llama-server:{{ llm_inference_port }}/health", "instance" = "llama-server-health", "job" = "blackbox"},
@@ -322,6 +325,7 @@ prometheus.scrape "blackbox_llama_health" {
   params          = { module = ["http_2xx_plain"] }
 }
 
+{% endif %}
 // TLS cert expiry — tls_connect module on each public host.
 prometheus.scrape "blackbox_tls" {
   targets = [
@@ -333,7 +337,9 @@ prometheus.scrape "blackbox_tls" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ traefik_dashboard_host }}:443", "instance" = "traefik-dashboard-tls",  "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ jenkins_host }}:443",           "instance" = "jenkins-tls",            "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ categorizer_host }}:443",       "instance" = "categorizer-tls",        "job" = "blackbox_tls"},
+{% if metabase_enabled | bool %}
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ metabase_host }}:443",          "instance" = "metabase-tls",           "job" = "blackbox_tls"},
+{% endif %}
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ decabot_host }}:443",           "instance" = "decabot-tls",            "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ brujula_host }}:443",           "instance" = "brujula-tls",            "job" = "blackbox_tls"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "{{ huella_host }}:443",            "instance" = "huella-tls",             "job" = "blackbox_tls"},

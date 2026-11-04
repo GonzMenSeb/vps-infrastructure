@@ -100,10 +100,12 @@ miplata_repo_ssh_url: "git@github.com:GonzMenSeb/miplata.git"
 metabase_image: "metabase/metabase:v0.60.1"
 metabase_postgres_image: "postgres:16-alpine"
 metabase_host: "metabase.{{ web_subdomain }}"
+metabase_enabled: false
 
 # LLM inference (self-hosted Qwen3-4B via llama.cpp's llama-server).
 # TODO: verify this tag resolves against ghcr.io/ggml-org/llama.cpp before first deploy.
 llm_inference_image: "ghcr.io/ggml-org/llama.cpp:server"
+llm_inference_enabled: false
 
 # DecaBot — Los Prompteros expedition concierge (Reflex + Gemini + Decathlon UCP).
 # Built by the `decabot-deploy` Jenkins job; docs/DEPLOY.md in the app repo covers the

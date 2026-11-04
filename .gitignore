@@ -43,3 +43,14 @@ venv/
 # Node
 node_modules/
 local.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*_override.tf
+infra/terraform/.plan
+infra/terraform/.generated/
+infra/terraform/.backups/
+infra/terraform/modules/**/.terraform.lock.hcl

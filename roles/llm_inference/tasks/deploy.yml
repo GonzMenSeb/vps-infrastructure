@@ -1,0 +1,52 @@
+---
+- name: Create llm_inference directory
+  file:
+    path: "{{ llm_inference_dir }}"
+    state: directory
+    mode: "0755"
+
+# Operator-owned so `scp` / rsync of GGUF files works without sudo.
+- name: Create llm_inference models directory (owned by {{ ssh_allowed_users }})
+  file:
+    path: "{{ llm_inference_models_dir }}"
+    state: directory
+    mode: "0755"
+    owner: "{{ ssh_allowed_users }}"
+    group: "{{ ssh_allowed_users }}"
+
+- name: Create llm_inference .env file
+  template:
+    src: env.j2
+    dest: "{{ llm_inference_dir }}/.env"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0640"
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ llm_inference_dir }}/docker-compose.yml"
+    owner: root
+    group: "{{ ssh_allowed_users }}"
+    mode: "0644"
+
+- name: Check whether GGUF model file is present
+  stat:
+    path: "{{ llm_inference_models_dir }}/{{ llm_inference_model_file }}"
+  register: llm_model_stat
+
+- name: Warn when GGUF model file is missing
+  debug:
+    msg: >
+      GGUF model not found at {{ llm_inference_models_dir }}/{{ llm_inference_model_file }}.
+      Copy it in manually (e.g. `scp Qwen3-4B-Instruct-2507-Q5_K_M.gguf
+      {{ ssh_allowed_users }}@vps:{{ llm_inference_models_dir }}/`) before the stack can serve requests.
+      The container will be created but will exit on boot until the file exists.
+  when: not llm_model_stat.stat.exists
+
+# Public ghcr.io image — a pull failure is a real error, not an expected bootstrap case.
+- name: Start llm_inference stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ llm_inference_dir }}"
+    state: present
+    pull: missing
