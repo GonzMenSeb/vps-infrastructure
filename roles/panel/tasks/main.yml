@@ -67,6 +67,7 @@
     owner: root
     group: "{{ ssh_allowed_users }}"
     mode: "0644"
+  register: panel_manifest
 
 - name: Copy docker-compose file
   template:
@@ -115,6 +116,10 @@
     state: present
     pull: never
   when: panel_pull.rc == 0
+
+- name: Restart panel so it reloads the services manifest
+  command: docker restart panel
+  when: panel_pull.rc == 0 and panel_manifest.changed
 
 - name: Warn when the panel image is not yet in the registry
   debug:
