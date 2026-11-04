@@ -24,6 +24,7 @@ pipeline {
                     if (!env.VPS_HOST) { error 'Global environment variable VPS_HOST is empty. Re-run jenkins-playbook.yml.' }
                     if (!env.PANEL_URL) { error 'Global environment variable PANEL_URL is empty. Re-run jenkins-playbook.yml.' }
                     env.IMAGE = "${env.REGISTRY}/${params.IMAGE_REPO}"
+                    env.VPS_APP_DIR = params.VPS_APP_DIR
                     env.GIT_SHA = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                     env.SOURCE_URL = sh(returnStdout: true, script: 'git config --get remote.origin.url || true').trim()
 
