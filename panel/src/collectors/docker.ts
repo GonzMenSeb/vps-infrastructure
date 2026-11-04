@@ -48,6 +48,7 @@ export interface DockerContainer {
   health: Health;
   composeProject: string | null;
   composeService: string | null;
+  composeDir?: string | null;
   revision: string | null;
   traefik: Record<string, string>;
   volumes: string[];
@@ -79,6 +80,10 @@ export class DockerClient {
     if (!res.ok) throw new Error(`docker ${path}: HTTP ${res.status}`);
     return res.json();
   }
+
+  request(method: string, path: string, init: { headers?: Record<string, string>; signal?: AbortSignal } = {}): Promise<Response> {
+    return fetch(`http://docker${path}`, { method, unix: this.socketPath, ...init });
+  }
 }
 
 export function parseHealth(status: string): Health {
@@ -108,6 +113,7 @@ export async function fetchContainers(client: DockerClient, signal?: AbortSignal
         health: parseHealth(c.Status),
         composeProject: labels["com.docker.compose.project"] ?? null,
         composeService: labels["com.docker.compose.service"] ?? null,
+        composeDir: labels["com.docker.compose.project.working_dir"] ?? null,
         revision: labels["org.opencontainers.image.revision"] || null,
         traefik: Object.fromEntries(Object.entries(labels).filter(([k]) => k.startsWith("traefik."))),
         volumes: volumeNames(c.Mounts),

@@ -10,6 +10,7 @@ import { hourLabels } from "../lib/charts";
 import { squarify } from "../lib/treemap";
 import { indexManifest, type Manifest, type ManifestIndex, type Service, type ServiceHost } from "../manifest";
 import type { Snapshot, Store } from "../store";
+import { buildServiceActions, type ServiceActionsVM, type ServiceView } from "./service-actions-model";
 
 export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins"];
 export const DOCKER_HOST: ServiceHost = "vps";
@@ -345,6 +346,7 @@ export interface ServiceVM {
   sources: { prom: SourceStatus; docker: SourceStatus; df: SourceStatus };
   builds: ServiceBuildsVM | null;
   logsHref: string | null;
+  actions: ServiceActionsVM | null;
 }
 
 export interface ViewInput {
@@ -354,6 +356,7 @@ export interface ViewInput {
   csrf?: string;
   jenkins?: JenkinsView;
   logs?: LogsView;
+  service?: ServiceView;
 }
 
 const AUTH_MIDDLEWARE: Record<string, string> = {
@@ -876,7 +879,7 @@ export function serviceTabs(svc: Service): { id: ServiceTab; label: string }[] {
   return tabs;
 }
 
-export function buildService(input: ViewInput, id: string, tab?: string): ServiceVM | null {
+export function buildService(input: ViewInput, id: string, tab?: string, flash: Flash | null = null): ServiceVM | null {
   const svc = input.manifest.services.find((s) => s.id === id);
   if (!svc) return null;
   const ctx = new Ctx(input);
@@ -896,6 +899,7 @@ export function buildService(input: ViewInput, id: string, tab?: string): Servic
     sources: { prom: ctx.promStatus(), docker: ctx.status.docker, df: ctx.status.df },
     builds: tab === "builds" ? buildServiceBuilds(input, svc) : null,
     logsHref: logsHref(svc.host, svc.containers[0]!),
+    actions: buildServiceActions(input, svc, ctx.containerRows(svc), flash, hasData(ctx.status.docker)),
   };
 }
 

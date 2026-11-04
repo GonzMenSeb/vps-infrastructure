@@ -57,6 +57,7 @@ const dc = (o: Partial<DockerContainer> & { name: string }): DockerContainer => 
   status: "Up 7 hours",
   health: "none",
   composeProject: null,
+  composeDir: null,
   composeService: null,
   revision: null,
   traefik: {},

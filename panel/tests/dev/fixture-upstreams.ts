@@ -7,9 +7,11 @@ import { start } from "../../src/server";
 import hostsFixture from "../fixtures/prometheus-hosts.json";
 import containersFixture from "../fixtures/prometheus-containers.json";
 import seriesFixture from "../fixtures/prometheus-series.json";
-import { dockerContainers, dockerDf } from "./docker-fixture";
+import { FakeCompose, FakeDocker } from "./docker-fixture";
 import { startFakeJenkins, type FakeJenkins } from "./jenkins-fixture";
 import { startFakeLoki, type FakeLoki } from "./loki-fixture";
+import { REGISTRY_HOST, REGISTRY_PASSWORD, REGISTRY_USER } from "./registry-fixture";
+import { startFakeZot, type FakeZot } from "./zot-fixture";
 
 type Matrix = { status: string; data: { resultType: string; result: { metric: Record<string, string>; values: [number, string][] }[] } };
 
@@ -33,12 +35,15 @@ function rebasedSeries(startSec: number, stepSec: number): Matrix {
 export interface FixtureUpstreams {
   promUrl: string;
   dockerSocket: string;
+  docker: FakeDocker;
+  compose: FakeCompose;
+  zot: FakeZot;
   jenkins: FakeJenkins;
   loki: FakeLoki;
   stop: () => Promise<void>;
 }
 
-export async function startFixtureUpstreams(): Promise<FixtureUpstreams> {
+export async function startFixtureUpstreams(opts: { healthDelayMs?: number } = {}): Promise<FixtureUpstreams> {
   const dir = mkdtempSync(join(tmpdir(), "vesp-"));
   const dockerSocket = join(dir, "docker.sock");
   const prom = Bun.serve({
@@ -63,27 +68,25 @@ export async function startFixtureUpstreams(): Promise<FixtureUpstreams> {
       return promError(`unknown path ${path}`, 404);
     },
   });
-  const docker = Bun.serve({
-    unix: dockerSocket,
-    fetch(req) {
-      const u = new URL(req.url);
-      if (u.pathname === "/containers/json") return Response.json(dockerContainers());
-      if (u.pathname === "/system/df") return Response.json(dockerDf());
-      return Response.json({ message: "page not found" }, { status: 404 });
-    },
-  });
+  const fakeDocker = new FakeDocker({ healthDelayMs: opts.healthDelayMs });
+  const dockerServer = Bun.serve({ unix: dockerSocket, fetch: (req) => fakeDocker.handle(req) });
+  const zot = startFakeZot();
   const jenkins = startFakeJenkins();
   const loki = startFakeLoki();
   return {
     promUrl: `http://127.0.0.1:${prom.port}`,
     dockerSocket,
+    docker: fakeDocker,
+    compose: new FakeCompose(fakeDocker),
+    zot,
     jenkins,
     loki,
     stop: async () => {
       await jenkins.stop();
       await loki.stop();
+      await zot.stop();
       await prom.stop(true);
-      await docker.stop(true);
+      await dockerServer.stop(true);
       rmSync(dir, { recursive: true, force: true });
     },
   };
@@ -110,8 +113,12 @@ if (import.meta.main) {
     JENKINS_USER: "admin",
     JENKINS_TOKEN: "dev-token",
     LOKI_URL: up.loki.url,
+    ZOT_URL: up.zot.url,
+    ZOT_USER: REGISTRY_USER,
+    ZOT_PASSWORD: REGISTRY_PASSWORD,
+    ZOT_REGISTRY_HOST: REGISTRY_HOST,
     TIME_ZONE: process.env.TIME_ZONE ?? "UTC",
-  });
+  }, { compose: up.compose });
   console.log(`fixture panel on http://localhost:${port}/auth/dev (prometheus ${up.promUrl}, docker ${up.dockerSocket}, jenkins ${up.jenkins.url}, loki ${up.loki.url})`);
   const shutdown = async () => {
     await app.stop();

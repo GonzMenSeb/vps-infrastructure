@@ -8,3 +8,7 @@ panel_time_zone: UTC
 panel_poll_demand_window_ms: 60000
 panel_poll_idle_interval_ms: 60000
 panel_poll_tick_ms: 1000
+panel_dry_run_actions: 0
+panel_action_verify_timeout_ms: 60000
+panel_action_pull_timeout_ms: 300000
+panel_compose_timeout_ms: 120000
