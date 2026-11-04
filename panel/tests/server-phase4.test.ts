@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { rmSync } from "node:fs";
 import { githubClient } from "../src/auth/github";
 import { DB_SOURCES } from "../src/collectors/databases";
 import { DockerClient, registerDockerSources } from "../src/collectors/docker";
@@ -364,6 +365,7 @@ describe("safety and wiring", () => {
       await running.stop();
       await zot.stop();
       await pdns.stop();
+      rmSync(`/tmp/vesp-phase4-${port}`, { recursive: true, force: true });
     }
   });
 });
