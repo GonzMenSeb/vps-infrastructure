@@ -21,7 +21,7 @@ encrypted `vault.yml`. Nothing sensitive lives in plaintext in this repo.
 | `vaultwarden` | Self-hosted password manager |
 | `zot` | OCI container registry for CI artifacts |
 | `miplata` | App stack (Postgres + Redis + API + Web) |
-| `metabase` | BI dashboard on a read-only replica |
+| `metabase` | BI dashboard on a read-only replica (switched off, `metabase_enabled`) |
 | `decabot` | DecaBot expedition concierge (Reflex, single-port, in-app password gate) |
 | `monitoring` | Prometheus, Loki, Grafana, Alloy, cAdvisor, blackbox-exporter |
 
