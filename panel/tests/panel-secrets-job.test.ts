@@ -101,8 +101,8 @@ const EXCLUDED = Array.from({ length: 94 }, (_, i) => String.fromCharCode(0x21 +
 
 const SECRET_VARS = "vault_alpha vault_beta vault_gamma vault_block vault_empty vault_dup vault_multi vault_last vault_missing_everywhere";
 
-function run(r: Rig, name: string, value: string, extra: Record<string, string | undefined> = {}) {
-  return sh(r.dir, ["bash", SCRIPT], {
+function run(r: Rig, name: string, value: string, extra: Record<string, string | undefined> = {}, cwd = r.dir) {
+  return sh(cwd, ["bash", SCRIPT], {
     VAR_NAME: name,
     VAR_VALUE: value,
     PANEL_SECRET_VARS: SECRET_VARS,
@@ -221,6 +221,15 @@ suite("panel-secrets job script", () => {
     chmodSync(join(shim, "ansible-playbook"), 0o755);
     const value = "alpha-NEW-1234567890";
     ok(run(r, "vault_alpha", value, { PATH: `${shim}:${process.env.PATH}`, ANSIBLE_VAULT_PASSWORD_FILE: ".vault_pass" }));
+    expect(originVault(r)).toBe(replaceLine(PLAIN, "vault_alpha:", `vault_alpha: "${value}"`));
+  });
+
+  test("the repository's ansible.cfg in the working directory, as the pipeline workspace has it, does not break the edit", () => {
+    const ws = join(r.dir, "workspace-with-checkout");
+    mkdirSync(ws);
+    copyFileSync(resolve(import.meta.dir, "../../ansible.cfg"), join(ws, "ansible.cfg"));
+    const value = "alpha-NEW-1234567890";
+    ok(run(r, "vault_alpha", value, {}, ws));
     expect(originVault(r)).toBe(replaceLine(PLAIN, "vault_alpha:", `vault_alpha: "${value}"`));
   });
 
