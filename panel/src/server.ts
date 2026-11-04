@@ -9,7 +9,15 @@ import { secureHeaders } from "hono/secure-headers";
 import { devAuthRoutes } from "./auth/dev";
 import { authRoutes, githubClient, type GithubClient } from "./auth/github";
 import { type AppEnv, csrfGuard, originGuard, requireSession } from "./auth/session";
+import { ActionRuntime, ServiceActions, ServiceLocks } from "./actions/service";
+import { RollbackActions } from "./actions/rollback";
+import { noCompose, SpawnComposeRunner, type ComposeRunner } from "./actions/compose";
+import { SocketEngine } from "./actions/engine";
+import { rollbackRepos } from "./actions/rollback-select";
 import { DockerClient, registerDockerSources } from "./collectors/docker";
+import { ZOT_TAG_SOURCE, ZotTagsClient, registerZotTagSource, type ZotRepoTags } from "./collectors/zot-tags";
+import { serviceActionRoutes, type ServiceDeps } from "./routes/service-actions";
+import type { ServiceView } from "./views/service-actions-model";
 import {
   JENKINS_SOURCES,
   JENKINS_TTL,
@@ -71,6 +79,7 @@ export interface Deps {
   poller: Poller;
   jenkins?: JenkinsDeps;
   loki?: { client: LokiClient; hub: TailHub };
+  service?: ServiceDeps;
 }
 
 export interface JenkinsDeps {
@@ -145,7 +154,7 @@ interface LiveSpec {
 }
 
 export function createApp(deps: Deps): Hono<AppEnv> {
-  const { cfg, db, store, gh, lagMs, manifest, poller, jenkins, loki } = deps;
+  const { cfg, db, store, gh, lagMs, manifest, poller, jenkins, loki, service } = deps;
   const app = new Hono<AppEnv>();
   const manifestHash = sha([JSON.stringify(manifest)]);
 
@@ -224,6 +233,23 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     return ["jenkins", st.state, st.error ?? "", snap?.hash ?? "", snap?.breaker ?? "", st.state === "stale" ? fmtAge(st.ageMs) : ""].join("\u0001");
   };
 
+  const serviceView = (): ServiceView | undefined =>
+    service
+      ? {
+          dryRun: service.dryRun,
+          registryHost: service.registryHost,
+          zotConfigured: service.zotConfigured,
+          zot: registered.has(ZOT_TAG_SOURCE) ? store.peek<ZotRepoTags>(ZOT_TAG_SOURCE) : null,
+          locked: (id) => service.locks.has(id),
+          verifyTimeoutMs: service.verifyTimeoutMs,
+        }
+      : undefined;
+
+  const serviceSig = (id: string): string => {
+    const z = service && registered.has(ZOT_TAG_SOURCE) ? store.peek<ZotRepoTags>(ZOT_TAG_SOURCE) : null;
+    return ["service", service?.locks.has(id) ? "locked" : "", z?.hash ?? "", z?.lastError ?? "", z?.breaker ?? ""].join("\u0001");
+  };
+
   const viewInput = (csrf: string, sources: Sources): ViewInput => ({
     manifest,
     sources,
@@ -231,6 +257,7 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     csrf,
     jenkins: jenkinsView(),
     logs: lokiView(),
+    service: serviceView(),
   });
 
   const live = async (c: Context<AppEnv>, spec: LiveSpec): Promise<Response> => {
@@ -296,12 +323,15 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     const svc = manifest.services.find((s) => s.id === id);
     if (!svc) return notFound(c, `There is no service called ${id} in the manifest.`);
     const tab = serviceTabs(svc).find((t) => t.id === c.req.query("tab"))?.id ?? "summary";
+    const flash = readFlash(c);
     return live(c, {
       key: `service:${id}:${tab}`,
-      clock: tab === "builds",
+      clock: tab === "builds" || tab === "summary",
+      clockMs: tab === "builds" ? undefined : IDLE_CLOCK_BUCKET_MS,
+      extra: [serviceSig(id), ...(flash ? [`flash:${flash.ok}:${flash.text}`] : [])],
       sources: BASE_SOURCES,
-      page: (input, chrome) => ServicePage({ chrome, vm: buildService(input, id, tab)! }),
-      frame: (input) => ServiceFrame({ vm: buildService(input, id, tab)! }),
+      page: (input, chrome) => ServicePage({ chrome, vm: buildService(input, id, tab, flash)! }),
+      frame: (input) => ServiceFrame({ vm: buildService(input, id, tab, flash)! }),
 
     });
   });
@@ -327,7 +357,7 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     }
   };
 
-  const setFlash = (c: Context<AppEnv>, r: JobActionResult) =>
+  const setFlash = (c: Context<AppEnv>, r: { ok: boolean; message: string }) =>
     setCookie(c, FLASH_COOKIE, JSON.stringify({ ok: r.ok, text: r.message.slice(0, FLASH_MAX) }), {
       httpOnly: true,
       secure: cfg.secureCookies,
@@ -391,6 +421,8 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     }
   });
 
+  if (service) app.route("/", serviceActionRoutes({ session, service, flash: setFlash }));
+
   app.get("/logs", session, demand, async (c) => {
     const s = c.get("session");
     const vm = buildLogs(viewInput(s.csrf, readSources(store)), { host: c.req.query("host"), container: c.req.query("container") });
@@ -426,14 +458,56 @@ export interface Running {
   stop: () => Promise<void>;
 }
 
-export async function start(env: Record<string, string | undefined> = process.env): Promise<Running> {
+export interface StartOverrides {
+  compose?: ComposeRunner;
+}
+
+function serviceDeps(cfg: Config, manifest: Manifest, db: Database, store: Store, dockerClient: DockerClient, base: { timeoutMs: number; failureThreshold: number; cooldownMs: number }, overrides: StartOverrides): ServiceDeps {
+  const dryRun = cfg.dryRunActions || (cfg.devAuthBypass && !overrides.compose);
+  if (dryRun && !cfg.dryRunActions) console.warn("DEV_AUTH_BYPASS=1 without an injected compose runner: switch and rollback run as a dry run");
+  const compose = overrides.compose ?? (dryRun ? noCompose : new SpawnComposeRunner(cfg.DOCKER_SOCKET));
+  const registryHost = cfg.ZOT_REGISTRY_HOST ?? manifest.services.find((s) => s.id === "zot")?.hostname ?? null;
+  const zotConfigured = Boolean(cfg.ZOT_URL && cfg.ZOT_USER && cfg.ZOT_PASSWORD);
+  const zot = zotConfigured ? new ZotTagsClient(cfg.ZOT_URL!, cfg.ZOT_USER, cfg.ZOT_PASSWORD) : null;
+  if (zot) registerZotTagSource(store, zot, () => rollbackRepos(manifest, registryHost), base);
+  const locks = new ServiceLocks();
+  const runtime = new ActionRuntime({
+    db,
+    manifest,
+    engine: new SocketEngine(dockerClient),
+    compose,
+    locks,
+    dryRun,
+    store,
+    verifyTimeoutMs: cfg.ACTION_VERIFY_TIMEOUT_MS,
+    composeTimeoutMs: cfg.COMPOSE_TIMEOUT_MS,
+    pullTimeoutMs: cfg.ACTION_PULL_TIMEOUT_MS,
+  });
+  return {
+    actions: new ServiceActions(runtime),
+    rollback: new RollbackActions({
+      runtime,
+      registryHost,
+      tags: zot ? (repo) => zot.repoTags(repo) : null,
+      credentials: zotConfigured ? { user: cfg.ZOT_USER!, password: cfg.ZOT_PASSWORD! } : null,
+    }),
+    locks,
+    dryRun,
+    registryHost,
+    zotConfigured,
+    verifyTimeoutMs: cfg.ACTION_VERIFY_TIMEOUT_MS,
+  };
+}
+
+export async function start(env: Record<string, string | undefined> = process.env, overrides: StartOverrides = {}): Promise<Running> {
   const cfg = loadConfig(env);
   const manifest = await loadManifest(cfg.SERVICES_MANIFEST_PATH);
   const db = openDataDb(cfg.DATA_DIR);
   const store = new Store();
   const base = { timeoutMs: cfg.UPSTREAM_TIMEOUT_MS, failureThreshold: cfg.BREAKER_FAILURE_THRESHOLD, cooldownMs: cfg.BREAKER_COOLDOWN_MS };
   registerPrometheusSources(store, new PromClient(cfg.PROMETHEUS_URL), base);
-  registerDockerSources(store, new DockerClient(cfg.DOCKER_SOCKET), base);
+  const dockerClient = new DockerClient(cfg.DOCKER_SOCKET);
+  registerDockerSources(store, dockerClient, base);
   const jenkinsClient = jenkinsClientFromConfig(cfg);
   let jenkinsDeps: JenkinsDeps | undefined;
   if (jenkinsClient) {
@@ -453,13 +527,14 @@ export async function start(env: Record<string, string | undefined> = process.en
     registerLokiSources(store, client, base);
     lokiDeps = { client, hub: new TailHub(client) };
   }
+  const service = serviceDeps(cfg, manifest, db, store, dockerClient, base, overrides);
   const poller = new Poller(store, {
     demandWindowMs: cfg.POLL_DEMAND_WINDOW_MS,
     idleIntervalMs: cfg.POLL_IDLE_INTERVAL_MS,
     tickMs: cfg.POLL_TICK_MS,
   });
   const lag = monitorLoopLag();
-  const app = createApp({ cfg, db, store, gh: githubClient(cfg), lagMs: lag.read, manifest, poller, jenkins: jenkinsDeps, loki: lokiDeps });
+  const app = createApp({ cfg, db, store, gh: githubClient(cfg), lagMs: lag.read, manifest, poller, jenkins: jenkinsDeps, loki: lokiDeps, service });
   const server = Bun.serve({ port: cfg.PORT, idleTimeout: SERVER_IDLE_TIMEOUT_S, ...(cfg.devAuthBypass ? { hostname: "127.0.0.1" } : {}), fetch: app.fetch });
 
 

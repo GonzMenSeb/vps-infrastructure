@@ -14,7 +14,7 @@ describe("service view", () => {
     expect(html).toContain("Up · healthy");
     expect(html).toContain("47 MB of 8 GB host");
     expect(html).toContain("2 MB");
-    expect(html).toContain("Phase 5");
+    expect(html).toContain("Service actions are not configured on this panel.");
     expect(html).toContain('aria-current="page">Summary</a>');
     expect(styleAttrs(html)).toEqual([]);
   });

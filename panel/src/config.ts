@@ -40,6 +40,11 @@ const schema = z
     HEALTH_MIN_SNAPSHOT_AGE_MS: z.coerce.number().int().positive().default(120000),
     AUDIT_ANON_MAX_ROWS: z.coerce.number().int().positive().default(10_000),
     DEV_AUTH_BYPASS: optional(z.enum(["0", "1"])),
+    DRY_RUN_ACTIONS: optional(z.enum(["0", "1"])),
+    ZOT_REGISTRY_HOST: optional(z.string().regex(/^[a-z0-9.-]+(:\d+)?$/)),
+    ACTION_VERIFY_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+    ACTION_PULL_TIMEOUT_MS: z.coerce.number().int().positive().default(300_000),
+    COMPOSE_TIMEOUT_MS: z.coerce.number().int().positive().default(120_000),
   })
   .superRefine((v, ctx) => {
     if (v.DEV_AUTH_BYPASS === "1" && !DEV_ENVS.includes(v.NODE_ENV)) {
@@ -52,7 +57,7 @@ const schema = z
     }
   });
 
-export type Config = z.infer<typeof schema> & { origin: string; secureCookies: boolean; devAuthBypass: boolean };
+export type Config = z.infer<typeof schema> & { origin: string; secureCookies: boolean; devAuthBypass: boolean; dryRunActions: boolean };
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
   const parsed = schema.safeParse(env);
@@ -66,6 +71,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     origin: url.origin,
     secureCookies: url.protocol === "https:",
     devAuthBypass: parsed.data.DEV_AUTH_BYPASS === "1" && DEV_ENVS.includes(parsed.data.NODE_ENV),
+    dryRunActions: parsed.data.DRY_RUN_ACTIONS === "1",
 
   };
 }

@@ -3,6 +3,7 @@ import { ActionForm, ResultChipView } from "./jobs";
 import { Chip, LiveFrame, Meter, Placeholder, SourceEmpty, SourceNote, StateChip, fmtCpu, fmtMem } from "./components";
 import { DOCKER_HOST, fmtBytes, fmtRate, hasData, shortImage, type ContainerRow, type ServiceVM } from "./model";
 import type { Chrome } from "./overview";
+import { ActionBanner, RollbackRow, SwitchControl } from "./service-actions";
 
 const NA = "—";
 
@@ -51,9 +52,7 @@ function Summary({ vm }: { vm: ServiceVM }) {
               <dt>Status</dt>
               <dd>{primary?.status ?? (onDocker ? (dockerOk ? "No container" : "Unknown") : "Read-only host")}</dd>
             </dl>
-            <div class="rollback">
-              <span class="muted">Rolling back to the previous image arrives in Phase 5.</span>
-            </div>
+            <RollbackRow a={vm.actions} />
           </div>
         </section>
         <section class="panel" aria-label="Containers">
@@ -436,11 +435,14 @@ export function ServiceFrame({ vm }: { vm: ServiceVM }) {
             on {svc.host} · <span class="mono">{svc.dir}</span>
           </div>
         </div>
-        {vm.logsHref ? (
+        {vm.logsHref || vm.actions?.toggle ? (
           <div class="acts">
-            <a class="btn" href={vm.logsHref}>
-              View logs
-            </a>
+            {vm.logsHref ? (
+              <a class="btn" href={vm.logsHref}>
+                View logs
+              </a>
+            ) : null}
+            {vm.actions?.toggle ? <SwitchControl t={vm.actions.toggle} /> : null}
           </div>
         ) : null}
       </div>
@@ -458,6 +460,7 @@ export function ServiceFrame({ vm }: { vm: ServiceVM }) {
           </span>
         </div>
       ) : null}
+      <ActionBanner a={vm.actions} core={svc.core} />
       <nav class="tabs" aria-label={`${svc.name} sections`}>
         {vm.tabs.map((t) => (
           <a href={serviceHref(svc.id, t.id)} aria-current={t.id === vm.tab ? "page" : undefined}>
