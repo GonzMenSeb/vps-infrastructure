@@ -125,7 +125,8 @@ function newestFirst(a: Group, b: Group): number {
 
 const planTag = (g: Group): PlanTag => ({ tag: g.tags[0]!, aliases: g.tags.slice(1), digest: g.digest, lastUpdated: g.lastUpdated });
 
-export function planRollback(images: RegistryTag[], runningImageIds: readonly string[] = []): RollbackPlan {
+export function planRollback(registryTags: RegistryTag[], runningImageIds: readonly string[] = []): RollbackPlan {
+  const images = registryTags.filter((i) => TAG_NAME.test(i.tag));
   if (images.length === 0) return { ok: false, reason: "The registry has no tags for this image yet." };
   const latest = images.find((i) => i.tag === "latest");
   if (!latest) return { ok: false, reason: "The registry has no :latest tag for this image." };

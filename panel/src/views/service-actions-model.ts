@@ -24,6 +24,7 @@ export interface ServiceFormVM {
   ok: string;
   danger: boolean;
   primary: boolean;
+  plain: boolean;
   fields: Record<string, string>;
 }
 
@@ -75,6 +76,7 @@ function toggleFor(sv: ServiceView, svc: Service, rows: ContainerRow[], csrf: st
           ok: off,
           danger: true,
           primary: false,
+          plain: false,
           fields: { to: "off" },
         },
       },
@@ -95,6 +97,7 @@ function toggleFor(sv: ServiceView, svc: Service, rows: ContainerRow[], csrf: st
           ok: "Switch on",
           danger: false,
           primary: true,
+          plain: false,
           fields: { to: "on" },
         },
       },
@@ -150,6 +153,7 @@ function rollbackFor(sv: ServiceView, svc: Service, rows: ContainerRow[], csrf: 
     ok: `Roll back to ${plan.previous.tag}`,
     danger: true,
     primary: false,
+    plain: true,
     fields: { to: plan.previous.tag, digest: plan.previous.digest },
   };
   return {

@@ -18,7 +18,7 @@ export function ServiceForm({ f, small = false }: { f: ServiceFormVM; small?: bo
       {Object.entries(f.fields).map(([name, value]) => (
         <input type="hidden" name={name} value={value} />
       ))}
-      <button type="submit" class={`btn${small ? " sm" : ""}${f.danger ? " danger" : ""}${f.primary ? " primary" : ""}`}>
+      <button type="submit" class={`btn${small ? " sm" : ""}${f.danger && !f.plain ? " danger" : ""}${f.primary ? " primary" : ""}`}>
         {f.label}
       </button>
     </form>
@@ -79,28 +79,28 @@ export function RollbackRow({ a }: { a: ServiceActionsVM | null }) {
       </div>
     );
   }
+  const version = (label: string, v: typeof r.current, revision: string | null) => (
+    <>
+      <div class="muted small">{label}</div>
+      <div>
+        <b class="mono">{v.tag}</b>
+        {v.aliases.length ? <span class="muted mono"> +{v.aliases.join(", ")}</span> : null}{" "}
+        <span class="muted" title={v.ageTitle || undefined}>
+          {v.ageText}
+        </span>
+      </div>
+      <div class="small muted mono">
+        {v.digestShort}…{revision ? ` · revision ${revision}` : ""}
+      </div>
+    </>
+  );
   return (
     <>
       <div class="rollback">
         <div class="grow">
-          <div class="muted small">Running</div>
-          <b class="mono">{r.current.tag}</b>
-          {r.current.aliases.length ? <span class="muted mono"> +{r.current.aliases.join(", ")}</span> : null}{" "}
-          <span class="muted mono" title={r.current.ageTitle || undefined}>
-            {r.current.digestShort}… · {r.current.ageText}
-          </span>
-          {r.current.revision ? (
-            <span class="muted">
-              {" "}
-              · revision <span class="mono">{r.current.revision}</span>
-            </span>
-          ) : null}
-          <div class="muted small mt">Previous version</div>
-          <b class="mono">{r.previous.tag}</b>
-          {r.previous.aliases.length ? <span class="muted mono"> +{r.previous.aliases.join(", ")}</span> : null}{" "}
-          <span class="muted mono" title={r.previous.ageTitle || undefined}>
-            {r.previous.digestShort}… · {r.previous.ageText}
-          </span>
+          {version("Running", r.current, r.current.revision)}
+          <div class="mt" />
+          {version("Previous version", r.previous, null)}
         </div>
         {r.form ? (
           <ServiceForm f={r.form} />
@@ -110,7 +110,6 @@ export function RollbackRow({ a }: { a: ServiceActionsVM | null }) {
           </button>
         )}
       </div>
-      {r.blocked ? <p class="hint mt">{r.blocked}.</p> : null}
       {r.notice ? <p class="hint mt">{r.notice}</p> : null}
     </>
   );

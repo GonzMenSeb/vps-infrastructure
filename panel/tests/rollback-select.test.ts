@@ -121,6 +121,11 @@ describe("planRollback has nothing to offer", () => {
     expect(planRollback([t("latest", 1, "2026-11-03T10:00:00Z"), t("buildcache", 2, null)])).toMatchObject({ ok: false, reason: expect.stringContaining("Only one build") });
   });
 
+  test("tags that are not valid docker tags are ignored", () => {
+    const p = planRollback([t("latest", 1, "2026-11-03T10:00:00Z"), t("c19ab44", 1, "2026-11-03T10:00:00Z"), t("../x?y", 2, "2026-11-02T10:00:00Z")]);
+    expect(p.ok).toBe(false);
+  });
+
   test("tags without a push time cannot be ordered and are skipped", () => {
     const p = planRollback([t("latest", 1, "2026-11-03T10:00:00Z"), t("c19ab44", 1, "2026-11-03T10:00:00Z"), t("mystery", 2, null)]);
     expect(p.ok).toBe(false);

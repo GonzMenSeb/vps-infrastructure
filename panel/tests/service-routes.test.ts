@@ -114,7 +114,7 @@ describe("service page controls", () => {
     expect(html).toContain("Previous version");
     expect(html).toContain(">3ee016f</b>");
     expect(html).toContain(">c19ab44</b>");
-    expect(html).toContain("revision <span class=\"mono\">c19ab44</span>");
+    expect(html).toContain("revision c19ab44");
     expect(html).toContain("pushed 1 h ago");
     expect(html).toContain("pushed 5 h ago");
     expect(html).toContain('action="/services/judicabot/rollback"');

@@ -223,11 +223,19 @@ export class FakeDocker {
   }
 
   list(): unknown[] {
-    const base = dockerContainers() as { Names: string[]; Image: string; ImageID: string; State: string; Status: string }[];
+    const base = dockerContainers() as { Names: string[]; Image: string; ImageID: string; State: string; Status: string; Labels: Record<string, string> }[];
     return base.map((row) => {
       const c = this.containers.get(row.Names[0]!.slice(1))!;
       const ref = c.spec.image;
-      return { ...row, ...this.view(c), ImageID: c.imageId, Image: this.localTags.get(ref) === c.imageId ? ref : c.imageId };
+      const revision = Object.values(this.registry()).flat().find((r) => r.digest === c.imageId && r.tag !== "latest")?.tag;
+      const labels = (row as { Labels: Record<string, string> }).Labels;
+      return {
+        ...row,
+        ...this.view(c),
+        ImageID: c.imageId,
+        Image: this.localTags.get(ref) === c.imageId ? ref : c.imageId,
+        Labels: revision && labels["org.opencontainers.image.revision"] ? { ...labels, "org.opencontainers.image.revision": revision } : labels,
+      };
     });
   }
 
