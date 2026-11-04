@@ -17,8 +17,9 @@ pipeline {
                             set -eu
                             umask 077
                             base=/dev/shm
-                            [ -d "$base" ] && [ -w "$base" ] || base="${TMPDIR:-/tmp}"
+                            [ -d "$base" ] && [ -w "$base" ] && [ -x "$base" ] || { echo "panel-secrets: $base is not usable; refusing to write the vault password to disk" >&2; exit 1; }
                             scratch=$(mktemp -d "$base/panel-secrets.XXXXXX")
+                            trap 'exit 143' TERM INT HUP
                             trap 'rm -rf "$scratch" "$WORKSPACE/repo"' EXIT
                             printf %s "$VAULT_PASS" > "$scratch/vault-pass"
                             rm -rf "$WORKSPACE/repo" "$WORKSPACE/result.txt"
@@ -40,7 +41,7 @@ pipeline {
 
     post {
         always {
-            sh 'rm -rf "$WORKSPACE/repo" "$WORKSPACE/result.txt"'
+            sh 'rm -rf "$WORKSPACE/repo" "$WORKSPACE/result.txt" /dev/shm/panel-secrets.* "${TMPDIR:-/tmp}"/panel-secrets.* || true'
         }
     }
 }

@@ -13,7 +13,7 @@ export interface AuthResultProps {
 
 export function AuthResultPage({ chrome, title, message, backHref, serviceName, ok, once }: AuthResultProps) {
   return (
-    <Layout title={title} login={chrome.login} csrf={chrome.csrf} current="services">
+    <Layout title={title} login={chrome.login} csrf={chrome.csrf} current="services" noCache>
       <div class="crumb">
         <a href="/services">Services</a> / {serviceName ?? "Auth"}
       </div>

@@ -23,6 +23,7 @@ vault_die() {
 : "${VAULT_PASSWORD_FILE:?VAULT_PASSWORD_FILE is required}"
 PANEL_SECRET_VARS="${PANEL_SECRET_VARS:-}"
 PANEL_HASH_VARS="${PANEL_HASH_VARS:-}"
+SHM_DIR="${SHM_DIR:-/dev/shm}"
 WORK_DIR="${WORK_DIR:-.}"
 BRANCH="${BRANCH:-main}"
 REMOTE="${REMOTE:-origin}"
@@ -63,6 +64,21 @@ case $VAR_VALUE in
   *'{{'* | *'{%'* | *'{#'*) die "the value must not contain Jinja delimiters" ;;
 esac
 
+safe_re='^[A-Za-z0-9._~+=:@%^*!?,/-]+$'
+min_length=1
+if [ "$target" = vault ]; then
+  [[ $VAR_VALUE =~ $safe_re ]] || die "the value may only contain letters, digits and . _ ~ + = : @ % ^ * ! ? , / -"
+  [ -n "${PANEL_SECRET_MIN+set}" ] || die "PANEL_SECRET_MIN is not set; run jenkins-playbook.yml so the job knows the minimum lengths"
+  read -r -a min_entries <<<"$PANEL_SECRET_MIN"
+  for entry in ${min_entries[@]+"${min_entries[@]}"}; do
+    [[ $entry =~ ^([A-Za-z_][A-Za-z0-9_]*):([1-9][0-9]{0,3})$ ]] || die "malformed PANEL_SECRET_MIN entry"
+    if [ "${BASH_REMATCH[1]}" = "$VAR_NAME" ] && (( BASH_REMATCH[2] > min_length )); then
+      min_length=${BASH_REMATCH[2]}
+    fi
+  done
+  (( ${#VAR_VALUE} >= min_length )) || die "the value for $VAR_NAME must be at least $min_length characters"
+fi
+
 export LC_ALL=C.UTF-8
 
 if [ "$target" = grouphash ]; then
@@ -74,9 +90,8 @@ else
   edit_file=$VAULT_FILE
 fi
 
-base=/dev/shm
-[ -d "$base" ] && [ -w "$base" ] || base=${TMPDIR:-/tmp}
-work=$(mktemp -d "$base/panel-secrets.XXXXXX")
+[ -d "$SHM_DIR" ] && [ -w "$SHM_DIR" ] && [ -x "$SHM_DIR" ] || die "$SHM_DIR is not usable; refusing to write the decrypted vault to disk"
+work=$(mktemp -d "$SHM_DIR/panel-secrets.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 
 # Replaces the value of one top-level "key: scalar" line. Reads the value from

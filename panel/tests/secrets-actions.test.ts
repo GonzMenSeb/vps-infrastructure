@@ -139,8 +139,8 @@ describe("edit", () => {
   test("validation, read-only credentials and unknown targets are rejected before Jenkins is contacted", async () => {
     const a = make();
     const cases: [string, string, string, string][] = [
-      ["decabot", "DECABOT_PASSWORD", "bad\nvalue", "single line"],
-      ["decabot", "DECABOT_PASSWORD", "{{ x }}", "template"],
+      ["decabot", "DECABOT_PASSWORD", "bad\nvalue-1234", "single line"],
+      ["decabot", "DECABOT_PASSWORD", "{{ x }}-value-1", "template"],
       ["judicabot", "JUDICABOT_PASSWORD", "short-one", "at least 12"],
       ["miplata", "POSTGRES_PASSWORD", "new-value-1234", "Postgres"],
       ["jenkins", "vault_jenkins_admin_password", "new-value-1234", "Jenkins host"],

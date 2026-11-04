@@ -1,4 +1,5 @@
 import { Chip } from "./components";
+import { SAFE_VALUE_RULE } from "../secrets/values";
 import type { AuthRowVM, AuthTabVM, PendingVM } from "./auth-model";
 
 const MASK = "••••••••••";
@@ -78,8 +79,9 @@ function EditForm({ row, vm }: { row: AuthRowVM; vm: AuthTabVM }) {
         <input type="hidden" name="_csrf" value="" />
         <label class="small sec" for={`v-${row.id}`}>
           {hashed ? "New password" : "New value"} ({row.minLength > 1 ? `${row.minLength}-` : "1-"}
-          {row.maxLength} characters, printable ASCII)
+          {row.maxLength} characters{hashed ? ", printable ASCII" : ""})
         </label>
+        {hashed ? null : <p class="hint">Only {SAFE_VALUE_RULE} are allowed. Other characters would be rewritten or cut off when the service reads its configuration.</p>}
         <div class="pwcell">
           <input
             id={`v-${row.id}`}

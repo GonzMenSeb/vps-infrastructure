@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const SCRIPT = resolve(import.meta.dir, "../../infra/jenkins/panel-secrets.sh");
+const VERIFY = resolve(import.meta.dir, "../../infra/jenkins/panel-secrets-verify.yml");
+const JENKINSFILE = readFileSync(resolve(import.meta.dir, "../../infra/jenkins/panel-secrets.Jenkinsfile"), "utf8");
 const have = (bin: string) => Bun.which(bin) !== null;
 const ready = existsSync(SCRIPT) && ["ansible-vault", "ansible-playbook", "git", "bash", "awk", "diff"].every(have);
 const pythonHas = (mod: string) => have("python3") && Bun.spawnSync(["python3", "-I", "-c", `import ${mod}`]).exitCode === 0;
@@ -48,10 +50,14 @@ interface Rig {
   work: string;
   pass: string;
   out: string;
+  shm: string;
+  tmp: string;
 }
 
-function sh(cwd: string, cmd: string[], env: Record<string, string> = {}) {
-  const r = Bun.spawnSync(cmd, { cwd, env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
+function sh(cwd: string, cmd: string[], env: Record<string, string | undefined> = {}) {
+  const merged: Record<string, string | undefined> = { ...process.env, ...env };
+  for (const k of Object.keys(merged)) if (merged[k] === undefined) delete merged[k];
+  const r = Bun.spawnSync(cmd, { cwd, env: merged as Record<string, string>, stdout: "pipe", stderr: "pipe" });
   return { code: r.exitCode, out: r.stdout.toString(), err: r.stderr.toString() };
 }
 
@@ -83,17 +89,27 @@ function rig(): Rig {
   git(seed, "remote", "add", "origin", origin);
   git(seed, "push", "--quiet", "origin", "main");
   git(dir, "clone", "--quiet", origin, work);
-  return { dir, origin, work, pass, out: join(dir, "result.txt") };
+  const shm = join(dir, "shm");
+  const tmp = join(dir, "tmp");
+  mkdirSync(shm);
+  mkdirSync(tmp);
+  return { dir, origin, work, pass, out: join(dir, "result.txt"), shm, tmp };
 }
+
+const ALLOWED_PUNCTUATION = "._~+=:@%^*!?,/-";
+const EXCLUDED = Array.from({ length: 94 }, (_, i) => String.fromCharCode(0x21 + i)).filter((c) => !/[A-Za-z0-9]/.test(c) && !ALLOWED_PUNCTUATION.includes(c));
 
 const SECRET_VARS = "vault_alpha vault_beta vault_gamma vault_block vault_empty vault_dup vault_multi vault_last vault_missing_everywhere";
 
-function run(r: Rig, name: string, value: string, extra: Record<string, string> = {}) {
+function run(r: Rig, name: string, value: string, extra: Record<string, string | undefined> = {}) {
   return sh(r.dir, ["bash", SCRIPT], {
     VAR_NAME: name,
     VAR_VALUE: value,
     PANEL_SECRET_VARS: SECRET_VARS,
     PANEL_HASH_VARS: "traefik_dashboard_auth",
+    PANEL_SECRET_MIN: "vault_min12:12",
+    SHM_DIR: r.shm,
+    TMPDIR: r.tmp,
     VAULT_PASSWORD_FILE: r.pass,
     WORK_DIR: r.work,
     OUTPUT_FILE: r.out,
@@ -162,13 +178,39 @@ suite("panel-secrets job script", () => {
     expect(text).toContain("  vault_alpha: still-inside-the-block");
   });
 
-  test.skipIf(!pythonHas("yaml"))("values with quotes, backslashes, dollars and hashes parse back byte for byte", () => {
-    const value = `p"a\\ss'w$o rd #x:y [z] {k}`;
+  test("every allowed punctuation character is written and read back byte for byte", () => {
+    const value = `ab.cd_ef~gh+ij=kl:mn@op%qr^st*uv!wx?yz,01/23-45`;
+    for (const c of ALLOWED_PUNCTUATION) expect(value).toContain(c);
     ok(run(r, "vault_last", value));
-    const f = join(r.dir, "parsed.yml");
-    writeFileSync(f, originVault(r));
-    const py = sh(r.dir, ["python3", "-I", "-c", "import sys,yaml;print(yaml.safe_load(open(sys.argv[1]))['vault_last'],end='')", f]);
-    expect(py.out).toBe(value);
+    expect(originVault(r)).toBe(replaceLine(PLAIN, "vault_last:", `vault_last: "${value}"`));
+    if (pythonHas("yaml")) {
+      const f = join(r.dir, "parsed.yml");
+      writeFileSync(f, originVault(r));
+      const py = sh(r.dir, ["python3", "-I", "-c", "import sys,yaml;print(yaml.safe_load(open(sys.argv[1]))['vault_last'],end='')", f]);
+      expect(py.out).toBe(value);
+    }
+  });
+
+  test("the examples that compose rewrites or rejects are refused with the allowed set in the message", () => {
+    const before = originHead(r);
+    for (const value of ["ab$cd-efghij12", "abc #def-12345", "'unterminated-quote", '"unterminated-quote', "back\\slash-12345", "abc;def-123456"]) {
+      const res = run(r, "vault_alpha", value);
+      expect({ value, code: res.code }).toEqual({ value, code: 1 });
+      expect(res.err).toContain("may only contain letters, digits and . _ ~ + = : @ % ^ * ! ? , / -");
+      expect(res.err).not.toContain(value);
+    }
+    expect(originHead(r)).toBe(before);
+    expect(git(r.work, "status", "--porcelain")).toBe("");
+  });
+
+  test("every printable character outside the allowed set is refused for a vault variable", () => {
+    expect(EXCLUDED.join("")).toBe("\"#$&'();<>[\\]`{|}");
+    const before = originHead(r);
+    for (const c of EXCLUDED) {
+      const res = run(r, "vault_alpha", `ab${c}cd-efghij`);
+      expect({ c, code: res.code, msg: res.err.includes("may only contain") }).toEqual({ c, code: 1, msg: true });
+    }
+    expect(originHead(r)).toBe(before);
   });
 
   test("an identical value is reported as unchanged and nothing is committed", () => {
@@ -246,6 +288,203 @@ suite("panel-secrets job script", () => {
     expect(res.code).not.toBe(0);
     expect(res.err).toContain("rejected 2 times");
     expect(originHead(r)).toBe(before);
+  });
+
+  describe("minimum lengths from PANEL_SECRET_MIN", () => {
+    test("a value shorter than the entry for its variable is refused, exactly the minimum is accepted", () => {
+      const before = originHead(r);
+      const short = run(r, "vault_alpha", "short-1", { PANEL_SECRET_MIN: "vault_beta:3 vault_alpha:12" });
+      expect(short.code).toBe(1);
+      expect(short.err).toContain("must be at least 12 characters");
+      expect(short.err).not.toContain("short-1");
+      expect(originHead(r)).toBe(before);
+      ok(run(r, "vault_alpha", "twelve-chars", { PANEL_SECRET_MIN: "vault_beta:3 vault_alpha:12" }));
+      expect(originHead(r)).not.toBe(before);
+    });
+
+    test("a variable without an entry has a minimum of one character", () => {
+      ok(run(r, "vault_beta", "x", { PANEL_SECRET_MIN: "vault_alpha:12" }));
+    });
+
+    test("an empty PANEL_SECRET_MIN means no minimums, an unset one refuses the edit", () => {
+      ok(run(r, "vault_beta", "x", { PANEL_SECRET_MIN: "" }));
+      const res = run(r, "vault_gamma", "gamma-new", { PANEL_SECRET_MIN: undefined });
+      expect(res.code).toBe(1);
+      expect(res.err).toContain("PANEL_SECRET_MIN is not set");
+    });
+
+    for (const bad of ["vault_alpha", "vault_alpha:", ":12", "vault_alpha:abc", "vault_alpha:0", "vault_alpha:12:3", "vault_alpha=12", "bad name:12", "vault_alpha:12x"]) {
+      test(`a malformed entry (${bad}) refuses the edit`, () => {
+        const before = originHead(r);
+        const res = run(r, "vault_beta", "beta-NEW-1234567890", { PANEL_SECRET_MIN: bad });
+        expect(res.code).toBe(1);
+        expect(res.err).toContain("malformed PANEL_SECRET_MIN");
+        expect(originHead(r)).toBe(before);
+      });
+    }
+
+    test("a hash variable does not depend on PANEL_SECRET_MIN", () => {
+      const res = run(r, "traefik_dashboard_auth", "admin:plaintext", { PANEL_SECRET_MIN: undefined });
+      expect(res.err).toContain("user:bcrypt");
+    });
+  });
+
+  describe("the decrypted vault stays in shared memory", () => {
+    const leftovers = (dir: string) => readdirSync(dir).filter((n) => n.startsWith("panel-secrets."));
+
+    test("the work directory is created in SHM_DIR while the push runs and is gone afterwards", () => {
+      const during = join(r.dir, "during.txt");
+      const hook = join(r.origin, "hooks", "pre-receive");
+      writeFileSync(hook, `#!/bin/sh\nls "${r.shm}" > "${during}"\n`);
+      chmodSync(hook, 0o755);
+      ok(run(r, "vault_alpha", "alpha-NEW-1234567890"));
+      expect(readFileSync(during, "utf8")).toMatch(/^panel-secrets\./m);
+      expect(readdirSync(r.shm)).toEqual([]);
+      expect(leftovers(r.tmp)).toEqual([]);
+    });
+
+    test("a refusal after the work directory exists removes it too", () => {
+      writeFileSync(r.pass, "not-the-password");
+      const res = run(r, "vault_alpha", "alpha-NEW-1234567890");
+      expect(res.err).toContain("could not decrypt");
+      expect(readdirSync(r.shm)).toEqual([]);
+    });
+
+    const unusable: [string, (x: Rig) => string][] = [
+      ["missing", (x) => join(x.dir, "no-such-dir")],
+      [
+        "a file",
+        (x) => {
+          const f = join(x.dir, "a-file");
+          writeFileSync(f, "");
+          return f;
+        },
+      ],
+    ];
+    for (const [label, make] of unusable) {
+      test(`SHM_DIR being ${label} stops the job instead of writing to disk`, () => {
+        const before = originHead(r);
+        const res = run(r, "vault_alpha", "alpha-NEW-1234567890", { SHM_DIR: make(r) });
+        expect(res.code).toBe(1);
+        expect(res.err).toContain("refusing to write the decrypted vault to disk");
+        expect(originHead(r)).toBe(before);
+        expect(leftovers(r.tmp)).toEqual([]);
+      });
+    }
+
+    test.skipIf(process.getuid?.() === 0)("SHM_DIR being read-only stops the job instead of writing to disk", () => {
+      chmodSync(r.shm, 0o500);
+      try {
+        const res = run(r, "vault_alpha", "alpha-NEW-1234567890");
+        expect(res.code).toBe(1);
+        expect(res.err).toContain("refusing to write the decrypted vault to disk");
+        expect(leftovers(r.tmp)).toEqual([]);
+      } finally {
+        chmodSync(r.shm, 0o700);
+      }
+    });
+  });
+
+  describe.skipIf(!have("dash") || !have("pkill"))("panel-secrets.Jenkinsfile under /bin/sh", () => {
+    const stage = /sh '''([\s\S]*?)'''/.exec(JENKINSFILE)?.[1] ?? "";
+    const cleanup = /post\s*\{\s*always\s*\{\s*sh '([^']*)'/.exec(JENKINSFILE)?.[1] ?? "";
+
+    function publishInfra(x: Rig) {
+      mkdirSync(join(x.work, "infra", "jenkins"), { recursive: true });
+      copyFileSync(SCRIPT, join(x.work, "infra", "jenkins", "panel-secrets.sh"));
+      copyFileSync(VERIFY, join(x.work, "infra", "jenkins", "panel-secrets-verify.yml"));
+      git(x.work, "add", "infra");
+      git(x.work, "commit", "--quiet", "-m", "infra");
+      git(x.work, "push", "--quiet", "origin", "main");
+    }
+
+    const stageEnv = (x: Rig, extra: Record<string, string> = {}) => {
+      const ws = join(x.dir, "ws");
+      mkdirSync(ws, { recursive: true });
+      return {
+        ws,
+        env: {
+          ...process.env,
+          WORKSPACE: ws,
+          VAULT_PASS: THROWAWAY_PASSWORD,
+          PANEL_SECRETS_REPO: x.origin,
+          VAR_NAME: "vault_alpha",
+          VAR_VALUE: "alpha-NEW-1234567890",
+          PANEL_SECRET_VARS: SECRET_VARS,
+          PANEL_HASH_VARS: "traefik_dashboard_auth",
+          PANEL_SECRET_MIN: "vault_min12:12",
+          PUSH_RETRY_SLEEP: "0",
+          SHM_DIR: x.shm,
+          TMPDIR: x.tmp,
+          ...extra,
+        } as Record<string, string>,
+      };
+    };
+    const body = (x: Rig) => stage.replaceAll("/dev/shm", x.shm);
+
+    test("the stage script and the cleanup command can be extracted from the Jenkinsfile", () => {
+      expect(stage).toContain("panel-secrets.sh");
+      expect(cleanup).toContain("$WORKSPACE/repo");
+    });
+
+    test("the stage pushes the edit and leaves nothing in shared memory", () => {
+      publishInfra(r);
+      const { ws, env } = stageEnv(r);
+      const res = Bun.spawnSync(["dash", "-c", body(r)], { cwd: r.dir, env, stdout: "pipe", stderr: "pipe" });
+      expect({ code: res.exitCode, err: res.stderr.toString() }).toEqual({ code: 0, err: "" });
+      expect(readFileSync(join(ws, "result.txt"), "utf8")).toMatch(/^commit [0-9a-f]{40}$/m);
+      expect(readdirSync(r.shm)).toEqual([]);
+    });
+
+    test("the stage stops instead of writing the vault password to disk when shared memory is unusable", () => {
+      publishInfra(r);
+      const missing = join(r.dir, "no-such-dir");
+      const { env } = stageEnv(r, { SHM_DIR: missing });
+      const res = Bun.spawnSync(["dash", "-c", stage.replaceAll("/dev/shm", missing)], { cwd: r.dir, env, stdout: "pipe", stderr: "pipe" });
+      expect(res.exitCode).not.toBe(0);
+      expect(res.stderr.toString()).toContain("refusing to write");
+      expect(readdirSync(r.tmp)).toEqual([]);
+      expect(stage).not.toContain("TMPDIR");
+    });
+
+    test("an abort that signals the process tree leaves no vault password or decrypted vault behind", async () => {
+      publishInfra(r);
+      const started = join(r.dir, "hook-started");
+      const stop = join(r.dir, "stop");
+      const hook = join(r.origin, "hooks", "pre-receive");
+      writeFileSync(hook, `#!/bin/sh\ntouch "${started}"\nwhile [ ! -e "${stop}" ]; do sleep 0.1; done\nexit 1\n`);
+      chmodSync(hook, 0o755);
+      const { env } = stageEnv(r);
+      const proc = Bun.spawn(["dash", "-c", body(r)], { cwd: r.dir, env, stdout: "pipe", stderr: "pipe" });
+      try {
+        for (let i = 0; i < 400 && !existsSync(started); i++) await Bun.sleep(100);
+        expect(existsSync(started)).toBe(true);
+        expect(readdirSync(r.shm).some((n) => existsSync(join(r.shm, n, "vault-pass")))).toBe(true);
+        process.kill(proc.pid, "SIGTERM");
+        Bun.spawnSync(["pkill", "-TERM", "-P", String(proc.pid)]);
+        await Promise.race([proc.exited, Bun.sleep(20_000)]);
+      } finally {
+        writeFileSync(stop, "");
+        proc.kill("SIGKILL");
+      }
+      expect(readdirSync(r.shm)).toEqual([]);
+    });
+
+    test("the post-always step removes scratch directories the stage could not", () => {
+      const { ws } = stageEnv(r);
+      mkdirSync(join(ws, "repo"), { recursive: true });
+      for (const d of [join(r.shm, "panel-secrets.AbC123"), join(r.tmp, "panel-secrets.XyZ789")]) {
+        mkdirSync(d);
+        writeFileSync(join(d, "vault-pass"), "leaked");
+      }
+      mkdirSync(join(r.shm, "something-else"));
+      mkdirSync(join(r.tmp, "panel-secrets-test-keep"));
+      const res = sh(ws, ["dash", "-c", cleanup.replaceAll("/dev/shm", r.shm)], { WORKSPACE: ws, TMPDIR: r.tmp });
+      expect(res.code).toBe(0);
+      expect(readdirSync(r.shm)).toEqual(["something-else"]);
+      expect(readdirSync(r.tmp)).toEqual(["panel-secrets-test-keep"]);
+      expect(existsSync(join(ws, "repo"))).toBe(false);
+    });
   });
 
   describe("hash variables in group_vars/all.yml", () => {

@@ -189,6 +189,17 @@ describe("the Auth tab", () => {
     expect(body).toMatch(/data-action="secret#show" disabled=""/);
   });
 
+  test("the edit form says which characters are allowed, and the dashboard password form does not", async () => {
+    const r = await rig();
+    const decabot = await (await r.frame("/services/decabot?tab=auth")).text();
+    expect(decabot).toContain("12-512 characters");
+    expect(decabot).toContain("Only letters, digits and . _ ~ + = : @ % ^ * ! ? , / - are allowed");
+    expect(decabot).not.toContain("printable ASCII");
+    const traefik = await (await r.frame("/services/traefik?tab=auth")).text();
+    expect(traefik).toContain("12-72 characters, printable ASCII");
+    expect(traefik).not.toContain("Only letters, digits and");
+  });
+
   test("read-only credentials state why, and the Jenkins host service is read-only", async () => {
     const r = await rig();
     const miplata = await (await r.frame("/services/miplata?tab=auth")).text();
@@ -248,9 +259,21 @@ describe("edit", () => {
     expect((await r.frame("/services/decabot?tab=auth", { "if-none-match": after.headers.get("etag")! })).status).toBe(200);
   });
 
+  test("a value with characters the service would misread is refused with the exact reason before Jenkins is contacted", async () => {
+    const r = await rig();
+    const bad = await r.post(url, { body: { value: "ab$cd-1234567890" } });
+    expect(bad.status).toBe(400);
+    const html = await bad.text();
+    expect(html).toContain("&quot;$&quot; is not allowed.");
+    expect(html).toContain("may only contain letters, digits and . _ ~ + = : @ % ^ * ! ? , / -");
+    expect(html).not.toContain("ab$cd");
+    expect(posts).toEqual([]);
+    expect(JSON.stringify(rows())).not.toContain("ab$cd");
+  });
+
   test("rejections and conflicts render a page with the reason and change nothing", async () => {
     const r = await rig();
-    const bad = await r.post(url, { body: { value: "{{ nope }}" } });
+    const bad = await r.post(url, { body: { value: "{{ nope }}-value" } });
     expect(bad.status).toBe(400);
     expect(await bad.text()).toContain("template");
     const locked = await r.post("/services/miplata/auth/POSTGRES_PASSWORD", { body: { value: NEW_VALUE } });
@@ -277,6 +300,13 @@ describe("edit", () => {
 });
 
 describe("rotate", () => {
+  test("only the result pages opt out of the Turbo cache, not the ordinary pages", async () => {
+    const r = await rig();
+    const meta = /name="turbo-cache-control"/;
+    expect(await (await r.post("/services/decabot/auth/GEMINI_API_KEY/rotate")).text()).toMatch(meta);
+    expect(await (await r.app.request("/services/decabot?tab=auth", { headers: { cookie: r.cookie } })).text()).not.toMatch(meta);
+  });
+
   test("refuses credentials that are not on the rotation list", async () => {
     const r = await rig();
     const res = await r.post("/services/decabot/auth/GEMINI_API_KEY/rotate");
@@ -295,6 +325,7 @@ describe("rotate", () => {
     expect(sent).toMatch(/^[A-Za-z0-9]{24}$/);
     expect(html).toContain(`>${sent}</code>`);
     expect(html).toContain("only time the panel shows");
+    expect(html).toMatch(/<meta\s+name="turbo-cache-control"\s+content="no-cache"\s*\/?>/);
     const frame = await (await r.frame("/services/decabot?tab=auth")).text();
     expect(frame).not.toContain(sent);
     expect(JSON.stringify([rows(), db.query("SELECT * FROM secret_edits").all()])).not.toContain(sent);

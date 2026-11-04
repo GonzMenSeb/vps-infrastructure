@@ -1,11 +1,11 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadManifest, parseManifest, type Manifest } from "../src/manifest";
-import { credentialsFor, secretAllowlist } from "../src/secrets/credentials";
+import { NOT_ALLOWLISTED, credentialsFor, secretAllowlist } from "../src/secrets/credentials";
 import { envPath, parseEnv, readEnvKeys } from "../src/secrets/envfile";
-import { GENERATED_LENGTH, generatePassword, htpasswdLine, validateValue } from "../src/secrets/values";
+import { ALPHABET, GENERATED_LENGTH, SAFE_VALUE_SOURCE, generatePassword, htpasswdLine, validateValue } from "../src/secrets/values";
 
 let manifest: Manifest;
 const svc = (id: string) => manifest.services.find((s) => s.id === id)!;
@@ -35,6 +35,29 @@ describe("allowlist and credentials", () => {
       "vault_vaultwarden_admin_token",
     ]);
     expect([...a.hash]).toEqual(["traefik_dashboard_auth"]);
+  });
+
+  test("a vault variable missing from the manifest's editable list is read-only, even when it is not locked", () => {
+    const m = structuredClone(manifest);
+    m.secrets.editable = m.secrets.editable.filter((v) => v !== "vault_decabot_password");
+    expect(secretAllowlist(m).vault.has("vault_decabot_password")).toBe(false);
+    const c = credentialsFor(m, m.services.find((s) => s.id === "decabot")!).find((x) => x.id === "DECABOT_PASSWORD")!;
+    expect(c).toMatchObject({ editable: false, readOnlyReason: NOT_ALLOWLISTED });
+  });
+
+  test("a variable that is both editable and locked stays read-only", () => {
+    const m = structuredClone(manifest);
+    m.secrets.locked["vault_decabot_password"] = "locked on purpose";
+    expect(secretAllowlist(m).vault.has("vault_decabot_password")).toBe(false);
+  });
+
+  test("a manifest without an editable list allows no vault variable", () => {
+    const raw = JSON.parse(JSON.stringify(manifest));
+    delete raw.secrets.editable;
+    const m = parseManifest(raw);
+    expect(m.secrets.editable).toEqual([]);
+    expect(secretAllowlist(m).vault.size).toBe(0);
+    expect(secretAllowlist(m).hash.size).toBe(1);
   });
 
   test("env keys map to their own variable and keep the lock reason", () => {
@@ -99,11 +122,37 @@ describe("allowlist and credentials", () => {
 
 describe("value validation", () => {
   const plain = { source: "env" as const, minLength: 1 };
-  test("accepts printable ASCII and rejects newlines, tabs, controls and non-ASCII", () => {
-    expect(validateValue(plain, "a-Z_0.9 /:@!#$%^&*()[]{}'\"\\|~`").ok).toBe(true);
+  test("accepts letters, digits and the allowed punctuation, and rejects newlines, tabs, controls and non-ASCII", () => {
+    expect(validateValue(plain, "a-Z_0.9/:@!%^*~+=?,").ok).toBe(true);
     for (const bad of ["a\nb", "a\rb", "a\tb", "a\u0000b", "café", "\u{1F600}"]) {
       expect(validateValue(plain, bad).ok).toBe(false);
     }
+  });
+
+  test("rejects every printable character the services' parsers would rewrite or cut off, and names the first one", () => {
+    const excluded = Array.from({ length: 94 }, (_, i) => String.fromCharCode(0x21 + i)).filter((c) => !new RegExp(SAFE_VALUE_SOURCE).test(`ab${c}cd`));
+    expect(excluded.join("")).toBe("\"#$&'();<>[\\]`{|}");
+    for (const c of excluded) {
+      const r = validateValue(plain, `ab${c}cd-efgh`);
+      if (r.ok) throw new Error(`${c} was accepted`);
+      expect(r.error).toContain(`"${c}" is not allowed.`);
+      expect(r.error).toContain("may only contain letters, digits and . _ ~ + = : @ % ^ * ! ? , / -");
+    }
+    const space = validateValue(plain, "abc def-ghi");
+    expect(space).toMatchObject({ ok: false, error: expect.stringContaining("A space is not allowed.") });
+    for (const example of ["ab$cd", "abc #def", "'unterminated", "back\\slash"]) expect(validateValue(plain, example).ok).toBe(false);
+  });
+
+  test("the first problem wins: length, then printable ASCII, then Jinja, then the character set", () => {
+    const m = { source: "env" as const, minLength: 12 };
+    expect((validateValue(m, "a$b") as { error: string }).error).toContain("at least 12");
+    expect((validateValue(m, "a$b\ncdefghijklm") as { error: string }).error).toContain("printable ASCII");
+    expect((validateValue(m, "a{{b}}cdefghijkl") as { error: string }).error).toContain("{{");
+    expect((validateValue(m, "a$bcdefghijklm") as { error: string }).error).toContain('"$" is not allowed.');
+  });
+
+  test("a hash password is hashed, not stored, so any printable ASCII is fine", () => {
+    expect(validateValue({ source: "hash", minLength: 12 }, `it's a "phrase" with $ # \\ and spaces`).ok).toBe(true);
   });
 
   test("length bounds, surrounding spaces and Jinja delimiters", () => {
@@ -134,6 +183,20 @@ describe("generated secrets and hashes", () => {
       expect(p).toMatch(/^[abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/);
     }
     expect(GENERATED_LENGTH).toBeGreaterThanOrEqual(24);
+  });
+
+  test("the rotate alphabet and the browser generator stay inside the allowed character set", () => {
+    const safe = new RegExp(SAFE_VALUE_SOURCE);
+    expect(safe.test(ALPHABET)).toBe(true);
+    for (let i = 0; i < 200; i++) expect(safe.test(generatePassword())).toBe(true);
+    const browser = /const ALPHABET = "([^"]+)";/.exec(readFileSync("public/controllers/secret.js", "utf8"))?.[1];
+    expect(browser).toBe(ALPHABET);
+    expect(validateValue({ source: "env", minLength: 12 }, generatePassword()).ok).toBe(true);
+  });
+
+  test("panel-secrets.sh checks against the same character set as the panel", () => {
+    const script = readFileSync("../infra/jenkins/panel-secrets.sh", "utf8");
+    expect(/safe_re='([^']+)'/.exec(script)?.[1]).toBe(SAFE_VALUE_SOURCE);
   });
 
   test("htpasswd lines use the $2y$ prefix and verify with Bun", async () => {
@@ -211,5 +274,43 @@ describe("env files", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("the allowed character set survives the services' parsers", () => {
+  const punctuation = "._~+=:@%^*!?,/-";
+  const values = [
+    ...[...punctuation].flatMap((c) => [`ab${c}cd${c}ef`, `${c}abcdefgh`, `abcdefgh${c}`]),
+    "ab.cd_ef~gh+ij=kl:mn@op%qr^st*uv!wx?yz,01/23-45",
+  ];
+
+  test("the reveal path reads each value back from an unquoted .env line unchanged", () => {
+    const env = parseEnv(values.map((v, i) => `K${i}=${v}`).join("\n"));
+    expect(values.filter((v, i) => env.get(`K${i}`) !== v)).toEqual([]);
+  });
+
+  const haveCompose = Bun.which("docker") !== null && Bun.spawnSync(["docker", "compose", "version"], { stdout: "ignore", stderr: "ignore" }).exitCode === 0;
+  const compose = (envLines: string[]) => {
+    const dir = mkdtempSync(join(tmpdir(), "compose-env-"));
+    try {
+      const keys = envLines.map((_, i) => `E${i}`);
+      writeFileSync(join(dir, ".env"), envLines.join("\n") + "\n");
+      writeFileSync(join(dir, "docker-compose.yml"), ["services:", "  a:", "    image: busybox", "    env_file: .env", "    environment:", ...keys.map((k, i) => `      I${i}: \${E${i}}`)].join("\n") + "\n");
+      const r = Bun.spawnSync(["docker", "compose", "config", "--format", "json"], { cwd: dir, stdout: "pipe", stderr: "pipe" });
+      return { code: r.exitCode, env: r.exitCode === 0 ? (JSON.parse(r.stdout.toString()).services.a.environment as Record<string, string>) : {}, err: r.stderr.toString() };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  test.skipIf(!haveCompose)("docker compose reads each value back unchanged both from env_file and through interpolation", () => {
+    const r = compose(values.map((v, i) => `E${i}=${v}`));
+    expect(r.code).toBe(0);
+    expect(values.flatMap((v, i) => [r.env[`E${i}`] === v ? [] : [`env_file ${v}`], r.env[`I${i}`] === v ? [] : [`interpolation ${v}`]].flat())).toEqual([]);
+  });
+
+  test.skipIf(!haveCompose)("control: the same check does catch the characters the allowlist excludes", () => {
+    const r = compose(["E0=abc #def", "E1=ab'cd"]);
+    expect(r.code === 0 && r.env["E0"] === "abc #def").toBe(false);
   });
 });

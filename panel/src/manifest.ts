@@ -26,13 +26,14 @@ const service = z.object({
 });
 
 const secrets = z.object({
+  editable: z.array(z.string().min(1)).default([]),
   locked: z.record(z.string().min(1), z.string()).default({}),
   rotatable: z.array(z.string().min(1)).default([]),
   min_length: z.record(z.string().min(1), z.number().int().positive()).default({}),
 });
 
 const manifestSchema = z
-  .object({ services: z.array(service).min(1), secrets: secrets.default({ locked: {}, rotatable: [], min_length: {} }) })
+  .object({ services: z.array(service).min(1), secrets: secrets.default({ editable: [], locked: {}, rotatable: [], min_length: {} }) })
   .superRefine((m, ctx) => {
     const ids = new Set<string>();
     const containers = new Set<string>();

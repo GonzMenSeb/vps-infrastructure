@@ -16,6 +16,7 @@ export interface LayoutProps {
   current?: string;
   up?: Up;
   refresh?: boolean;
+  noCache?: boolean;
   children?: Child;
 }
 
@@ -68,7 +69,7 @@ function RefreshBar() {
   );
 }
 
-export function Layout({ title, login, csrf, current, up, refresh, children }: LayoutProps) {
+export function Layout({ title, login, csrf, current, up, refresh, noCache, children }: LayoutProps) {
   const rail = up ? railState(up) : null;
   return (
     <html lang="en" data-theme="dark">
@@ -76,6 +77,7 @@ export function Layout({ title, login, csrf, current, up, refresh, children }: L
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="dark light" />
+        {noCache ? <meta name="turbo-cache-control" content="no-cache" /> : null}
         <title>{title} · Vespiridion</title>
         <link rel="icon" href="data:," />
         <link rel="stylesheet" href="/public/app.css" />

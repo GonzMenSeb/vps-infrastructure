@@ -573,6 +573,22 @@
     }
   ],
   "secrets": {
+    "editable": [
+      "vault_brujula_password",
+      "vault_decabot_gemini_api_key",
+      "vault_decabot_password",
+      "vault_grafana_oauth_client_id",
+      "vault_grafana_oauth_client_secret",
+      "vault_huella_password",
+      "vault_judicabot_password",
+      "vault_miplata_admin_password",
+      "vault_miplata_jwt_secret",
+      "vault_pdns_admin_secret_key",
+      "vault_pdns_api_key",
+      "vault_strava_client_id",
+      "vault_strava_client_secret",
+      "vault_vaultwarden_admin_token"
+    ],
     "locked": {
       "vault_categorizer_api_token": "The Jenkins host keeps a copy as the categorizer-api-token credential, and vps-deploy does not update that host.",
       "vault_categorizer_db_password": "Postgres reads it only when it first creates its database, and no role runs ALTER USER for it, so the service would lose access to its database.",
@@ -594,7 +610,15 @@
       "vault_zot_registry_password": "It must change together with vault_zot_htpasswd_hash, the Jenkins registry credential and every docker login, and vps-deploy does not update the Jenkins host."
     },
     "min_length": {
-      "vault_judicabot_password": 12
+      "vault_brujula_password": 12,
+      "vault_decabot_password": 12,
+      "vault_huella_password": 12,
+      "vault_judicabot_password": 12,
+      "vault_miplata_admin_password": 12,
+      "vault_miplata_jwt_secret": 12,
+      "vault_pdns_admin_secret_key": 12,
+      "vault_pdns_api_key": 12,
+      "vault_vaultwarden_admin_token": 12
     },
     "rotatable": [
       "vault_vaultwarden_admin_token",

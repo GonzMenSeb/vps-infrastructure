@@ -27,9 +27,10 @@ const MIN_HASH_PASSWORD = 12;
 export function secretAllowlist(manifest: Manifest): { vault: Set<string>; hash: Set<string> } {
   const vault = new Set<string>();
   const hash = new Set<string>();
+  const editable = new Set(manifest.secrets.editable);
   for (const s of manifest.services) {
     if (s.host !== "vps") continue;
-    for (const v of s.auth.vault_vars) if (!(v in manifest.secrets.locked)) vault.add(v);
+    for (const v of s.auth.vault_vars) if (editable.has(v) && !(v in manifest.secrets.locked)) vault.add(v);
     if (s.auth.hash) hash.add(s.auth.hash.var);
   }
   return { vault, hash };

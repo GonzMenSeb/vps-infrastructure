@@ -128,11 +128,13 @@
         if (this.hasInputTarget) this.inputTarget.value = "";
       };
       document.addEventListener("turbo:before-cache", this.onLeave);
+      window.addEventListener("pagehide", this.onLeave);
     }
 
     disconnect() {
       this.details?.removeEventListener("toggle", this.onToggle);
       document.removeEventListener("turbo:before-cache", this.onLeave);
+      window.removeEventListener("pagehide", this.onLeave);
     }
 
     fill() {

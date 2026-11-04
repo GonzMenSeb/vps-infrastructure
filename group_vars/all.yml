@@ -459,10 +459,27 @@ panel_service_auth:
     vault_vars: [vault_panel_github_client_id, vault_panel_github_client_secret, vault_panel_session_secret, vault_panel_jenkins_token]
     env_keys: []
 
-# Variables the admin panel's panel-secrets job may edit; the job refuses everything else.
-# Derived from panel_service_auth (main-VPS services only, because vps-deploy runs playbook.yml and
-# never jenkins-playbook.yml) minus the locked variables below. Rendered into the Jenkins job as
-# PANEL_SECRET_VARS and PANEL_HASH_VARS and into the panel's manifest, so the list lives here only.
+# Every vault variable in panel_service_auth must be in exactly one of panel_secret_editable and
+# panel_secret_locked, so a variable someone adds there is read-only until it is classified here.
+# roles/panel asserts this. panel_secret_vars (editable minus locked) is what the panel-secrets job
+# and the panel's manifest receive as the allowlist; only main-VPS services are listed because
+# vps-deploy runs playbook.yml and never jenkins-playbook.yml.
+panel_secret_editable:
+  - vault_brujula_password
+  - vault_decabot_gemini_api_key
+  - vault_decabot_password
+  - vault_grafana_oauth_client_id
+  - vault_grafana_oauth_client_secret
+  - vault_huella_password
+  - vault_judicabot_password
+  - vault_miplata_admin_password
+  - vault_miplata_jwt_secret
+  - vault_pdns_admin_secret_key
+  - vault_pdns_api_key
+  - vault_strava_client_id
+  - vault_strava_client_secret
+  - vault_vaultwarden_admin_token
+
 panel_secret_locked:
   vault_zot_registry_password: "It must change together with vault_zot_htpasswd_hash, the Jenkins registry credential and every docker login, and vps-deploy does not update the Jenkins host."
   vault_zot_htpasswd_hash: "It must change together with vault_zot_registry_password."
@@ -491,15 +508,22 @@ panel_secret_rotatable:
   - vault_huella_password
   - vault_judicabot_password
 
-# Minimum lengths the roles already enforce (roles/judicabot asserts the same).
+# Minimum lengths for editable variables, enforced by the panel and by panel-secrets.sh (rendered
+# as PANEL_SECRET_MIN). Externally issued ids and keys (Strava, the GitHub OAuth app, Gemini) have
+# no floor of their own. roles/judicabot asserts the same 12 for its password.
 panel_secret_min_length:
+  vault_decabot_password: 12
+  vault_brujula_password: 12
+  vault_huella_password: 12
   vault_judicabot_password: 12
+  vault_miplata_admin_password: 12
+  vault_miplata_jwt_secret: 12
+  vault_pdns_admin_secret_key: 12
+  vault_pdns_api_key: 12
+  vault_vaultwarden_admin_token: 12
 
 panel_secret_vars: >-
-  {{ panel_service_auth.values()
-     | map(attribute='vault_vars')
-     | flatten
-     | unique
+  {{ panel_secret_editable
      | difference(panel_secret_locked.keys() | list)
      | sort
      | list }}

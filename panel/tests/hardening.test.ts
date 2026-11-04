@@ -138,6 +138,23 @@ describe("secret controllers wipe the value when the page is cached or left", ()
     });
   }
 
+  for (const event of ["turbo:before-cache", "pagehide"]) {
+    test(`SecretGenController clears a typed value on ${event} and removes its listeners on disconnect`, () => {
+      const b = browser();
+      const c = new b.registry["secret-gen"]!();
+      const input = el("typed-secret-value");
+      Object.assign(c, { element: { closest: () => null, toggleAttribute() {} }, hasInputTarget: true, inputTarget: input });
+      c.connect!();
+      b.fire(event);
+      expect(input.value).toBe("");
+      input.value = "typed-again";
+      c.disconnect!();
+      b.fire(event);
+      expect(input.value).toBe("typed-again");
+      expect(b.count(event)).toBe(0);
+    });
+  }
+
   test("both controllers drop their listeners when disconnected", () => {
     const b = browser();
     const once = new b.registry.once!();
