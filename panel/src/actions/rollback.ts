@@ -71,7 +71,7 @@ export class RollbackActions {
     if (next.id === oldId) return rejected(`${svc.name} already runs the image tagged ${plan.previous.tag}`);
 
     if (oldTag) await engine.tagImage(oldId, image.full, oldTag);
-    await engine.tagImage(next.id, image.full, "latest");
+    await engine.tagImage(`${image.full}:${plan.previous.tag}`, image.full, "latest");
 
     const failure = await this.bringUp(svc, image, next.id, targets);
     if (!failure) {

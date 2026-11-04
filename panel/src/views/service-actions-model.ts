@@ -129,7 +129,7 @@ function rollbackFor(sv: ServiceView, svc: Service, rows: ContainerRow[], csrf: 
   const now = sv.now ?? Date.now();
   const age = (iso: string | null) => {
     const t = iso ? Date.parse(iso.replace(/(\.\d{3})\d*/, "$1")) : Number.NaN;
-    return Number.isNaN(t) ? { text: "push time unknown", title: "" } : { text: `pushed ${fmtAge(Math.max(0, now - t))}`, title: iso! };
+    return Number.isNaN(t) ? { text: "build time unknown", title: "" } : { text: `built ${fmtAge(Math.max(0, now - t))}`, title: iso! };
   };
   const view = (p: typeof plan.current, revision: string | null): RollbackTagVM => {
     const a = age(p.lastUpdated);

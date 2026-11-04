@@ -1,4 +1,5 @@
 import type { Database } from "bun:sqlite";
+import { basename } from "node:path";
 import { audit } from "../db";
 import { DOCKER_SOURCES, type DockerContainer } from "../collectors/docker";
 import type { Manifest, Service } from "../manifest";
@@ -184,10 +185,12 @@ export class ActionRuntime {
 }
 
 export function checkDir(svc: Service, found: DockerContainer[]): string | null {
-  const stray = found.find((c) => c.composeDir !== null && c.composeDir !== svc.dir);
-  return stray
-    ? `${stray.name} belongs to the compose project in ${stray.composeDir}, not ${svc.dir}, so the panel will not run compose there`
-    : null;
+  const project = basename(svc.dir);
+  const stray = found.find((c) => c.composeProject !== project || (c.composeDir != null && c.composeDir !== svc.dir));
+  if (!stray) return null;
+  return stray.composeProject === null
+    ? `${stray.name} was not created by docker compose, so the panel will not run compose for it`
+    : `${stray.name} belongs to the compose project ${stray.composeProject}${stray.composeDir ? ` in ${stray.composeDir}` : ""}, not ${project} in ${svc.dir}, so the panel will not run compose there`;
 }
 
 export class ServiceActions {

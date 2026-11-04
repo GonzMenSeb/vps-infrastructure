@@ -14,10 +14,13 @@ const OUTPUT_CAP = 4096;
 const tail = (s: string) => (s.length > OUTPUT_CAP ? s.slice(s.length - OUTPUT_CAP) : s);
 
 export class SpawnComposeRunner implements ComposeRunner {
-  constructor(private dockerSocket: string) {}
+  constructor(
+    private dockerSocket: string,
+    private bin = "docker",
+  ) {}
 
   async run(dir: string, args: readonly string[], timeoutMs: number): Promise<ComposeResult> {
-    const proc = Bun.spawn(["docker", "compose", ...args], {
+    const proc = Bun.spawn([this.bin, "compose", ...args], {
       cwd: dir,
       stdin: "ignore",
       stdout: "pipe",

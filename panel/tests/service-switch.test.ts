@@ -138,10 +138,34 @@ describe("what the panel refuses to touch", () => {
   test("a container from another compose directory blocks the run", async () => {
     rig = await actionsRig();
     const original = rig.docker.list.bind(rig.docker);
-    rig.docker.list = () => original().map((c) => ((c as { Names: string[] }).Names[0] === "/vaultwarden" ? { ...(c as object), Labels: { "com.docker.compose.project.working_dir": "/srv/other" } } : c));
+    rig.docker.list = () => original().map((c) => ((c as { Names: string[] }).Names[0] === "/vaultwarden" ? { ...(c as { Labels: Record<string, string> }), Labels: { ...(c as { Labels: Record<string, string> }).Labels, "com.docker.compose.project.working_dir": "/srv/other" } } : c));
     const r = await rig.switching.switchService("vaultwarden", "off", "owner");
     expect(r).toMatchObject({ outcome: "rejected", message: expect.stringContaining("/srv/other") });
     expect(rig.compose.commands).toEqual([]);
+  });
+});
+
+describe("compose project guard", () => {
+  test("a container whose compose project is not the directory name blocks the run", async () => {
+    rig = await actionsRig();
+    const original = rig.docker.list.bind(rig.docker);
+    rig.docker.list = () =>
+      original().map((c) =>
+        (c as { Names: string[] }).Names[0] === "/vaultwarden"
+          ? { ...(c as { Labels: Record<string, string> }), Labels: { ...(c as { Labels: Record<string, string> }).Labels, "com.docker.compose.project": "other" } }
+          : c,
+      );
+    const r = await rig.switching.switchService("vaultwarden", "off", "owner");
+    expect(r).toMatchObject({ outcome: "rejected", message: expect.stringContaining("compose project other") });
+    expect(rig.compose.commands).toEqual([]);
+  });
+
+  test("a container without compose labels blocks the run", async () => {
+    rig = await actionsRig();
+    const original = rig.docker.list.bind(rig.docker);
+    rig.docker.list = () => original().map((c) => ((c as { Names: string[] }).Names[0] === "/vaultwarden" ? { ...(c as object), Labels: {} } : c));
+    const r = await rig.switching.switchService("vaultwarden", "off", "owner");
+    expect(r).toMatchObject({ outcome: "rejected", message: expect.stringContaining("not created by docker compose") });
   });
 });
 

@@ -48,7 +48,7 @@ export interface DockerContainer {
   health: Health;
   composeProject: string | null;
   composeService: string | null;
-  composeDir: string | null;
+  composeDir?: string | null;
   revision: string | null;
   traefik: Record<string, string>;
   volumes: string[];

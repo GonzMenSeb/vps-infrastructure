@@ -19,7 +19,7 @@ describe("rollback", () => {
     expect(writes(rig)).toEqual([
       `/images/create?fromImage=${JUDICABOT.ref}&tag=3ee016f`,
       `/images/${JUDICABOT.current.digest}/tag?repo=${JUDICABOT.ref}&tag=c19ab44`,
-      `/images/${JUDICABOT.previous.digest}/tag?repo=${JUDICABOT.ref}&tag=latest`,
+      `/images/${JUDICABOT.ref}:3ee016f/tag?repo=${JUDICABOT.ref}&tag=latest`,
     ]);
     expect(rig.compose.commands).toEqual([{ dir: "/opt/judicabot", args: ["up", "-d", "--pull", "never"] }]);
     expect(latest(rig)).toBe(JUDICABOT.previous.digest);
