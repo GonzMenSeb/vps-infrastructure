@@ -11,6 +11,7 @@ groups:
           summary: "categorizer-api scrape is failing"
           description: "Prometheus cannot scrape categorizer-api:8000 (instance={{ '{{' }} $labels.instance {{ '}}' }})."
 
+{% if llm_inference_enabled | bool %}
       - alert: LlamaServerDown
         expr: up{job="llama-server"} == 0
         for: 2m
@@ -20,6 +21,7 @@ groups:
           summary: "llama-server scrape is failing"
           description: "Prometheus cannot scrape llama-server:8080 (instance={{ '{{' }} $labels.instance {{ '}}' }})."
 
+{% endif %}
       - alert: CategorizerRejectSpike
         expr: |
           (
@@ -81,6 +83,7 @@ groups:
           summary: "categorizer /healthz probe failing"
           description: "External bearer-authenticated probe to categorizer /healthz has been failing for 5m."
 
+{% if llm_inference_enabled | bool %}
       - alert: LlamaServerHealthFailing
         expr: probe_success{job="blackbox",instance="llama-server-health"} == 0
         for: 5m
@@ -90,6 +93,7 @@ groups:
           summary: "llama-server /health probe failing"
           description: "Internal probe to llama-server:8080/health has been failing for 5m."
 
+{% endif %}
   - name: monitoring
     interval: 30s
     rules:

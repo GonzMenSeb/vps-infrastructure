@@ -1,0 +1,11 @@
+---
+- name: Check whether a Metabase stack was ever deployed on this host
+  stat:
+    path: "{{ metabase_dir }}/docker-compose.yml"
+  register: metabase_compose_present
+
+- name: Stop and remove the Metabase containers (volumes are kept)
+  community.docker.docker_compose_v2:
+    project_src: "{{ metabase_dir }}"
+    state: absent
+  when: metabase_compose_present.stat.exists
