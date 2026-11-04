@@ -202,8 +202,11 @@ export function buildPatch(change: DnsChange, existing: DnsRecordSet | null): Pa
 export const patchRequest = (zoneId: string, patch: PatchRrset): string =>
   `PATCH /api/v1/servers/${PDNS_SERVER}/zones/${encodeURIComponent(zoneId)}\n${JSON.stringify({ rrsets: [patch] }, null, 2)}`;
 
-export const requestHash = (zoneId: string, patch: PatchRrset): string =>
-  createHash("sha256").update(JSON.stringify({ zoneId, patch })).digest("base64url").slice(0, 32);
+const existingState = (e: DnsRecordSet | null) =>
+  e && { ttl: e.ttl, owner: e.owner, records: e.records.map((r) => `${r.disabled ? "0" : "1"}|${r.content}`).sort() };
+
+export const requestHash = (zoneId: string, patch: PatchRrset, existing: DnsRecordSet | null): string =>
+  createHash("sha256").update(JSON.stringify({ zoneId, patch, existing: existingState(existing) })).digest("base64url").slice(0, 32);
 
 export function reviewChange(raw: Record<string, unknown>, zones: readonly DnsZone[]): DnsParse<DnsReview> {
   const parsed = parseChange(raw, zones);
@@ -236,7 +239,7 @@ export function reviewChange(raw: Record<string, unknown>, zones: readonly DnsZo
       unchanged,
       patch,
       request: patchRequest(change.zone, patch),
-      hash: requestHash(change.zone, patch),
+      hash: requestHash(change.zone, patch, existing),
     },
   };
 }

@@ -16,6 +16,7 @@ const schema = z
     GITHUB_CLIENT_ID: z.string().min(1),
     GITHUB_CLIENT_SECRET: z.string().min(1),
     GITHUB_ALLOWED_LOGIN: z.string().min(1),
+    GITHUB_ALLOWED_ID: optional(z.coerce.number().int().positive()),
     SESSION_SECRET: z.string().min(32),
     SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 12),
     PROMETHEUS_URL: z.string().url().default("http://prometheus:9090"),
@@ -83,4 +84,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     dryRunActions: parsed.data.DRY_RUN_ACTIONS === "1",
 
   };
+}
+
+export function configWarnings(cfg: Pick<Config, "GITHUB_ALLOWED_ID">): string[] {
+  return cfg.GITHUB_ALLOWED_ID === undefined
+    ? ["GITHUB_ALLOWED_ID is not set: sign-in is pinned to the GitHub login only, so a renamed or recycled login would be admitted. Set it to the numeric account id"]
+    : [];
 }

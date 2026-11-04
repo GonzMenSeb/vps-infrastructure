@@ -139,6 +139,8 @@ categorizer_repo_ssh_url: "git@github.com:GonzMenSeb/miplata-categorizer.git"
 
 panel_host: "panel.{{ web_subdomain }}"
 panel_image: "{{ zot_host }}/panel/panel:latest"
+# numeric GitHub account id of grafana_github_admin_login
+panel_github_allowed_id: 88598670
 
 panel_services:
   - id: traefik

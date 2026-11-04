@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SpawnComposeRunner, commandLine, noCompose } from "../src/actions/compose";
@@ -82,6 +82,89 @@ describe("SpawnComposeRunner", () => {
     mkdirSync(join(work, "x"));
     await expect(runner().run(join(work, "missing"), ["stop"], 5000)).rejects.toThrow();
   });
+});
+
+function alive(pid: number): boolean {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+    return !stat.slice(stat.lastIndexOf(")") + 2).startsWith("Z");
+  } catch {
+    return false;
+  }
+}
+
+async function goneWithin(pid: number, ms: number): Promise<boolean> {
+  for (const end = Date.now() + ms; Date.now() < end; ) {
+    if (!alive(pid)) return true;
+    await Bun.sleep(25);
+  }
+  return !alive(pid);
+}
+
+const pidOf = (file: string) => Number(readFileSync(file, "utf8").trim());
+const reap = (pid: number) => {
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch {}
+};
+
+describe("SpawnComposeRunner timeout", () => {
+  const FAST = 4000;
+
+  test("kills the whole process group and returns without waiting for the pipes", async () => {
+    const pidfile = join(work, "child.pid");
+    fakeDocker(`sleep 300 &\necho $! > "${pidfile}"\nwait`);
+    const t0 = Date.now();
+    const r = await runner().run(work, ["up"], 300);
+    const elapsed = Date.now() - t0;
+    const child = pidOf(pidfile);
+    try {
+      expect(r.timedOut).toBe(true);
+      expect(r.code).not.toBe(0);
+      expect(elapsed).toBeLessThan(300 + 1000);
+      expect(await goneWithin(child, 1000)).toBe(true);
+    } finally {
+      reap(child);
+    }
+  }, FAST);
+
+  test("keeps what the command printed before it was killed", async () => {
+    fakeDocker("echo before-kill; echo err-before-kill >&2; exec sleep 300");
+    const r = await runner().run(work, ["up"], 300);
+    expect(r.timedOut).toBe(true);
+    expect(r.stdout).toContain("before-kill");
+    expect(r.stderr).toContain("err-before-kill");
+  }, FAST);
+
+  test.skipIf(!Bun.which("setsid"))("returns on time even when a descendant left the group and still holds the pipes", async () => {
+    const pidfile = join(work, "escaped.pid");
+    fakeDocker(`setsid sleep 300 &\necho $! > "${pidfile}"\nwait`);
+    const t0 = Date.now();
+    const r = await runner().run(work, ["up"], 300);
+    const elapsed = Date.now() - t0;
+    reap(pidOf(pidfile));
+    expect(r.timedOut).toBe(true);
+    expect(elapsed).toBeLessThan(300 + 1500);
+  }, FAST);
+
+  test("a command that exits cleanly while a background child holds its pipes still returns", async () => {
+    const pidfile = join(work, "daemon.pid");
+    fakeDocker(`sleep 300 &\necho $! > "${pidfile}"\necho started`);
+    const t0 = Date.now();
+    const r = await runner().run(work, ["up"], 10_000);
+    const elapsed = Date.now() - t0;
+    reap(pidOf(pidfile));
+    expect(r).toMatchObject({ code: 0, timedOut: false });
+    expect(r.stdout).toContain("started");
+    expect(elapsed).toBeLessThan(2500);
+  }, FAST);
+
+  test("a command that finishes in time is not marked timed out and its output is complete", async () => {
+    fakeDocker("i=0; while [ $i -lt 2000 ]; do echo line-$i; i=$((i+1)); done");
+    const r = await runner().run(work, ["ps"], 10_000);
+    expect(r).toMatchObject({ code: 0, timedOut: false });
+    expect(r.stdout.trimEnd().endsWith("line-1999")).toBe(true);
+  }, FAST);
 });
 
 describe("helpers", () => {

@@ -42,15 +42,20 @@ async function dockerFailure(res: Response, what: string): Promise<Error> {
   return new Error(`docker ${what}: HTTP ${res.status}${detail}`);
 }
 
+export const DOCKER_REQUEST_TIMEOUT_MS = 10_000;
+
 export class SocketEngine implements DockerEngine {
-  constructor(private client: DockerClient) {}
+  constructor(
+    private client: DockerClient,
+    private requestTimeoutMs = DOCKER_REQUEST_TIMEOUT_MS,
+  ) {}
 
   containers(): Promise<DockerContainer[]> {
-    return fetchContainers(this.client);
+    return fetchContainers(this.client, AbortSignal.timeout(this.requestTimeoutMs));
   }
 
   async inspectImage(ref: string): Promise<ImageInfo | null> {
-    const res = await this.client.request("GET", `/images/${ref}/json`, { signal: AbortSignal.timeout(10_000) });
+    const res = await this.client.request("GET", `/images/${ref}/json`, { signal: AbortSignal.timeout(this.requestTimeoutMs) });
     if (res.status === 404) {
       await res.body?.cancel();
       return null;
@@ -82,7 +87,7 @@ export class SocketEngine implements DockerEngine {
 
   async tagImage(source: string, repo: string, tag: string): Promise<void> {
     const query = new URLSearchParams({ repo, tag });
-    const res = await this.client.request("POST", `/images/${source}/tag?${query}`, { signal: AbortSignal.timeout(10_000) });
+    const res = await this.client.request("POST", `/images/${source}/tag?${query}`, { signal: AbortSignal.timeout(this.requestTimeoutMs) });
     if (res.status !== 201) throw await dockerFailure(res, `tag ${source} as ${repo}:${tag}`);
     await res.body?.cancel();
   }

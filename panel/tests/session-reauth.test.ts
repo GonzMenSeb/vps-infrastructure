@@ -25,7 +25,7 @@ function rig(login = "Owner") {
     cfg,
     db,
     store,
-    gh: { loginForCode: async () => login },
+    gh: { loginForCode: async () => ({ login, id: 1 }) },
     lagMs: () => 0,
     manifest,
     poller: new Poller(store, { demandWindowMs: 60_000, idleIntervalMs: 60_000, tickMs: 1000 }),
@@ -119,7 +119,7 @@ describe("re-authentication through GitHub", () => {
       cfg: r.cfg,
       db: r.db,
       store: new Store(),
-      gh: { loginForCode: async () => "intruder" },
+      gh: { loginForCode: async () => ({ login: "intruder", id: 2 }) },
       lagMs: () => 0,
       manifest,
       poller: new Poller(new Store(), { demandWindowMs: 60_000, idleIntervalMs: 60_000, tickMs: 1000 }),
@@ -138,9 +138,9 @@ describe("the GitHub client is untouched", () => {
     const calls: string[] = [];
     const fetchImpl = (async (url: string) => {
       calls.push(String(url));
-      return Response.json(String(url).includes("access_token") ? { access_token: "t" } : { login: "owner" });
+      return Response.json(String(url).includes("access_token") ? { access_token: "t" } : { login: "owner", id: 1 });
     }) as unknown as typeof fetch;
-    expect(await githubClient(cfg, fetchImpl).loginForCode("c")).toBe("owner");
+    expect(await githubClient(cfg, fetchImpl).loginForCode("c")).toEqual({ login: "owner", id: 1 });
     expect(calls).toHaveLength(2);
   });
 });

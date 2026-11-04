@@ -184,6 +184,9 @@ export class FakeDocker {
   crashImages = new Set<string>();
   pullFailures = new Map<string, string>();
   unreadable = { value: false };
+  stalled = { value: false };
+  noRepoDigests = { value: false };
+  pullsAs = new Map<string, string>();
 
   constructor(opts: FakeDockerOptions = {}) {
     this.now = opts.now ?? (() => Date.now());
@@ -295,12 +298,13 @@ export class FakeDocker {
     if (failure) return lines({ status: `Pulling from ${repo}` }, { error: failure, errorDetail: { message: failure } });
     if (!auth?.accepted) return lines({ error: "unauthorized: authentication required", errorDetail: { message: "unauthorized: authentication required" } });
     if (!row) return lines({ error: `manifest for ${image}:${tag} not found: manifest unknown`, errorDetail: { message: "manifest unknown" } });
-    this.localTags.set(`${image}:${tag}`, row.digest);
+    this.localTags.set(`${image}:${tag}`, this.pullsAs.get(tag) ?? row.digest);
     return lines({ status: `Pulling from ${repo}`, id: tag }, { status: "Download complete" }, { status: `Status: Downloaded newer image for ${image}:${tag}` });
   }
 
-  handle(req: Request): Response {
+  handle(req: Request): Response | Promise<Response> {
     const u = new URL(req.url);
+    if (this.stalled.value) return new Promise<Response>(() => {});
     if (this.unreadable.value) return Response.json({ message: "daemon unavailable" }, { status: 500 });
     this.calls.push({ method: req.method, path: u.pathname + decodeURIComponent(u.search) });
     if (u.pathname === "/containers/json") return Response.json(this.list());
@@ -311,7 +315,7 @@ export class FakeDocker {
       const imageId = this.resolve(name);
       if (!imageId) return Response.json({ message: `No such image: ${name}` }, { status: 404 });
       const tags = [...this.localTags.entries()].filter(([, v]) => v === imageId).map(([k]) => k);
-      return Response.json({ Id: imageId, RepoTags: tags, RepoDigests: tags.map((t) => `${t.replace(/:[^:/]+$/, "")}@${imageId}`) });
+      return Response.json({ Id: imageId, RepoTags: tags, RepoDigests: this.noRepoDigests.value ? [] : [...new Set(tags.map((t) => `${t.replace(/:[^:/]+$/, "")}@${imageId}`))] });
     }
     if (req.method === "POST" && /^\/images\/.+\/tag$/.test(u.pathname)) {
       const imageId = this.resolve(name);

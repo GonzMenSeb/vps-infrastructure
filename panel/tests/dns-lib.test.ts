@@ -179,4 +179,48 @@ describe("dns review", () => {
     expect(a.value.hash).toBe(b.value.hash);
     expect(a.value.hash).not.toBe(c.value.hash);
   });
+
+  describe("the hash also follows the record set that is there now", () => {
+    const hashFor = (o: Record<string, unknown>, mutate: (z: DnsZone) => void = () => {}) => {
+      const z = zone();
+      mutate(z);
+      const r = reviewChange(o, [z]);
+      if (!r.ok) throw new Error(r.error);
+      return r.value.hash;
+    };
+    const set = (z: DnsZone, name: string) => z.rrsets.find((r) => r.name === `${name}.${ZONE}` && r.type === "A")!;
+    const upsert = change({ name: "scratch", content: "192.0.2.99" });
+    const remove = { zone: ZONE, op: "delete", name: "demo", type: "A" };
+
+    test("an upsert over an existing set changes when only the existing ttl changes", () => {
+      expect(hashFor(upsert, (z) => (set(z, "scratch").ttl = 600))).not.toBe(hashFor(upsert));
+    });
+
+    test("an upsert over an existing set changes when the existing records change", () => {
+      expect(hashFor(upsert, (z) => set(z, "scratch").records.push({ content: "192.0.2.77", disabled: false }))).not.toBe(hashFor(upsert));
+    });
+
+    test("an upsert changes when the owner of the existing set flips", () => {
+      expect(hashFor(upsert, (z) => (set(z, "scratch").owner = "other"))).not.toBe(hashFor(upsert));
+    });
+
+    test("a delete changes when the existing ttl, records, disabled flags or owner change", () => {
+      const base = hashFor(remove);
+      expect(hashFor(remove, (z) => (set(z, "demo").ttl = 60))).not.toBe(base);
+      expect(hashFor(remove, (z) => set(z, "demo").records.push({ content: "198.51.100.9", disabled: false }))).not.toBe(base);
+      expect(hashFor(remove, (z) => (set(z, "demo").records[1]!.disabled = false))).not.toBe(base);
+      expect(hashFor(remove, (z) => (set(z, "demo").owner = "other"))).not.toBe(base);
+    });
+
+    test("the order PowerDNS lists the records in does not matter", () => {
+      expect(hashFor(remove, (z) => set(z, "demo").records.reverse())).toBe(hashFor(remove));
+      const two = change({ name: "demo", content: "198.51.100.7\n198.51.100.8" });
+      expect(hashFor(two, (z) => set(z, "demo").records.reverse())).toBe(hashFor(two));
+    });
+
+    test("a new name hashes the same whatever else is in the zone", () => {
+      const add = change({ name: "fresh" });
+      expect(hashFor(add, (z) => (set(z, "scratch").ttl = 1))).toBe(hashFor(add));
+    });
+  });
 });

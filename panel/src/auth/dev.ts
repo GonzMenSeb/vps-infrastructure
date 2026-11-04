@@ -10,7 +10,8 @@ export function localPath(v: string | undefined, origin: string): string {
   if (!v?.startsWith("/")) return "/";
   try {
     const u = new URL(v, origin);
-    return u.origin === origin ? u.pathname + u.search : "/";
+    const path = u.pathname + u.search;
+    return u.origin === origin && !path.startsWith("//") && !path.startsWith("/\\") ? path : "/";
   } catch {
     return "/";
   }

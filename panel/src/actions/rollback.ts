@@ -68,6 +68,13 @@ export class RollbackActions {
     await engine.pullImage(image.full, plan.previous.tag, auth, rt.pullTimeoutMs);
     const next = await engine.inspectImage(`${image.full}:${plan.previous.tag}`);
     if (!next) return { ok: false, outcome: "failed", message: `the pull of ${plan.previous.tag} finished but the image is not on the host` };
+    if (!next.repoDigests.includes(`${image.full}@${plan.previous.digest}`)) {
+      return {
+        ok: false,
+        outcome: "failed",
+        message: `the image pulled as ${plan.previous.tag} is not the build the registry listed (${plan.previous.digest.slice(0, 19)}), so nothing was retagged and ${svc.name} was not touched. Reload and try again`,
+      };
+    }
     if (next.id === oldId) return rejected(`${svc.name} already runs the image tagged ${plan.previous.tag}`);
 
     if (oldTag) await engine.tagImage(oldId, image.full, oldTag);

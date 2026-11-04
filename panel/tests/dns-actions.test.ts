@@ -115,6 +115,57 @@ describe("dns actions", () => {
     expect(patches().length).toBe(0);
   });
 
+  describe("a record changed between review and apply is refused", () => {
+    async function reviewThen(o: Record<string, unknown>, mutate: () => void, overwrite = false) {
+      const { actions, rows } = rig();
+      const reviewed = reviewChange(fields(o), (await fetchDns(client)).zones);
+      if (!reviewed.ok) throw new Error(reviewed.error);
+      mutate();
+      const r = await actions.apply({ fields: fields(o), hash: reviewed.value.hash, overwrite }, "o");
+      return { r, rows };
+    }
+    const upsert = { name: "scratch", content: "192.0.2.99" };
+    const remove = { op: "delete", name: "scratch" };
+
+    test("upsert over an existing set whose ttl changed", async () => {
+      const { r } = await reviewThen(upsert, () => (find("scratch", "A")!.ttl = 600));
+      expect(r).toMatchObject({ ok: false, outcome: "rejected", message: expect.stringContaining("changed since you reviewed") });
+      expect(patches().length).toBe(0);
+      expect(find("scratch", "A")!.records[0]!.content).toBe("192.0.2.10");
+    });
+
+    test("upsert over an existing set whose records changed", async () => {
+      const { r } = await reviewThen(upsert, () => find("scratch", "A")!.records.push({ content: "192.0.2.77", disabled: false }));
+      expect(r).toMatchObject({ ok: false, outcome: "rejected", message: expect.stringContaining("changed since you reviewed") });
+      expect(patches().length).toBe(0);
+    });
+
+    test("delete of a set whose records changed", async () => {
+      const { r } = await reviewThen(remove, () => find("scratch", "A")!.records.push({ content: "192.0.2.77", disabled: false }));
+      expect(r).toMatchObject({ ok: false, outcome: "rejected", message: expect.stringContaining("changed since you reviewed") });
+      expect(patches().length).toBe(0);
+      expect(find("scratch", "A")).toBeDefined();
+    });
+
+    test("delete of a set whose ttl changed", async () => {
+      const { r } = await reviewThen(remove, () => (find("scratch", "A")!.ttl = 1));
+      expect(r).toMatchObject({ ok: false, outcome: "rejected", message: expect.stringContaining("changed since you reviewed") });
+      expect(patches().length).toBe(0);
+    });
+
+    test("overwrite ticked, but the set stopped being the panel's after the review", async () => {
+      const { r } = await reviewThen(upsert, () => (find("scratch", "A")!.comments = []), true);
+      expect(r).toMatchObject({ ok: false, outcome: "rejected", message: expect.stringContaining("changed since you reviewed") });
+      expect(patches().length).toBe(0);
+    });
+
+    test("nothing changed in between still applies", async () => {
+      const { r } = await reviewThen(upsert, () => {});
+      expect(r).toMatchObject({ ok: true, outcome: "verified" });
+      expect(patches().length).toBe(1);
+    });
+  });
+
   test("SOA, NS and unsupported types never reach PowerDNS", async () => {
     const { actions } = rig();
     for (const type of ["SOA", "NS", "SRV"]) {

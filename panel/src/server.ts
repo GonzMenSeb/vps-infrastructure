@@ -30,7 +30,7 @@ import {
 } from "./collectors/jenkins";
 import { FilterError, LOKI_SOURCES, LOKI_TTL, LokiClient, normalizeFilter, registerLokiSources, type LogTargets } from "./collectors/loki";
 import { PromClient, registerPrometheusSources } from "./collectors/prometheus";
-import { type Config, loadConfig } from "./config";
+import { type Config, configWarnings, loadConfig } from "./config";
 import { openDataDb } from "./db";
 import { JobActions } from "./actions/jobs";
 import { SecretActions, isActive as isActiveEdit } from "./actions/secrets";
@@ -578,6 +578,7 @@ export async function start(env: Record<string, string | undefined> = process.en
 
 
   poller.start();
+  for (const warning of configWarnings(cfg)) console.warn(warning);
   if (cfg.devAuthBypass) console.warn(`DEV_AUTH_BYPASS=1: ${cfg.origin}/auth/dev signs anyone in as ${cfg.GITHUB_ALLOWED_LOGIN}`);
   return {
     cfg,

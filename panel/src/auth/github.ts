@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Config } from "../config";
-import { audit, trimAudit } from "../db";
+import { audit, trimAudit, trimAuditOutcome } from "../db";
 import { localPath } from "./dev";
 import {
   OAUTH_STATE_COOKIE,
@@ -23,8 +23,13 @@ const USER_URL = "https://api.github.com/user";
 const GITHUB_TIMEOUT_MS = 5000;
 const ANONYMOUS = "anonymous";
 
+export interface GithubUser {
+  login: string;
+  id: number;
+}
+
 export interface GithubClient {
-  loginForCode(code: string): Promise<string>;
+  loginForCode(code: string): Promise<GithubUser>;
 }
 
 export function githubClient(cfg: Config, fetchImpl: typeof fetch = fetch): GithubClient {
@@ -51,9 +56,9 @@ export function githubClient(cfg: Config, fetchImpl: typeof fetch = fetch): Gith
         },
         signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS),
       });
-      const user = (await userRes.json()) as { login?: string };
-      if (!userRes.ok || !user.login) throw new Error("user lookup failed");
-      return user.login;
+      const user = (await userRes.json()) as { login?: string; id?: number };
+      if (!userRes.ok || !user.login || typeof user.id !== "number") throw new Error("user lookup failed");
+      return { login: user.login, id: user.id };
     },
   };
 }
@@ -105,16 +110,19 @@ export function authRoutes(db: Database, cfg: Config, gh: GithubClient): Hono<Ap
       anonymous("bad-state");
       return c.text("invalid oauth state", 400);
     }
-    let login: string;
+    let user: GithubUser;
     try {
-      login = await gh.loginForCode(code);
+      user = await gh.loginForCode(code);
     } catch (err) {
       anonymous("github-error", String(err));
-
       return c.text("github login failed", 502);
     }
-    if (login.toLowerCase() !== cfg.GITHUB_ALLOWED_LOGIN.toLowerCase()) {
-      audit(db, { actor: login, action: "login", outcome: "denied" });
+    const { login } = user;
+    const loginMatches = login.toLowerCase() === cfg.GITHUB_ALLOWED_LOGIN.toLowerCase();
+    const idMatches = cfg.GITHUB_ALLOWED_ID === undefined || user.id === cfg.GITHUB_ALLOWED_ID;
+    if (!loginMatches || !idMatches) {
+      audit(db, { actor: login, action: "login", outcome: "denied", detail: loginMatches ? "login matches but the account id does not" : undefined });
+      trimAuditOutcome(db, "login", "denied", cfg.AUDIT_ANON_MAX_ROWS);
       return c.text("forbidden", 403);
     }
     const how = establishLogin(db, cfg, c, login);

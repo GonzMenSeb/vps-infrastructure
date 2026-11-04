@@ -35,6 +35,7 @@ export function openDb(path: string): Database {
     );
     CREATE INDEX IF NOT EXISTS audit_ts ON audit (ts);
     CREATE INDEX IF NOT EXISTS audit_actor ON audit (actor, id);
+    CREATE INDEX IF NOT EXISTS audit_action_outcome ON audit (action, outcome, id);
     CREATE TABLE IF NOT EXISTS sessions (
       id_hash TEXT PRIMARY KEY,
       login TEXT NOT NULL,
@@ -53,16 +54,27 @@ export function openDataDb(dataDir: string): Database {
   return openDb(join(dataDir, "panel.sqlite"));
 }
 
+const clip = (v: string | undefined, max: number): string | null => (v === undefined ? null : v.length > max ? `${v.slice(0, max - 1)}…` : v);
+
+export const AUDIT_TARGET_MAX = 200;
+export const AUDIT_DETAIL_MAX = 1000;
+
 export function audit(db: Database, entry: AuditEntry, now = Date.now()): void {
   db.query(
     "INSERT INTO audit (ts, actor, action, target, outcome, detail) VALUES (?, ?, ?, ?, ?, ?)",
-  ).run(now, entry.actor, entry.action, entry.target ?? null, entry.outcome, entry.detail ?? null);
+  ).run(now, entry.actor, entry.action, clip(entry.target, AUDIT_TARGET_MAX), entry.outcome, clip(entry.detail, AUDIT_DETAIL_MAX));
 }
 
 export function trimAudit(db: Database, actor: string, keep: number): void {
   db.query(
     "DELETE FROM audit WHERE actor = ? AND id <= (SELECT id FROM audit WHERE actor = ? ORDER BY id DESC LIMIT 1 OFFSET ?)",
   ).run(actor, actor, keep);
+}
+
+export function trimAuditOutcome(db: Database, action: string, outcome: string, keep: number): void {
+  db.query(
+    "DELETE FROM audit WHERE action = ? AND outcome = ? AND id <= (SELECT id FROM audit WHERE action = ? AND outcome = ? ORDER BY id DESC LIMIT 1 OFFSET ?)",
+  ).run(action, outcome, action, outcome, keep);
 }
 
 export function insertSession(

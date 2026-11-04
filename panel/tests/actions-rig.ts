@@ -33,6 +33,7 @@ export interface RigOptions {
   verifyTimeoutMs?: number;
   stableMs?: number;
   credentials?: boolean;
+  engineTimeoutMs?: number;
 }
 
 export async function actionsRig(o: RigOptions = {}): Promise<Rig> {
@@ -50,7 +51,7 @@ export async function actionsRig(o: RigOptions = {}): Promise<Rig> {
   const runtime = new ActionRuntime({
     db,
     manifest,
-    engine: new SocketEngine(new DockerClient(socket)),
+    engine: new SocketEngine(new DockerClient(socket), o.engineTimeoutMs),
     compose,
     locks,
     dryRun: o.dryRun ?? false,

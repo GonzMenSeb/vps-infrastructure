@@ -99,7 +99,7 @@ describe("app", () => {
   });
 
   test("callback only admits the allowed login", async () => {
-    const d = deps({ gh: { loginForCode: async () => "intruder" } });
+    const d = deps({ gh: { loginForCode: async () => ({ login: "intruder", id: 2 }) } });
     const db = d.db;
     const app = createApp(d);
     const start = await app.request("/auth/github");
@@ -113,7 +113,7 @@ describe("app", () => {
   });
 
   async function login() {
-    const d = deps({ gh: { loginForCode: async () => "Owner" } });
+    const d = deps({ gh: { loginForCode: async () => ({ login: "Owner", id: 1 }) } });
     const db = d.db;
     const app = createApp(d);
     const start = await app.request("/auth/github");

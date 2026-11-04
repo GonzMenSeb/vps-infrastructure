@@ -156,11 +156,13 @@
         else this.noteTarget.textContent = `Hides in ${this.left} s`;
       }, 1000);
       this.onLeave = () => this.wipe();
+      document.addEventListener("turbo:before-cache", this.onLeave);
       window.addEventListener("pagehide", this.onLeave);
     }
 
     disconnect() {
       this.wipe();
+      document.removeEventListener("turbo:before-cache", this.onLeave);
       window.removeEventListener("pagehide", this.onLeave);
     }
 

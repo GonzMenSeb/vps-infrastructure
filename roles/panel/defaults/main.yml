@@ -4,6 +4,7 @@ panel_app_port: 3000
 panel_container_uid: 1000
 panel_mem_limit: "512m"
 panel_pdns_network: dns_dns_internal
+panel_github_allowed_id: ""
 panel_time_zone: UTC
 panel_poll_demand_window_ms: 60000
 panel_poll_idle_interval_ms: 60000

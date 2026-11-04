@@ -1,3 +1,5 @@
+import { constants } from "node:os";
+
 export interface ComposeResult {
   code: number;
   stdout: string;
@@ -10,8 +12,31 @@ export interface ComposeRunner {
 }
 
 const OUTPUT_CAP = 4096;
+const DRAIN_GRACE_MS = 500;
 
 const tail = (s: string) => (s.length > OUTPUT_CAP ? s.slice(s.length - OUTPUT_CAP) : s);
+
+function collect(stream: ReadableStream<Uint8Array>) {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  const done = (async () => {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      text = tail(text + decoder.decode(value, { stream: true }));
+    }
+  })().catch(() => {});
+  return { done, text: () => text, cancel: () => reader.cancel().catch(() => {}) };
+}
+
+function killGroup(proc: { pid: number; kill(signal: "SIGKILL"): void }): void {
+  try {
+    process.kill(-proc.pid, "SIGKILL");
+  } catch {
+    proc.kill("SIGKILL");
+  }
+}
 
 export class SpawnComposeRunner implements ComposeRunner {
   constructor(
@@ -25,22 +50,35 @@ export class SpawnComposeRunner implements ComposeRunner {
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
+      detached: true,
       env: {
         PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
         HOME: process.env.HOME ?? "/tmp",
         DOCKER_HOST: `unix://${this.dockerSocket}`,
       },
     });
+    const out = collect(proc.stdout);
+    const err = collect(proc.stderr);
     let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      proc.kill("SIGKILL");
-    }, timeoutMs);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<void>((resolve) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        killGroup(proc);
+        resolve();
+      }, timeoutMs);
+    });
     try {
-      const [stdout, stderr, code] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited]);
-      return { code, stdout: tail(stdout), stderr: tail(stderr), timedOut };
+      await Promise.race([proc.exited, deadline]);
+      clearTimeout(timer);
+      await Promise.race([Promise.all([proc.exited, out.done, err.done]), Bun.sleep(DRAIN_GRACE_MS)]);
+      const sig = proc.signalCode;
+      const code = proc.exitCode ?? (sig ? 128 + (typeof sig === "number" ? sig : constants.signals[sig]) : -1);
+      return { code, stdout: out.text(), stderr: err.text(), timedOut };
     } finally {
       clearTimeout(timer);
+      void out.cancel();
+      void err.cancel();
     }
   }
 }

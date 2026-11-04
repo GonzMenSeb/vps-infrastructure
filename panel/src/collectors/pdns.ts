@@ -6,7 +6,7 @@ export const PDNS_REQUEST_TIMEOUT_MS = 10_000;
 export const PDNS_SERVER = "localhost";
 export const PANEL_COMMENT = "managed-by: panel";
 export const PANEL_ACCOUNT = "panel";
-export const ZONE_ID = /^[A-Za-z0-9._=-]{1,255}$/;
+export const ZONE_ID = /^(?!\.+$)[A-Za-z0-9._=-]{1,255}$/;
 
 export class PdnsError extends Error {
   constructor(
