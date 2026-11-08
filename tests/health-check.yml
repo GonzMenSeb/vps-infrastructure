@@ -67,6 +67,12 @@
         that: "'pdns-admin' in running_containers.stdout_lines"
         fail_msg: "PowerDNS Admin container is not running"
 
+    - name: Verify PowerDNS Admin sign-up is closed
+      command: docker exec pdns-admin wget -S -O /dev/null http://127.0.0.1/register
+      register: pdns_admin_register
+      changed_when: false
+      failed_when: "'HTTP/1.1 404' not in pdns_admin_register.stderr and 'HTTP/1.1 500' not in pdns_admin_register.stderr"
+
     - name: Verify Zot registry is running
       assert:
         that: "'zot' in running_containers.stdout_lines"

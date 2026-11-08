@@ -55,6 +55,7 @@ services:
       PDNS_API_URL: http://pdns:8081/
       PDNS_API_KEY: ${PDNS_API_KEY}
       PDNS_VERSION: "4.9"
+      SIGNUP_ENABLED: "false"
     volumes:
       - pdns_admin_data:/data
     labels:
