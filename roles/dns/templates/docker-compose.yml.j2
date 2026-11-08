@@ -75,7 +75,6 @@ services:
       - --provider=github
       - --github-user={{ pdns_admin_github_login }}
       - "--email-domain=*"
-      - --scope=user:email
       - --upstream=http://pdns-admin:80
       - --http-address=0.0.0.0:4180
       - --redirect-url=https://{{ pdns_admin_host }}/oauth2/callback
