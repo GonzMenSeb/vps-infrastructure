@@ -7,6 +7,9 @@ vault_pdns_db_root_password: "CHANGE_ME"
 vault_pdns_db_password: "CHANGE_ME"
 vault_pdns_admin_secret_key: "CHANGE_ME"
 vault_pdns_api_key: "CHANGE_ME"
+vault_pdns_admin_github_client_id: "CHANGE_ME_GITHUB_OAUTH_CLIENT_ID"
+vault_pdns_admin_github_client_secret: "CHANGE_ME_GITHUB_OAUTH_CLIENT_SECRET"
+vault_pdns_admin_cookie_secret: "CHANGE_ME_BASE64URL_32_BYTES"
 
 # Vaultwarden
 vault_vaultwarden_admin_token: "CHANGE_ME"

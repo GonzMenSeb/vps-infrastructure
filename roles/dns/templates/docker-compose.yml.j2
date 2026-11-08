@@ -46,7 +46,7 @@ services:
     image: {{ pdns_admin_image }}
     container_name: pdns-admin
     restart: unless-stopped
-    networks: [dns_internal, proxy]
+    networks: [dns_internal]
     depends_on: [pdns]
     env_file: .env
     environment:
@@ -56,11 +56,36 @@ services:
       PDNS_API_KEY: ${PDNS_API_KEY}
       PDNS_VERSION: "4.9"
       SIGNUP_ENABLED: "false"
+      LOCAL_DB_ENABLED: "false"
+      GITHUB_OAUTH_ENABLED: "true"
     volumes:
       - pdns_admin_data:/data
+
+  pdns-auth:
+    image: {{ oauth2_proxy_image }}
+    container_name: pdns-auth
+    restart: unless-stopped
+    networks: [dns_internal, proxy]
+    depends_on: [pdns-admin]
+    environment:
+      OAUTH2_PROXY_CLIENT_ID: ${GITHUB_OAUTH_KEY}
+      OAUTH2_PROXY_CLIENT_SECRET: ${GITHUB_OAUTH_SECRET}
+      OAUTH2_PROXY_COOKIE_SECRET: ${PDNS_AUTH_COOKIE_SECRET}
+    command:
+      - --provider=github
+      - --github-user={{ pdns_admin_github_login }}
+      - "--email-domain=*"
+      - --scope=user:email
+      - --upstream=http://pdns-admin:80
+      - --http-address=0.0.0.0:4180
+      - --redirect-url=https://{{ pdns_admin_host }}/oauth2/callback
+      - --skip-provider-button=true
+      - --cookie-secure=true
+      - --cookie-samesite=lax
+      - --cookie-expire=12h
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pdns-admin.rule=Host(`{{ pdns_admin_host }}`)"
       - "traefik.http.routers.pdns-admin.entrypoints=websecure"
       - "traefik.http.routers.pdns-admin.tls.certresolver=letsencrypt"
-      - "traefik.http.services.pdns-admin.loadbalancer.server.port=80"
+      - "traefik.http.services.pdns-admin.loadbalancer.server.port=4180"

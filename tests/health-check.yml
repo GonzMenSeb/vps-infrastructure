@@ -67,6 +67,17 @@
         that: "'pdns-admin' in running_containers.stdout_lines"
         fail_msg: "PowerDNS Admin container is not running"
 
+    - name: Verify the PowerDNS Admin gate is running
+      assert:
+        that: "'pdns-auth' in running_containers.stdout_lines"
+        fail_msg: "PowerDNS Admin GitHub gate (oauth2-proxy) is not running"
+
+    - name: Verify PowerDNS Admin is only reachable through the gate
+      command: docker inspect pdns-admin --format "{% raw %}{{range $name, $net := .NetworkSettings.Networks}}{{$name}} {{end}}{% endraw %}"
+      register: pdns_admin_networks
+      changed_when: false
+      failed_when: "'proxy' in pdns_admin_networks.stdout.split()"
+
     - name: Verify PowerDNS Admin sign-up is closed
       command: docker exec pdns-admin wget -S -O /dev/null http://127.0.0.1/register
       register: pdns_admin_register
@@ -225,10 +236,22 @@
       delegate_to: localhost
       become: false
 
-    - name: Verify PowerDNS Admin responds
+    - name: Verify PowerDNS Admin sends anonymous visitors to GitHub
       uri:
         url: "https://{{ pdns_admin_host }}"
-        status_code: [200, 302]
+        follow_redirects: none
+        status_code: [302]
+        validate_certs: true
+        timeout: 10
+      register: pdns_admin_gate
+      failed_when: "'https://github.com/login/oauth/authorize' not in (pdns_admin_gate.location | default(''))"
+      delegate_to: localhost
+      become: false
+
+    - name: Verify the PowerDNS Admin gate answers its health endpoint
+      uri:
+        url: "https://{{ pdns_admin_host }}/ping"
+        status_code: 200
         validate_certs: true
         timeout: 10
       delegate_to: localhost

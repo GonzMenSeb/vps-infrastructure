@@ -76,3 +76,6 @@
     label: "{{ item.name }}"
   register: dns_a_result
   changed_when: "'New rrset' in dns_a_result.stdout or 'Current rrset' in dns_a_result.stdout"
+
+- name: Seed the PowerDNS Admin administrator
+  import_tasks: admin.yml

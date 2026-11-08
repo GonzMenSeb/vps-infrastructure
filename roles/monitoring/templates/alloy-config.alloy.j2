@@ -286,7 +286,7 @@ prometheus.scrape "blackbox_probes" {
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ miplata_host }}",              "instance" = "miplata-web",       "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ miplata_host }}/api/health",   "instance" = "miplata-api",       "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ vaultwarden_host }}/alive",    "instance" = "vaultwarden",       "job" = "blackbox"},
-    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ pdns_admin_host }}",           "instance" = "dns-admin",         "job" = "blackbox"},
+    {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ pdns_admin_host }}/ping",      "instance" = "dns-admin",         "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ grafana_host }}/api/health",   "instance" = "grafana",           "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ zot_host }}/v2/",              "instance" = "zot-registry",      "job" = "blackbox"},
     {"__address__" = "blackbox-exporter:9115", "__param_target" = "https://{{ traefik_dashboard_host }}",    "instance" = "traefik-dashboard", "job" = "blackbox"},

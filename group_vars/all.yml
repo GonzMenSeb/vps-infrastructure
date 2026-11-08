@@ -39,6 +39,8 @@ pdns_image: "powerdns/pdns-auth-49:4.9.13"
 pdns_admin_image: "powerdnsadmin/pda-legacy:0.4.2"
 pdns_mariadb_image: "mariadb:10.11"
 pdns_admin_host: "dns.{{ web_subdomain }}"
+pdns_admin_github_login: "{{ grafana_github_admin_login }}"
+oauth2_proxy_image: "quay.io/oauth2-proxy/oauth2-proxy:v7.15.5"
 pdns_soa: "ns1.{{ domain }}. hostmaster.{{ domain }}. 0 10800 3600 604800 3600"
 
 # Vaultwarden
@@ -166,8 +168,8 @@ panel_services:
     playbook: playbook.yml
     host: vps
     dir: /opt/dns
-    containers: [pdns, pdns-db, pdns-admin]
-    images: ["{{ pdns_image }}", "{{ pdns_mariadb_image }}", "{{ pdns_admin_image }}"]
+    containers: [pdns, pdns-db, pdns-admin, pdns-auth]
+    images: ["{{ pdns_image }}", "{{ pdns_mariadb_image }}", "{{ pdns_admin_image }}", "{{ oauth2_proxy_image }}"]
     hostname: "{{ pdns_admin_host }}"
     jenkins_job: vps-deploy
     db:
