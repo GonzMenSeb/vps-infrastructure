@@ -1,0 +1,194 @@
+---
+- name: Preflight for the w1 agent host stages (read-only unless the dead-man self-test is requested)
+  hosts: w1
+  become: true
+  gather_facts: false
+  check_mode: false
+  vars_files:
+    - ../vault.yml
+  vars:
+    agent_host_preflight_root_path: true
+    agent_host_preflight_deadman: false
+    agent_host_before_report: ""
+
+  tasks:
+    - name: Load the role defaults at role-default precedence
+      include_role:
+        name: agent_host
+        tasks_from: load_defaults
+        public: true
+
+    - name: P1 - assert the controller runs inside tmux or screen
+      assert:
+        that: (lookup('env', 'TMUX') | length > 0) or (lookup('env', 'STY') | length > 0)
+        fail_msg: run the stages from a tmux or screen session so a dropped terminal does not kill an armed stage
+        quiet: true
+
+    - name: P2 - open a root login over a separate channel as break-glass
+      command:
+        argv: "{{ ['ssh'] + agent_host_probe_ssh_args + ['root@' ~ ansible_host, 'true'] }}"
+      delegate_to: localhost
+      become: false
+      register: agent_host_pf_root
+      changed_when: false
+      failed_when: false
+      when: agent_host_preflight_root_path | bool
+
+    - name: P2 - assert the root login worked
+      assert:
+        that: agent_host_pf_root.rc == 0
+        fail_msg: "the controller cannot open ssh root@host (rc {{ agent_host_pf_root.rc }}); the second-terminal break-glass would not work, or pass -e agent_host_preflight_root_path=false"
+        quiet: true
+      when: agent_host_preflight_root_path | bool
+
+    - name: P3 - read the dpkg audit
+      command: dpkg --audit
+      register: agent_host_pf_dpkg
+      changed_when: false
+
+    - name: P3 - assert dpkg is consistent
+      assert:
+        that: agent_host_pf_dpkg.stdout | trim == ''
+        fail_msg: "dpkg --audit reports a broken package state: {{ agent_host_pf_dpkg.stdout }}"
+        quiet: true
+
+    - name: P4 - read the apt service states
+      command: systemctl is-active apt-daily.service apt-daily-upgrade.service
+      register: agent_host_pf_apt
+      changed_when: false
+      failed_when: false
+
+    - name: P4 - read the apt timers and the clock
+      shell: date +%s; systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --no-pager --output=json
+      register: agent_host_pf_apt_timers
+      changed_when: false
+
+    - name: P4 - assert apt is idle and neither timer is due within the margin
+      assert:
+        that:
+          - "'active' not in agent_host_pf_apt.stdout_lines"
+          - >-
+            agent_host_pf_apt_timers.stdout_lines[1] | from_json | map(attribute='next') | map('int')
+            | select('lt', (agent_host_pf_apt_timers.stdout_lines[0] | int + agent_host_apt_timer_margin_minutes | int * 60) * 1000000)
+            | list | length == 0
+        fail_msg: "an apt service is running, or an apt timer is due within {{ agent_host_apt_timer_margin_minutes }} minutes (or overdue); wait for it to finish and re-run"
+        quiet: true
+
+    - name: P5 - read the free space on /boot in MiB
+      shell: df -Pm /boot | awk 'NR==2{print $4}'
+      register: agent_host_pf_boot
+      changed_when: false
+
+    - name: P5 - assert /boot has room for a kernel
+      assert:
+        that: agent_host_pf_boot.stdout | trim | int >= agent_host_apt_min_boot_free_mib | int
+        fail_msg: "/boot has {{ agent_host_pf_boot.stdout | trim }} MiB free, {{ agent_host_apt_min_boot_free_mib }} needed"
+        quiet: true
+
+    - name: P6 - read the free space on / in MiB
+      shell: df -Pm / | awk 'NR==2{print $4}'
+      register: agent_host_pf_root_free
+      changed_when: false
+
+    - name: P6 - assert / has room for packages and the swap file
+      assert:
+        that: agent_host_pf_root_free.stdout | trim | int >= agent_host_apt_min_root_free_mib | int
+        fail_msg: "/ has {{ agent_host_pf_root_free.stdout | trim }} MiB free, {{ agent_host_apt_min_root_free_mib }} needed"
+        quiet: true
+
+    - name: P7 - look for the before report on the controller
+      stat:
+        path: "{{ agent_host_before_report if agent_host_before_report.startswith('/') else playbook_dir ~ '/../' ~ agent_host_before_report }}"
+      delegate_to: localhost
+      become: false
+      register: agent_host_pf_before
+      when: agent_host_before_report | length > 0
+
+    - name: P7 - assert the before report exists
+      assert:
+        that: agent_host_pf_before.stat.exists
+        fail_msg: "no before report at {{ agent_host_before_report }}; take the before snapshot first"
+        quiet: true
+      when: agent_host_before_report | length > 0
+
+    - name: P8 - count the w1 address variable in the vault without printing it
+      shell: ansible-vault view "{{ playbook_dir }}/../vault.yml" | grep -c '^vault_w1_ip' || true
+      delegate_to: localhost
+      become: false
+      register: agent_host_pf_vault
+      changed_when: false
+
+    - name: P8 - assert the vault defines the w1 address once
+      assert:
+        that: agent_host_pf_vault.stdout | trim == '1'
+        fail_msg: vault.yml does not define vault_w1_ip exactly once
+        quiet: true
+
+    - name: P9 - assert the second-terminal attestation when the firewall is on
+      assert:
+        that: agent_host_second_terminal | default(false) | bool
+        fail_msg: the firewall stage can cut access; open ssh root@host in a second terminal and pass -e agent_host_second_terminal=true
+        quiet: true
+      when: agent_host_firewall_enabled | bool
+
+    - name: P10 - open a fresh login with sudo as the agent user from the controller
+      command:
+        argv: "{{ ['ssh'] + agent_host_probe_ssh_args + agent_host_probe_target_args + [ansible_user ~ '@' ~ ansible_host, 'sudo -n true && echo agent-host-probe-ok'] }}"
+      delegate_to: localhost
+      become: false
+      register: agent_host_pf_login
+      changed_when: false
+      failed_when: false
+
+    - name: P10 - assert the login and passwordless sudo worked
+      assert:
+        that:
+          - agent_host_pf_login.rc == 0
+          - "'agent-host-probe-ok' in agent_host_pf_login.stdout"
+        fail_msg: the controller identity cannot open a raw ssh login with sudo -n true; the stage probes would fail the same way
+        quiet: true
+
+    - name: P11 - arm a transient timer with the dead-man invocation form
+      command: >-
+        systemd-run --unit=agent-host-deadman-selftest --on-active=15s --collect
+        /usr/bin/logger -t agent-host-deadman-selftest fired
+      changed_when: true
+      when: agent_host_preflight_deadman | bool
+
+    - name: P12 - arm a transient timer with the firewall dead-man invocation form
+      command: >-
+        systemd-run --unit=agent-host-ufw-deadman-selftest --on-active=15s --collect
+        /usr/bin/logger -t agent-host-ufw-deadman-selftest fired
+      changed_when: true
+      when: agent_host_preflight_deadman | bool
+
+    - name: P11 and P12 - wait for both timers to fire
+      command: sleep 20
+      changed_when: false
+      when: agent_host_preflight_deadman | bool
+
+    - name: P11 and P12 - read the journal and the timer list
+      shell: |
+        journalctl -t agent-host-deadman-selftest --since=-2min --no-pager -o cat
+        echo ---
+        journalctl -t agent-host-ufw-deadman-selftest --since=-2min --no-pager -o cat
+        echo ---
+        systemctl list-timers --all --no-pager
+      register: agent_host_pf_deadman
+      changed_when: false
+      when: agent_host_preflight_deadman | bool
+
+    - name: P11 and P12 - assert both timers fired once and are gone
+      assert:
+        that:
+          - agent_host_pf_deadman.stdout.split('---\n')[0] | trim == 'fired'
+          - agent_host_pf_deadman.stdout.split('---\n')[1] | trim == 'fired'
+          - "'agent-host-deadman-selftest' not in agent_host_pf_deadman.stdout.split('---\n')[2]"
+          - "'agent-host-ufw-deadman-selftest' not in agent_host_pf_deadman.stdout.split('---\n')[2]"
+        fail_msg: "a dead-man self-test timer did not fire exactly once or is still listed; the invocation form cannot be relied on"
+        quiet: true
+      when: agent_host_preflight_deadman | bool
+
+    - name: Preflight summary
+      debug:
+        msg: "preflight passed for {{ inventory_hostname }}"
