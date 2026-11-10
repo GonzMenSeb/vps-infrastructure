@@ -1,0 +1,27 @@
+---
+agent_host_reboot_confirm: ""
+agent_host_reboot_timeout: 900
+agent_host_reboot_pre_delay: 60
+agent_host_reboot_post_delay: 20
+agent_host_reboot_ready_retries: 36
+agent_host_reboot_ready_delay: 5
+agent_host_reboot_agent_comms: "claude|herdr-core|herdr|pi|tmux: server"
+agent_host_reboot_services:
+  - node_exporter
+  - alloy
+agent_host_reboot_sshd_watch:
+  - permitrootlogin
+  - passwordauthentication
+  - kbdinteractiveauthentication
+  - clientaliveinterval
+  - clientalivecountmax
+  - authenticationmethods
+agent_host_reboot_sysctl_watch:
+  - kernel.panic
+  - fs.inotify.max_user_watches
+  - fs.inotify.max_user_instances
+  - net.ipv4.tcp_congestion_control
+  - net.core.default_qdisc
+  - net.ipv4.tcp_slow_start_after_idle
+  - net.ipv4.tcp_mtu_probing
+  - vm.swappiness

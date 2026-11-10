@@ -1,0 +1,226 @@
+---
+- name: Agent host verification (w1, read-only)
+  hosts: w1
+  become: true
+  gather_facts: false
+  check_mode: false
+  vars_files:
+    - ../vault.yml
+  vars:
+    agent_host_check_fixture: ""
+    agent_host_check_report: ""
+    agent_host_check_domains: []
+    agent_host_check_print_args: false
+    agent_host_before_report: ""
+    agent_host_nl: "\n"
+    agent_host_tab: "\t"
+    agent_host_row_domains: [prove, repo, packages, locale, network, memory, sysctl, session, reporting, limits, ssh, firewall]
+    agent_host_row_domains_all: [prove, repo, packages, locale, network, memory, sysctl, session, reporting, limits, ssh, firewall]
+    agent_host_row_domains_extra: [guard, kernel]
+
+  tasks:
+    - name: Load the role defaults at role-default precedence, so host_vars overrides count
+      ansible.builtin.include_role:
+        name: agent_host
+        tasks_from: load_defaults
+        public: true
+
+    - name: Refuse a requested domain the engine does not know
+      ansible.builtin.assert:
+        that: agent_host_check_domains | difference(agent_host_row_domains_all + agent_host_row_domains_extra) | length == 0
+        fail_msg: "agent_host_check_domains names a domain outside agent_host_row_domains_all"
+        quiet: true
+
+    - name: Load the per-domain check rows
+      ansible.builtin.include_vars:
+        dir: "{{ playbook_dir }}/w1-agent-host-check-rows"
+
+    - name: Refuse a rows variable whose domain the engine does not load
+      ansible.builtin.assert:
+        that:
+          - vars | list | select('match', '^agent_host_check_rows_') | map('regex_replace', '^agent_host_check_rows_', '') | difference(agent_host_row_domains_all) | length == 0
+        fail_msg: "a rows variable is named for a domain missing from agent_host_row_domains_all"
+        quiet: true
+
+    - name: Read the before snapshot, if given
+      ansible.builtin.set_fact:
+        agent_host_before_kv: "{{ (lookup('ansible.builtin.file', agent_host_before_path) | from_json).kv if agent_host_before_report != '' else {} }}"
+      vars:
+        agent_host_before_path: "{{ agent_host_before_report if agent_host_before_report.startswith('/') else playbook_dir ~ '/../' ~ agent_host_before_report }}"
+
+    - name: Build the evidence rows
+      ansible.builtin.set_fact:
+        agent_host_rows: "{{ agent_host_rows_json | from_json }}"
+      vars:
+        agent_host_rows_json: >-
+          {%- set want = agent_host_check_domains -%}
+          {%- set rows = [] -%}
+          {%- for k, v in agent_host_sysctl_all.items() if (want | length == 0 or 'sysctl' in want) -%}
+          {%- set _ = rows.append({'id': 'SYS:' ~ k ~ ':runtime', 'domain': 'sysctl', 'sev': 'required', 'key': 'sysctl.' ~ k, 'cmd': '', 'cmp': 'eq', 'exp': v | string, 'pair': 'SYS:' ~ k ~ ':boot'}) -%}
+          {%- set _ = rows.append({'id': 'SYS:' ~ k ~ ':boot', 'domain': 'sysctl', 'sev': 'required', 'key': 'sysboot.' ~ k, 'cmd': '', 'cmp': 'eq', 'exp': v | string, 'pair': 'SYS:' ~ k ~ ':runtime'}) -%}
+          {%- endfor -%}
+          {%- for k, v in (agent_host_ssh_auth | combine(agent_host_ssh_transport)).items() if (want | length == 0 or 'ssh' in want) -%}
+          {%- set al = agent_host_ssh_output_aliases[v | string] | default('') -%}
+          {%- set _ = rows.append({'id': 'SSHD:' ~ (k | lower), 'domain': 'ssh', 'sev': 'required', 'key': 'sshd.' ~ (k | lower), 'cmd': '', 'cmp': 'any', 'exp': (v | string) ~ ('|' ~ al if al else '')}) -%}
+          {%- endfor -%}
+          {%- for d in agent_host_row_domains -%}
+          {%- set n = 'agent_host_check_rows_' ~ d -%}
+          {%- for r in (lookup('ansible.builtin.vars', n) if n in (vars | list) else []) if (r.when | default(true) | bool) and (want | length == 0 or (r.domain | default(d)) in want or (r.domain | default(d)) == 'guard') -%}
+          {%- set _ = rows.append({'id': r.id, 'domain': r.domain | default(d), 'sev': r.severity | default(r.sev | default('required')), 'key': r.key | default(''), 'cmd': r.cmd | default(r.command | default('')), 'cmp': r.cmp | default('eq'), 'exp': r.expect | default(r.expected | default('')) | string}) -%}
+          {%- endfor -%}
+          {%- endfor -%}
+          {{ rows | to_json }}
+
+    - name: Refuse a requested domain that contributes no row
+      ansible.builtin.assert:
+        that: agent_host_check_domains | reject('in', agent_host_rows | map(attribute='domain') | unique | list) | list | length == 0
+        fail_msg: "a requested domain has no rows: {{ agent_host_check_domains | reject('in', agent_host_rows | map(attribute='domain') | unique | list) | join(', ') }} (is its enabling switch passed with -e?)"
+        quiet: true
+
+    - name: Validate the row contract
+      ansible.builtin.assert:
+        that:
+          - agent_host_rows | map(attribute='id') | unique | list | length == agent_host_rows | length
+          - agent_host_rows | map(attribute='id') | select('match', '^[A-Za-z0-9_.:@+-]+$') | list | length == agent_host_rows | length
+          - agent_host_rows | map(attribute='cmd') | select('search', '\t') | list | length == 0
+          - agent_host_rows | map(attribute='cmd') | map('regex_replace', '[^\n]', '') | reject('equalto', '') | list | length == 0
+        fail_msg: "check misconfigured: duplicate or invalid row id, or a cmd with a tab or newline"
+
+    - name: Build the collector arguments
+      ansible.builtin.set_fact:
+        agent_host_collect_args: >-
+          --user '{{ agent_host_user }}' --sysctl '{{ agent_host_sysctl_all.keys() | join(',') }}'
+          --rows-b64 '{{ agent_host_batch | from_json | join(agent_host_nl) | b64encode }}'
+      vars:
+        agent_host_batch: >-
+          {%- set out = [] -%}
+          {%- for r in agent_host_rows if r.cmd and not r.key -%}
+          {%- set _ = out.append(r.id ~ agent_host_tab ~ r.cmd) -%}
+          {%- endfor -%}
+          {{ out | to_json }}
+      when: agent_host_check_fixture == ''
+
+    - name: Print the collector arguments
+      ansible.builtin.debug:
+        msg: "{{ agent_host_collect_args }}"
+      when: agent_host_check_print_args | bool
+
+    - name: Stop after printing
+      ansible.builtin.meta: end_play
+      when: agent_host_check_print_args | bool
+
+    - name: Collect live evidence in one login
+      ansible.builtin.script:
+        cmd: "{{ playbook_dir }}/files/w1-agent-host-collect.sh {{ agent_host_collect_args }}"
+        executable: /bin/bash
+      register: agent_host_col
+      changed_when: false
+      when: agent_host_check_fixture == ''
+
+    - name: Read limits as a fresh login of the agent user
+      ansible.builtin.shell: "ulimit -Sn; ulimit -Hn"
+      register: agent_host_ulimit
+      become: false
+      changed_when: false
+      when: agent_host_check_fixture == ''
+      vars:
+        ansible_ssh_args: "-o ControlMaster=no -o ControlPath=none -o PreferredAuthentications=publickey"
+
+    - name: Parse the evidence
+      ansible.builtin.set_fact:
+        agent_host_c: >-
+          {{ dict((agent_host_col.stdout if agent_host_check_fixture == '' else lookup('ansible.builtin.file', agent_host_check_fixture)).splitlines()
+             | select('match', '^[A-Za-z0-9_.:@/+-]+=') | map('split', '=', 1) | list)
+             | combine({'limits.nofile_soft': agent_host_ulimit.stdout_lines[0], 'limits.nofile_hard': agent_host_ulimit.stdout_lines[1]} if agent_host_check_fixture == '' else {}) }}
+
+    - name: Refuse to judge incomplete evidence
+      ansible.builtin.assert:
+        that: agent_host_c['collector.done'] | default('0') == '1'
+        fail_msg: "check misconfigured: the collector did not finish"
+
+    - name: Evaluate every row
+      ansible.builtin.set_fact:
+        agent_host_res: "{{ agent_host_results | from_json }}"
+      vars:
+        agent_host_results: >-
+          {%- set c = agent_host_c -%}
+          {%- set out = [] -%}
+          {%- for r in agent_host_rows -%}
+          {%- set raw = c[r.key] | default('<missing>') if r.key else c['row.' ~ r.id] | default('<missing>') -%}
+          {%- set rc = c['row.' ~ r.id ~ '.rc'] | default('0') if not r.key else '0' -%}
+          {%- set o = ('<timeout>' if rc == '124' else raw) | string | regex_replace('\s+', ' ') | trim -%}
+          {%- set e = r.exp | regex_replace('\s+', ' ') | trim -%}
+          {%- if r.cmp == 'eq' -%}{%- set ok = (o == e) -%}
+          {%- elif r.cmp == 'ne' -%}{%- set ok = (o != e) and o != '<missing>' -%}
+          {%- elif r.cmp == 'ge' -%}{%- set ok = (o is match('^-?[0-9]+$') and e is match('^-?[0-9]+$') and o | int >= e | int) -%}
+          {%- elif r.cmp == 'le' -%}{%- set ok = (o is match('^-?[0-9]+$') and e is match('^-?[0-9]+$') and o | int <= e | int) -%}
+          {%- elif r.cmp == 'ge_f' -%}{%- set ok = (o is match('^[0-9.]+$') and o | float >= e | float) -%}
+          {%- elif r.cmp == 'le_f' -%}{%- set ok = (o is match('^[0-9.]+$') and o | float <= e | float) -%}
+          {%- elif r.cmp in ['match', 'search'] -%}{%- set ok = (o is search(e)) -%}
+          {%- elif r.cmp == 'any' -%}{%- set ok = (o in e.split('|')) -%}
+          {%- elif r.cmp == 'empty' -%}{%- set ok = (o == '') -%}
+          {%- elif r.cmp == 'absent' -%}{%- set ok = (o in ['', 'absent'] or rc != '0') -%}
+          {%- elif r.cmp == 'eq_base' -%}{%- set b = agent_host_before_kv[r.key] | default('nobase') -%}{%- set e = b -%}{%- set ok = (o == b or b == 'nobase') -%}
+          {%- else -%}{%- set ok = false -%}
+          {%- endif -%}
+          {%- set _ = out.append({'id': r.id, 'domain': r.domain, 'sev': r.sev, 'ok': ok, 'state': ('INCONCLUSIVE' if o == 'inconclusive' else ('PASS' if ok else 'FAIL')), 'obs': o[:160], 'exp': e[:160], 'pair': r.pair | default('')}) -%}
+          {%- endfor -%}
+          {{ out | to_json }}
+
+    - name: Compute verdicts
+      ansible.builtin.set_fact:
+        agent_host_req_fail: "{{ agent_host_res | selectattr('sev', 'eq', 'required') | selectattr('state', 'eq', 'FAIL') | map(attribute='id') | list }}"
+        agent_host_adv_fail: "{{ agent_host_res | selectattr('sev', 'ne', 'required') | selectattr('state', 'eq', 'FAIL') | map(attribute='id') | list }}"
+        agent_host_inconclusive: "{{ agent_host_res | selectattr('state', 'eq', 'INCONCLUSIVE') | map(attribute='id') | list }}"
+        agent_host_vacuous: "{{ (agent_host_rows | selectattr('cmp', 'eq', 'eq_base') | map(attribute='id') | list) if agent_host_before_report == '' else [] }}"
+        agent_host_half: "{{ agent_host_half_json | from_json }}"
+      vars:
+        agent_host_half_json: >-
+          {%- set by_id = {} -%}
+          {%- for r in agent_host_res -%}{%- set _ = by_id.update({r.id: r}) -%}{%- endfor -%}
+          {%- set out = [] -%}
+          {%- for r in agent_host_res if r.id.endswith(':boot') and r.pair and r.pair in by_id -%}
+          {%- set rt = by_id[r.pair] -%}
+          {%- if r.ok and not rt.ok -%}{%- set _ = out.append('HALF-APPLIED ' ~ r.id[:-5]) -%}
+          {%- elif rt.ok and not r.ok -%}{%- set _ = out.append('RUNTIME-ONLY ' ~ r.id[:-5]) -%}{%- endif -%}
+          {%- endfor -%}{{ out | to_json }}
+
+    - name: Evidence table
+      ansible.builtin.debug:
+        msg: "{{ agent_host_res | map(attribute='state') | zip(agent_host_res | map(attribute='sev'), agent_host_res | map(attribute='id'), agent_host_res | map(attribute='obs'), agent_host_res | map(attribute='exp')) | map('join', ' | ') | list }}"
+
+    - name: Verdicts
+      ansible.builtin.debug:
+        msg:
+          rows: "{{ agent_host_res | length }}"
+          required_failed: "{{ agent_host_req_fail }}"
+          advisory_failed: "{{ agent_host_adv_fail }}"
+          inconclusive: "{{ agent_host_inconclusive }}"
+          vacuous_no_baseline: "{{ agent_host_vacuous }}"
+          half_applied: "{{ agent_host_half }}"
+
+    - name: Create the report directory
+      ansible.builtin.file:
+        path: "{{ agent_host_report_path | dirname }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+      when: agent_host_check_report != ''
+      vars:
+        agent_host_report_path: "{{ agent_host_check_report if agent_host_check_report.startswith('/') else playbook_dir ~ '/../' ~ agent_host_check_report }}"
+
+    - name: Write the JSON report
+      ansible.builtin.copy:
+        dest: "{{ agent_host_check_report if agent_host_check_report.startswith('/') else playbook_dir ~ '/../' ~ agent_host_check_report }}"
+        content: "{{ {'req_fail': agent_host_req_fail, 'adv_fail': agent_host_adv_fail, 'inconclusive': agent_host_inconclusive, 'vacuous_no_baseline': agent_host_vacuous, 'half': agent_host_half, 'rows': agent_host_res} | to_nice_json }}"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      when: agent_host_check_report != ''
+
+    - name: Fail on any required row that did not pass
+      ansible.builtin.assert:
+        that: agent_host_req_fail | length == 0
+        fail_msg: "required rows failed: {{ agent_host_req_fail | join(', ') }}"
+        success_msg: "all {{ agent_host_res | selectattr('sev', 'eq', 'required') | list | length }} required rows passed"

@@ -1,0 +1,72 @@
+---
+- name: Assert sysctl keys are owned by one domain only
+  assert:
+    that:
+      - >-
+        agent_host_net_sysctl | length + agent_host_mem_sysctl | length + agent_host_sess_sysctl | length
+        == agent_host_sysctl_all | length
+    fail_msg: a sysctl key appears in more than one domain map
+    quiet: true
+
+- name: Render the per-domain sysctl files
+  template:
+    src: sysctl.conf.j2
+    dest: "/etc/sysctl.d/60-agent-host-{{ item.key }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ agent_host_sysctl_files | dict2items | rejectattr('value', 'equalto', {}) | list }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Remove the sysctl files of domains with no keys
+  file:
+    path: "/etc/sysctl.d/60-agent-host-{{ item.key }}.conf"
+    state: absent
+  loop: "{{ agent_host_sysctl_files | dict2items | selectattr('value', 'equalto', {}) | list }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Read live sysctl values and flag drift
+  command: sysctl -n {{ item.key }}
+  loop: "{{ agent_host_sysctl_all | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: agent_host_sysctl_live
+  failed_when: false
+  changed_when: agent_host_sysctl_live.stdout.split() | join(' ') != (item.value | string).split() | join(' ')
+  check_mode: false
+  tags: [agent_host_live]
+
+- name: Apply each domain's own sysctl file when any live value differs
+  command: sysctl -p /etc/sysctl.d/60-agent-host-{{ item.key }}.conf
+  loop: "{{ agent_host_sysctl_files | dict2items | rejectattr('value', 'equalto', {}) | list }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when:
+    - not ansible_check_mode
+    - agent_host_sysctl_live is changed
+  tags: [agent_host_live]
+
+- name: Re-read live sysctl values
+  command: sysctl -n {{ item.key }}
+  loop: "{{ agent_host_sysctl_all | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: agent_host_sysctl_after
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+  tags: [agent_host_live]
+
+- name: Assert live sysctl values equal the desired values
+  assert:
+    that:
+      - item.stdout.split() | join(' ') == (item.item.value | string).split() | join(' ')
+    fail_msg: "live {{ item.item.key }} is '{{ item.stdout }}', desired '{{ item.item.value }}'"
+    quiet: true
+  loop: "{{ agent_host_sysctl_after.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  when: not ansible_check_mode
+  tags: [agent_host_live]

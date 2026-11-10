@@ -1,0 +1,17 @@
+---
+agent_host_baseline_packages:
+  - git
+  - curl
+  - tmux
+  - htop
+  - build-essential
+  - python3-venv
+  - python3-dev
+  - nodejs
+
+agent_host_gh_enabled: true
+agent_host_gh_keyring: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+agent_host_gh_keyring_url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+agent_host_gh_keyring_sha256: 6084d5d7bd8e288441e0e94fc6275570895da18e6751f70f057485dc2d1a811b
+agent_host_gh_repo_url: https://cli.github.com/packages
+agent_host_gh_apt_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_architecture] }}"

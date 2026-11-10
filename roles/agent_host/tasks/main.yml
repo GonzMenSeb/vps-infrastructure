@@ -1,0 +1,57 @@
+---
+- name: Install baseline and domain packages
+  import_tasks: packages.yml
+  when: agent_host_packages_enabled | bool
+  tags: [agent_host_packages]
+
+- name: Generate client locales
+  import_tasks: locale.yml
+  when: agent_host_locale_enabled | bool
+  tags: [agent_host_locale]
+
+- name: Network tooling
+  import_tasks: network.yml
+  when: agent_host_network_enabled | bool
+  tags: [agent_host_network]
+
+- name: Memory safety
+  import_tasks: memory.yml
+  when: agent_host_memory_enabled | bool
+  tags: [agent_host_memory]
+
+- name: Kernel parameters
+  import_tasks: sysctl.yml
+  when: agent_host_sysctl_enabled | bool
+  tags: [agent_host_sysctl]
+
+- name: Session survival
+  import_tasks: session.yml
+  when: agent_host_session_enabled | bool
+  tags: [agent_host_session]
+
+- name: Reporting
+  import_tasks: reporting.yml
+  when: agent_host_reporting_enabled | bool
+  tags: [agent_host_reporting]
+
+- name: Open-file limits for the agent user
+  import_tasks: limits.yml
+  when: agent_host_limits_enabled | bool
+  tags: [agent_host_limits]
+
+- name: Prove a fresh login and sudo after the limits change
+  import_tasks: probe.yml
+  vars:
+    agent_host_probe_label: limits
+  when: agent_host_limits_enabled | bool
+  tags: [agent_host_limits, agent_host_live]
+
+- name: SSH daemon policy
+  import_tasks: ssh.yml
+  when: agent_host_ssh_enabled | bool
+  tags: [agent_host_ssh]
+
+- name: Firewall and brute-force protection
+  import_tasks: firewall.yml
+  when: agent_host_firewall_enabled | bool
+  tags: [agent_host_firewall]

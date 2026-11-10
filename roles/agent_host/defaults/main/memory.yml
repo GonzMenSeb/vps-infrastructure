@@ -1,0 +1,36 @@
+---
+agent_host_mem_state: present
+
+agent_host_mem_swap_enabled: true
+agent_host_mem_swap_file: /swapfile
+agent_host_mem_swap_size_mib: 4096
+agent_host_mem_swap_allocator: fallocate
+agent_host_mem_swap_min_free_after_mib: 20480
+
+agent_host_mem_zswap_enabled: true
+agent_host_mem_zswap_zpool: zsmalloc
+agent_host_mem_zswap_compressor: ""
+
+agent_host_mem_sysctl: {}
+agent_host_mem_sysctl_defaults:
+  vm.swappiness: 60
+  vm.page-cluster: 3
+
+agent_host_mem_earlyoom_enabled: false
+agent_host_mem_earlyoom_dryrun: true
+agent_host_mem_earlyoom_mem: "10,5"
+agent_host_mem_earlyoom_swap: "100,100"
+agent_host_mem_earlyoom_report_seconds: 3600
+agent_host_mem_earlyoom_avoid:
+  - herdr-core
+  - herdr
+  - moshi-hook
+  - "tmux: server"
+agent_host_mem_earlyoom_prefer: []
+agent_host_mem_earlyoom_avoid_regex: "^({{ agent_host_mem_earlyoom_avoid | join('|') }})$"
+agent_host_mem_earlyoom_prefer_regex: "^({{ agent_host_mem_earlyoom_prefer | join('|') }})$"
+agent_host_mem_earlyoom_argv: >-
+  {{ ['-m', agent_host_mem_earlyoom_mem, '-s', agent_host_mem_earlyoom_swap, '-r', agent_host_mem_earlyoom_report_seconds | string]
+  + (['--avoid', agent_host_mem_earlyoom_avoid_regex] if agent_host_mem_earlyoom_avoid | length > 0 else [])
+  + (['--prefer', agent_host_mem_earlyoom_prefer_regex] if agent_host_mem_earlyoom_prefer | length > 0 else [])
+  + (['--dryrun'] if agent_host_mem_earlyoom_dryrun | bool else []) }}

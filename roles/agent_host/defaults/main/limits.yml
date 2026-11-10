@@ -1,0 +1,3 @@
+---
+agent_host_limits_nofile_soft: 65536
+agent_host_limits_nofile_hard: 1048576

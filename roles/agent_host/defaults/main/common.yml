@@ -1,0 +1,46 @@
+---
+agent_host_user: "{{ ssh_allowed_users }}"
+
+agent_host_packages_enabled: true
+agent_host_locale_enabled: true
+agent_host_network_enabled: true
+agent_host_memory_enabled: true
+agent_host_sysctl_enabled: true
+agent_host_session_enabled: true
+agent_host_reporting_enabled: true
+agent_host_limits_enabled: true
+agent_host_ssh_enabled: true
+agent_host_firewall_enabled: false
+
+agent_host_apt_timeout: 1800
+agent_host_apt_lock_timeout: 600
+agent_host_apt_min_boot_free_mib: 300
+agent_host_apt_min_root_free_mib: 2048
+agent_host_apt_timer_margin_minutes: 15
+agent_host_apt_environment:
+  NEEDRESTART_MODE: l
+  NEEDRESTART_SUSPEND: "1"
+
+agent_host_sysctl_all: "{{ agent_host_net_sysctl | combine(agent_host_mem_sysctl, agent_host_sess_sysctl) }}"
+agent_host_sysctl_files:
+  net: "{{ agent_host_net_sysctl }}"
+  memory: "{{ agent_host_mem_sysctl }}"
+  session: "{{ agent_host_sess_sysctl }}"
+
+agent_host_probe_ssh_args:
+  - -o
+  - BatchMode=yes
+  - -o
+  - ControlMaster=no
+  - -o
+  - ControlPath=none
+  - -o
+  - ConnectTimeout=15
+  - -o
+  - StrictHostKeyChecking=accept-new
+  - -o
+  - LogLevel=ERROR
+agent_host_probe_key_file: "{{ ansible_private_key_file | default(ansible_ssh_private_key_file | default('')) }}"
+agent_host_probe_target_args: >-
+  {{ (["-i", agent_host_probe_key_file, "-o", "IdentitiesOnly=yes"] if agent_host_probe_key_file | length > 0 else [])
+  + (["-p", ansible_port | string] if ansible_port is defined else []) }}

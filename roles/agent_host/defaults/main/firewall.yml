@@ -1,0 +1,17 @@
+---
+agent_host_ufw_ssh_ports:
+  - 22
+agent_host_ufw_logging: low
+agent_host_ufw_default_incoming: deny
+agent_host_ufw_default_outgoing: allow
+agent_host_ufw_default_routed: deny
+agent_host_ufw_extra_rules: []
+agent_host_ufw_mosh_rule: auto
+agent_host_ufw_rollback_seconds: 300
+agent_host_ufw_prewarm_seconds: 90
+
+agent_host_fail2ban_enabled: false
+agent_host_fail2ban_ignoreip: []
+agent_host_fail2ban_maxretry: 5
+agent_host_fail2ban_findtime: 10m
+agent_host_fail2ban_bantime: 10m

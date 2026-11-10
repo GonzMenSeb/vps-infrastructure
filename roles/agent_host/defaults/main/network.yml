@@ -1,0 +1,21 @@
+---
+agent_host_mosh_enabled: true
+agent_host_mosh_udp_range: "60000:61000"
+agent_host_net_client_locales:
+  - en_US.UTF-8
+
+agent_host_net_congestion_control: bbr
+agent_host_net_slow_start_after_idle: "{{ 1 if agent_host_net_congestion_control == 'bbr' else 0 }}"
+agent_host_net_mtu_probing: 0
+agent_host_net_modules_file: /etc/modules-load.d/agent-host-net.conf
+agent_host_net_modules: "{{ ['tcp_bbr'] if agent_host_net_congestion_control == 'bbr' else [] }}"
+agent_host_net_sysctl:
+  net.ipv4.tcp_congestion_control: "{{ agent_host_net_congestion_control }}"
+  net.ipv4.tcp_slow_start_after_idle: "{{ agent_host_net_slow_start_after_idle }}"
+  net.ipv4.tcp_mtu_probing: "{{ agent_host_net_mtu_probing }}"
+
+agent_host_ssh_client_alive_interval: 60
+agent_host_ssh_client_alive_count_max: 10
+agent_host_net_ssh_transport:
+  ClientAliveInterval: "{{ agent_host_ssh_client_alive_interval | string }}"
+  ClientAliveCountMax: "{{ agent_host_ssh_client_alive_count_max | string }}"

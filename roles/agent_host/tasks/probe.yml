@@ -1,0 +1,10 @@
+---
+- name: Probe a fresh SSH login with sudo over a separate channel ({{ agent_host_probe_label }})
+  command:
+    argv: "{{ ['ssh'] + agent_host_probe_ssh_args + agent_host_probe_target_args + [ansible_user ~ '@' ~ ansible_host, 'sudo -n true && echo agent-host-probe-ok'] }}"
+  delegate_to: localhost
+  become: false
+  register: agent_host_probe_login
+  changed_when: false
+  failed_when: agent_host_probe_login.rc != 0 or 'agent-host-probe-ok' not in agent_host_probe_login.stdout
+  when: not ansible_check_mode
