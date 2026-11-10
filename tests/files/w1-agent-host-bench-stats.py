@@ -9,6 +9,13 @@ CC = ("cubic", "bbr", "bbr2", "reno", "vegas", "westwood", "htcp")
 LOWER_IS_BETTER = {"m3_down_s": True, "m4_first_ms": True, "m4_last_ms": True, "m5_echo_ms": True,
                    "m5b_echo_ms": True, "m6_total_s": True, "m6_login_s": True}
 CONTROLS = ("m1_rtt_ms", "m3_up_s", "m5_echo_ms")
+PRIMARY = "m4_last_ms@5s64k"
+CC_SYSCTL = "sysctl.net.ipv4.tcp_congestion_control"
+SSAI_SYSCTL = "sysctl.net.ipv4.tcp_slow_start_after_idle"
+LOSS_POINTS = 1.0
+RETRANS_POINTS = 0.5
+AB_LIMITS = ("LIMITS: the arms measure bulk transfer and after-idle redraw on fresh connections; nothing here is about keystrokes or the phone; "
+             "bbr/0 against bbr/1 is the null control because the kernel skips the idle restart for BBR sockets; only %s may be cited as an improvement." % PRIMARY)
 
 
 def parse_ss(text):
@@ -76,9 +83,44 @@ def verdict(name, before, after, margin=5.0):
             "n": [len(before), len(after)], "p90": [pct(before, 90), pct(after, 90)]}
 
 
+def num(ctx, key):
+    try:
+        return float(ctx[key])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def run_cc(doc):
+    ctx = doc.get("context", {})
+    return ctx.get("ss_cc") or ctx.get(CC_SYSCTL) or None
+
+
+def retrans_pct(ctx):
+    sent, retrans = num(ctx, "ss_bytes_sent"), num(ctx, "ss_bytes_retrans")
+    if sent is None or retrans is None or sent <= 0:
+        return None
+    return 100.0 * retrans / sent
+
+
+def describe(doc):
+    ctx = doc.get("context", {})
+    return "sysctl cc=%s ssai=%s last-transfer cc=%s" % (ctx.get(CC_SYSCTL, "?"), ctx.get(SSAI_SYSCTL, "?"), ctx.get("ss_cc", "?"))
+
+
+def relabel(raw, attributable, demoted):
+    if raw not in ("IMPROVED", "REGRESSED"):
+        return raw
+    if not attributable:
+        return "DRIFT (not attributable)"
+    if demoted:
+        return "DESCRIPTIVE (controls changed)"
+    return raw
+
+
 def compare(b, a):
     rows, flags = [], []
     mb, ma = b.get("metrics", {}), a.get("metrics", {})
+    cb, ca = b.get("context", {}), a.get("context", {})
     rb, ra = mb.get("m1_rtt_ms", []), ma.get("m1_rtt_ms", [])
     if rb and ra:
         d = abs(pct(ra, 10) - pct(rb, 10))
@@ -90,17 +132,44 @@ def compare(b, a):
                 flags.append("NOISY: cpu pressure avg10 above 50 at the end of the %s run" % side)
         except ValueError:
             pass
-    sb, sa = b.get("context", {}).get("cpu_stall_fraction"), a.get("context", {}).get("cpu_stall_fraction")
+    sb, sa = cb.get("cpu_stall_fraction"), ca.get("cpu_stall_fraction")
     if sb is not None and sa is not None and abs(sa - sb) > 0.10:
         flags.append("NOISY: cpu stall fraction differs by more than 10 points")
+    ccb, cca = run_cc(b), run_cc(a)
+    attributable = ccb == "cubic" and cca is not None and cca != ccb
+    if ccb is None or cca is None:
+        flags.append("CC UNKNOWN: a run did not record its congestion control; no row is attributable")
+    elif ccb == cca:
+        flags.append("CC UNCHANGED: both runs used %s; differences are drift, not an effect of the change" % ccb)
+    elif not attributable:
+        flags.append("CC NOT ATTRIBUTABLE: the before run used %s, not cubic" % ccb)
+    demoted = False
+    lb, la = num(cb, "m1_loss_pct"), num(ca, "m1_loss_pct")
+    if lb is not None and la is not None and abs(la - lb) > LOSS_POINTS:
+        flags.append("LOSS CHANGED: ping loss %.1f%% -> %.1f%%; verdicts are descriptive" % (lb, la))
+        demoted = True
+    xb, xa = retrans_pct(cb), retrans_pct(ca)
+    if xb is not None and xa is not None and abs(xa - xb) > RETRANS_POINTS:
+        flags.append("RETRANS CHANGED: retransmit ratio %.2f%% -> %.2f%%; verdicts are descriptive" % (xb, xa))
+        demoted = True
+    if "tcp_metrics_peer" in cb and "tcp_metrics_peer" in ca and cb["tcp_metrics_peer"] != ca["tcp_metrics_peer"]:
+        flags.append("METRICS CACHE DIFFERS: the host's per-destination TCP metrics for this client differ between the runs")
     for name in sorted(set(mb) & set(ma)):
         if len(mb[name]) < 3 or len(ma[name]) < 3:
             continue
         row = verdict(name, mb[name], ma[name])
         if name.split("@")[0] in CONTROLS and row["verdict"] != "WITHIN NOISE":
             flags.append("CONTROL MOVED: %s" % name)
+        row["raw_verdict"] = row["verdict"]
+        row["verdict"] = relabel(row["verdict"], attributable, demoted)
+        if name == PRIMARY:
+            row["role"] = "primary, attributable" if attributable and not demoted else "primary, not attributable" if not attributable else "primary, descriptive"
+        else:
+            row["role"] = "descriptive"
         rows.append(row)
-    return {"rows": rows, "flags": flags}
+    if PRIMARY not in {r["metric"] for r in rows}:
+        flags.append("PRIMARY METRIC %s was not measured in both runs" % PRIMARY)
+    return {"rows": rows, "flags": flags, "attributable": attributable, "before": describe(b), "after": describe(a)}
 
 
 SCRUBS = [
@@ -111,6 +180,7 @@ SCRUBS = [
     ("pubkey", re.compile(r"AAAA[A-Za-z0-9+/]{20,}")),
 ]
 ALLOWED = {"0.0.0.0", "127.0.0.1", "::1"}
+DENY_WORDS = re.compile("|".join(("es_" + "co", "colom" + "bia", "conta" + "bo")), re.I)
 
 
 def scrub_findings(text):
@@ -119,6 +189,8 @@ def scrub_findings(text):
         for m in rx.finditer(text):
             if m.group(0) not in ALLOWED:
                 found.append(name)
+    if DENY_WORDS.search(text):
+        found.append("denied-word")
     for extra in filter(None, os.environ.get("W1_SCRUB_DENY", "").split(",")):
         if extra in text:
             found.append("denied-literal")
@@ -156,6 +228,12 @@ def ab_compare(doc):
     arms = doc["arms"]
     base = arms.get("cubic/1")
     rows, flags = [], []
+    invalid = False
+    for name in sorted(set(arms.get("bbr/0", {})) & set(arms.get("bbr/1", {}))):
+        x, y = arms["bbr/0"][name], arms["bbr/1"][name]
+        if len(x) >= 3 and len(y) >= 3 and verdict(name, y, x)["verdict"] != "WITHIN NOISE":
+            flags.append("A/B INVALID: null control moved for %s (bbr/0 vs bbr/1)" % name)
+            invalid = True
     for arm in sorted(arms):
         if arm == "cubic/1" or not base:
             continue
@@ -163,20 +241,31 @@ def ab_compare(doc):
             if len(base[name]) >= 3 and len(arms[arm][name]) >= 3:
                 row = verdict(name, base[name], arms[arm][name])
                 row["arm"] = arm
+                row["raw_verdict"] = row["verdict"]
+                if invalid and row["verdict"] in ("IMPROVED", "REGRESSED"):
+                    row["verdict"] = "DRIFT (null control moved)"
+                row["role"] = "primary" if name == PRIMARY else "descriptive"
                 rows.append(row)
-    for name in sorted(set(arms.get("bbr/0", {})) & set(arms.get("bbr/1", {}))):
-        x, y = arms["bbr/0"][name], arms["bbr/1"][name]
-        if len(x) >= 3 and len(y) >= 3 and verdict(name, y, x)["verdict"] != "WITHIN NOISE":
-            flags.append("A/B INVALID: null control moved for %s (bbr/0 vs bbr/1)" % name)
+    if not any(r["metric"] == PRIMARY for r in rows):
+        flags.append("PRIMARY METRIC %s was not measured in every arm" % PRIMARY)
     return {"rows": rows, "flags": flags}
+
+
+DRY_OK = "DRY RUN CHANGED NO FINGERPRINTED PATH"
+DRY_HINTS = {"dpkg": "apt or unattended-upgrades ran inside the window", "gauge": "the reboot-required state flipped inside the window"}
 
 
 def snap_compare(b, a, dry=False):
     kb, ka = b["kv"], a["kv"]
     out, bad = [], []
     if dry:
-        same = kb.get("fingerprint") == ka.get("fingerprint") and kb.get("fingerprint")
-        return (["DRY RUN WROTE NOTHING" if same else "DRY RUN CHANGED THE HOST: fingerprint differs"], bool(same))
+        same = kb.get("fingerprint") and kb.get("fingerprint") == ka.get("fingerprint")
+        if same:
+            return ([DRY_OK], True)
+        parts = sorted(k[3:] for k in set(kb) | set(ka) if k.startswith("fp.") and kb.get(k) != ka.get(k))
+        line = "DRY RUN CHANGED THE HOST: fingerprint differs" + (" in " + ", ".join(parts) if parts else "")
+        hints = [DRY_HINTS[p] for p in parts if p in DRY_HINTS]
+        return ([line] + (["a false positive if " + " or ".join(hints) + ": retake the pair"] if hints else []), False)
     sel = lambda kv: {k: v for k, v in kv.items() if k.startswith("strict.") or k.startswith("um.")}
     sb, sa = sel(kb), sel(ka)
     for k in sorted(sb):
@@ -190,10 +279,16 @@ def snap_compare(b, a, dry=False):
             bad.append("%s %s -> %s" % (k, kb.get(k), ka.get(k)))
     if ka.get("kernel_kill_lines", "0") not in ("0", ""):
         bad.append("kernel log has %s kill lines since the before snapshot" % ka["kernel_kill_lines"])
+    for prefix, label in (("info.tmux.", "tmux server"), ("info.sshdsess.", "sshd session")):
+        gone_info = sorted(k[len(prefix):] for k in kb if k.startswith(prefix) and k not in ka)
+        if gone_info:
+            out.append("WARNING (information only, not in the strict set): %d %s process(es) from the before snapshot ended: %s" % (
+                len(gone_info), label, ", ".join(gone_info)))
     gone = sorted(k for k in kb if k.startswith("claude.") and k not in ka)
     if gone:
         out.append("INCONCLUSIVE, ended without kill evidence: %d claude process(es)" % len(gone))
-    out.append("CONTINUITY BROKEN: " + "; ".join(bad) if bad else "INFRA PROCESSES UNTOUCHED")
+    tail = " (%d claude process(es) ended)" % len(gone) if gone else ""
+    out.append(("CONTINUITY BROKEN: " + "; ".join(bad) if bad else "INFRA PROCESSES UNTOUCHED") + tail)
     return out, not bad
 
 
@@ -205,9 +300,14 @@ def main(argv):
         print(json.dumps(parse_ping(sys.stdin.read())))
     elif cmd == "compare":
         res = compare(json.load(open(argv[2])), json.load(open(argv[3])))
+        print("before: %s" % res["before"])
+        print("after:  %s" % res["after"])
+        if "--show-metrics" in argv:
+            cb, ca = json.load(open(argv[2])).get("context", {}), json.load(open(argv[3])).get("context", {})
+            print("tcp_metrics_peer: before '%s' after '%s'" % (cb.get("tcp_metrics_peer", "n/a"), ca.get("tcp_metrics_peer", "n/a")))
         for r in res["rows"]:
-            print("%-18s median %.2f -> %.2f (%+.1f%%) p90 %.2f -> %.2f ci=[%.2f,%.2f] n=%d/%d %s" % (
-                r["metric"], r["before"], r["after"], r["delta_pct"], r["p90"][0], r["p90"][1], r["ci"][0], r["ci"][1], r["n"][0], r["n"][1], r["verdict"]))
+            print("%-18s median %.2f -> %.2f (%+.1f%%) p90 %.2f -> %.2f ci=[%.2f,%.2f] n=%d/%d %s [%s]" % (
+                r["metric"], r["before"], r["after"], r["delta_pct"], r["p90"][0], r["p90"][1], r["ci"][0], r["ci"][1], r["n"][0], r["n"][1], r["verdict"], r["role"]))
         for f in res["flags"]:
             print("FLAG", f)
         print(json.dumps(res), file=sys.stderr) if "--json" in argv else None
@@ -224,17 +324,18 @@ def main(argv):
     elif cmd == "ab-compare":
         res = ab_compare(json.load(open(argv[2])))
         for r in res["rows"]:
-            print("%-6s %-18s before=%.2f after=%.2f delta=%+.1f%% ci=[%.2f,%.2f] %s" % (
-                r["arm"], r["metric"], r["before"], r["after"], r["delta_pct"], r["ci"][0], r["ci"][1], r["verdict"]))
+            print("%-6s %-18s before=%.2f after=%.2f delta=%+.1f%% ci=[%.2f,%.2f] %s [%s]" % (
+                r["arm"], r["metric"], r["before"], r["after"], r["delta_pct"], r["ci"][0], r["ci"][1], r["verdict"], r["role"]))
         for f in res["flags"]:
             print("FLAG", f)
+        print(AB_LIMITS)
     elif cmd == "scrub":
         found = scrub_findings(sys.stdin.read())
         if found:
             print("scrub failed: " + ",".join(sorted(set(found))), file=sys.stderr)
             return 3
     else:
-        print("usage: parse-ss | parse-ping | kv-json LABEL | snap-compare B A | compare B A | scrub", file=sys.stderr)
+        print("usage: parse-ss | parse-ping | kv-json LABEL | assemble LABEL CTX MET | snap-compare B A [--dry] | compare B A [--show-metrics] [--json] | ab-compare AB | scrub", file=sys.stderr)
         return 2
     return 0
 
