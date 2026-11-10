@@ -1,2 +1,48 @@
 ---
-[]
+- name: Install mosh
+  import_tasks: apt_install.yml
+  vars:
+    agent_host_apt_names:
+      - mosh
+  when: agent_host_mosh_enabled | bool
+
+- name: Check the congestion control module exists for every installed kernel
+  shell: |
+    for k in /boot/vmlinuz-*; do
+      [ -e "$k" ] || continue
+      v=${k#/boot/vmlinuz-}
+      for m in {{ agent_host_net_modules | join(' ') }}; do
+        find /lib/modules/$v -name "$m.ko*" 2>/dev/null | grep -q . || echo "$v:$m"
+      done
+    done
+  args:
+    executable: /bin/bash
+  register: agent_host_net_modules_missing
+  changed_when: false
+  check_mode: false
+  failed_when: agent_host_net_modules_missing.stdout != ""
+  when: agent_host_net_modules | length > 0
+
+- name: Create the modules-load directory
+  file:
+    path: "{{ agent_host_net_modules_file | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: agent_host_net_modules | length > 0
+
+- name: Persist the congestion control module across reboots
+  copy:
+    dest: "{{ agent_host_net_modules_file }}"
+    content: "{{ agent_host_net_modules | join('\n') }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  when: agent_host_net_modules | length > 0
+
+- name: Drop the module persistence file when no module is needed
+  file:
+    path: "{{ agent_host_net_modules_file }}"
+    state: absent
+  when: agent_host_net_modules | length == 0
