@@ -1,2 +1,321 @@
 ---
-[]
+- name: Validate memory variables
+  assert:
+    that:
+      - agent_host_mem_swap_allocator in ['fallocate', 'dd']
+      - agent_host_mem_swap_size_mib | int >= 512
+      - agent_host_mem_swap_file is match('^/[A-Za-z0-9_./-]+$')
+      - not (agent_host_mem_zswap_enabled | bool) or (agent_host_mem_swap_enabled | bool)
+      - (agent_host_mem_earlyoom_avoid + agent_host_mem_earlyoom_prefer) | select('match', '^[A-Za-z0-9_.:+ -]+$') | list | length == (agent_host_mem_earlyoom_avoid + agent_host_mem_earlyoom_prefer) | length
+      - agent_host_mem_sysctl.keys() | list | difference(agent_host_mem_sysctl_defaults.keys() | list) | length == 0
+    fail_msg: "Invalid agent_host_mem_* variable. Regex entries allow letters, digits and _.:+ - and space only; sysctl keys are limited to agent_host_mem_sysctl_defaults."
+
+- name: Read active swap
+  command: cat /proc/swaps
+  register: agent_host_mem_swaps
+  changed_when: false
+  check_mode: false
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Stat swap file
+  stat:
+    path: "{{ agent_host_mem_swap_file }}"
+  register: agent_host_mem_swap_stat
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Derive swap unit name
+  command: systemd-escape -p --suffix=swap {{ agent_host_mem_swap_file }}
+  register: agent_host_mem_swap_unit_name
+  changed_when: false
+  check_mode: false
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Derive swap state
+  set_fact:
+    agent_host_mem_swap_unit: "{{ agent_host_mem_swap_unit_name.stdout }}"
+    agent_host_mem_swap_bytes: "{{ agent_host_mem_swap_size_mib | int * 1048576 }}"
+    agent_host_mem_swap_active_files: "{{ agent_host_mem_swaps.stdout_lines[1:] | map('split') | map('first') | list }}"
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Decide swap actions
+  set_fact:
+    agent_host_mem_swap_is_active: "{{ agent_host_mem_swap_file in agent_host_mem_swap_active_files }}"
+    agent_host_mem_swap_needs_create: "{{ not agent_host_mem_swap_stat.stat.exists or (agent_host_mem_swap_stat.stat.size != agent_host_mem_swap_bytes | int and agent_host_mem_swap_file not in agent_host_mem_swap_active_files) }}"
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Refuse unmanaged swap
+  assert:
+    that: agent_host_mem_swap_active_files | difference([agent_host_mem_swap_file]) | length == 0
+    fail_msg: "Swap other than {{ agent_host_mem_swap_file }} is active: {{ agent_host_mem_swap_active_files }}. Remove it or set agent_host_mem_swap_enabled=false."
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Refuse to resize active swap
+  assert:
+    that: not (agent_host_mem_swap_is_active | bool and agent_host_mem_swap_stat.stat.size != agent_host_mem_swap_bytes | int)
+    fail_msg: "{{ agent_host_mem_swap_file }} is active with a size other than {{ agent_host_mem_swap_size_mib }} MiB. The role never runs swapoff on a live host; resize it by hand or at the next reboot."
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Read free space for the swap file
+  command: df --output=avail -BM {{ agent_host_mem_swap_file | dirname }}
+  register: agent_host_mem_swap_df
+  changed_when: false
+  check_mode: false
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool
+
+- name: Require free space after the swap file
+  assert:
+    that: (agent_host_mem_swap_df.stdout_lines[-1] | regex_replace('[^0-9]', '') | int) >= agent_host_mem_swap_size_mib | int + agent_host_mem_swap_min_free_after_mib | int
+    fail_msg: "Less than {{ agent_host_mem_swap_size_mib | int + agent_host_mem_swap_min_free_after_mib | int }} MiB free under {{ agent_host_mem_swap_file | dirname }}."
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool
+
+- name: Probe swap signature
+  command: blkid -p -o value -s TYPE {{ agent_host_mem_swap_file }}
+  register: agent_host_mem_swap_sig
+  changed_when: false
+  failed_when: agent_host_mem_swap_sig.rc not in [0, 2]
+  check_mode: false
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_stat.stat.exists
+
+- name: Remove stale swap temp file
+  file:
+    path: "{{ agent_host_mem_swap_file }}.tmp"
+    state: absent
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool
+
+- name: Remove wrong-sized inactive swap file
+  file:
+    path: "{{ agent_host_mem_swap_file }}"
+    state: absent
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool and agent_host_mem_swap_stat.stat.exists
+
+- name: Create empty swap temp file with mode 0600
+  copy:
+    content: ""
+    dest: "{{ agent_host_mem_swap_file }}.tmp"
+    owner: root
+    group: root
+    mode: "0600"
+    force: false
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool
+
+- name: Allocate swap temp file with fallocate
+  command: fallocate -l {{ agent_host_mem_swap_size_mib }}M {{ agent_host_mem_swap_file }}.tmp
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool and agent_host_mem_swap_allocator == 'fallocate'
+
+- name: Allocate swap temp file with direct writes
+  command: dd if=/dev/zero of={{ agent_host_mem_swap_file }}.tmp bs=1M count={{ agent_host_mem_swap_size_mib }} oflag=direct conv=fsync
+  async: 900
+  poll: 10
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool and agent_host_mem_swap_allocator == 'dd'
+
+- name: Read swap temp file size
+  stat:
+    path: "{{ agent_host_mem_swap_file }}.tmp"
+  register: agent_host_mem_swap_tmp_stat
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool and not ansible_check_mode
+
+- name: Require the full swap temp file size
+  assert:
+    that: agent_host_mem_swap_tmp_stat.stat.size == agent_host_mem_swap_bytes | int
+    fail_msg: "{{ agent_host_mem_swap_file }}.tmp is not {{ agent_host_mem_swap_bytes }} bytes."
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool and not ansible_check_mode
+
+- name: Write swap signature on the temp file
+  command: mkswap {{ agent_host_mem_swap_file }}.tmp
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool
+
+- name: Move swap file into place
+  command: mv -f {{ agent_host_mem_swap_file }}.tmp {{ agent_host_mem_swap_file }}
+  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_needs_create | bool
+
+- name: Write swap signature on an unsigned swap file
+  command: mkswap {{ agent_host_mem_swap_file }}
+  when:
+    - agent_host_mem_swap_enabled | bool
+    - not (agent_host_mem_swap_needs_create | bool)
+    - not (agent_host_mem_swap_is_active | bool)
+    - (agent_host_mem_swap_sig.stdout | default('')) != 'swap'
+
+- name: Set swap file mode
+  file:
+    path: "{{ agent_host_mem_swap_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: agent_host_mem_swap_enabled | bool and (not ansible_check_mode or agent_host_mem_swap_stat.stat.exists)
+
+- name: Install swap unit
+  template:
+    src: swapfile.swap.j2
+    dest: "/etc/systemd/system/{{ agent_host_mem_swap_unit }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: agent_host_mem_swap_unit_file
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Reload systemd for the swap unit
+  systemd:
+    daemon_reload: true
+  when:
+    - agent_host_mem_swap_enabled | bool
+    - not ansible_check_mode
+    - agent_host_mem_swap_unit_file is changed
+
+- name: Stat swap unit
+  stat:
+    path: "/etc/systemd/system/{{ agent_host_mem_swap_unit }}"
+  register: agent_host_mem_swap_unit_stat
+  when: agent_host_mem_swap_enabled | bool
+
+- name: Activate swap
+  block:
+    - name: Enable and start swap
+      systemd:
+        name: "{{ agent_host_mem_swap_unit }}"
+        enabled: true
+        state: started
+  rescue:
+    - name: Re-read active swap after a failed activation
+      command: cat /proc/swaps
+      register: agent_host_mem_swaps_failed
+      changed_when: false
+
+    - name: Remove the swap file that failed to activate
+      file:
+        path: "{{ agent_host_mem_swap_file }}"
+        state: absent
+      when: agent_host_mem_swap_file not in (agent_host_mem_swaps_failed.stdout_lines[1:] | map('split') | map('first') | list)
+
+    - name: Report failed swap activation
+      fail:
+        msg: "{{ agent_host_mem_swap_unit }} failed to activate and the file was removed. If the kernel rejected it, re-run with -e agent_host_mem_swap_allocator=dd."
+  when: agent_host_mem_swap_enabled | bool and (not ansible_check_mode or agent_host_mem_swap_unit_stat.stat.exists)
+
+- name: Read active swap after activation
+  command: cat /proc/swaps
+  register: agent_host_mem_swaps_final
+  changed_when: false
+  check_mode: false
+  when: agent_host_mem_swap_enabled | bool and not ansible_check_mode
+
+- name: Require the swap file active with the expected size
+  assert:
+    that:
+      - agent_host_mem_swaps_final.stdout_lines[1:] | select('match', '^' ~ agent_host_mem_swap_file ~ '\s') | list | length == 1
+      - (agent_host_mem_swaps_final.stdout_lines[1:] | select('match', '^' ~ agent_host_mem_swap_file ~ '\s') | first | split)[2] | int == agent_host_mem_swap_size_mib | int * 1024 - 4
+    fail_msg: "{{ agent_host_mem_swap_file }} is not active with {{ agent_host_mem_swap_size_mib | int * 1024 - 4 }} kB: {{ agent_host_mem_swaps_final.stdout_lines }}"
+  when: agent_host_mem_swap_enabled | bool and not ansible_check_mode
+
+- name: Install zswap tmpfiles rule
+  template:
+    src: tmpfiles-agent-host-memory.conf.j2
+    dest: /etc/tmpfiles.d/agent-host-memory.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: agent_host_mem_zswap_enabled | bool
+
+- name: Read zswap parameters
+  command: cat /sys/module/zswap/parameters/enabled /sys/module/zswap/parameters/zpool /sys/module/zswap/parameters/compressor
+  register: agent_host_mem_zswap_now
+  changed_when: false
+  check_mode: false
+  when: agent_host_mem_zswap_enabled | bool
+
+- name: Apply zswap parameters
+  command: systemd-tmpfiles --create /etc/tmpfiles.d/agent-host-memory.conf
+  when:
+    - agent_host_mem_zswap_enabled | bool
+    - not ansible_check_mode
+    - agent_host_mem_zswap_now.stdout_lines != ['Y', agent_host_mem_zswap_zpool, agent_host_mem_zswap_compressor or agent_host_mem_zswap_now.stdout_lines[2]]
+
+- name: Read back zswap parameters
+  command: cat /sys/module/zswap/parameters/enabled /sys/module/zswap/parameters/zpool /sys/module/zswap/parameters/compressor
+  register: agent_host_mem_zswap_after
+  changed_when: false
+  check_mode: false
+  when: agent_host_mem_zswap_enabled | bool and not ansible_check_mode
+
+- name: Require zswap parameters
+  assert:
+    that:
+      - agent_host_mem_zswap_after.stdout_lines[0] == 'Y'
+      - agent_host_mem_zswap_after.stdout_lines[1] == agent_host_mem_zswap_zpool
+      - agent_host_mem_zswap_compressor == '' or agent_host_mem_zswap_after.stdout_lines[2] == agent_host_mem_zswap_compressor
+    fail_msg: "zswap read back {{ agent_host_mem_zswap_after.stdout_lines }}. The kernel silently falls back to its default zpool or compressor when the requested one is unavailable; see dmesg | grep zswap."
+  when: agent_host_mem_zswap_enabled | bool and not ansible_check_mode
+
+- name: Install the earlyoom configuration
+  template:
+    src: earlyoom.default.j2
+    dest: /etc/default/earlyoom
+    owner: root
+    group: root
+    mode: "0644"
+  when: agent_host_mem_earlyoom_enabled | bool
+
+- name: Install earlyoom
+  import_tasks: apt_install.yml
+  vars:
+    agent_host_apt_names:
+      - earlyoom
+  when: agent_host_mem_earlyoom_enabled | bool
+
+- name: Probe the earlyoom unit
+  command: systemctl cat earlyoom.service
+  register: agent_host_mem_eo_unit
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: agent_host_mem_earlyoom_enabled | bool
+
+- name: Enable and start earlyoom
+  systemd:
+    name: earlyoom
+    enabled: true
+    state: started
+  when:
+    - agent_host_mem_earlyoom_enabled | bool
+    - not ansible_check_mode or agent_host_mem_eo_unit.rc == 0
+
+- name: Read the earlyoom command line
+  shell: tr '\0' '\n' < /proc/$(systemctl show earlyoom.service -p MainPID --value)/cmdline
+  register: agent_host_mem_eo_cmdline
+  changed_when: agent_host_mem_eo_cmdline.stdout_lines != ['/usr/bin/earlyoom'] + agent_host_mem_earlyoom_argv
+  failed_when: false
+  check_mode: false
+  when:
+    - agent_host_mem_earlyoom_enabled | bool
+    - not ansible_check_mode
+
+- name: Restart earlyoom when its command line differs from the rendered arguments
+  systemd:
+    name: earlyoom
+    state: restarted
+  when:
+    - agent_host_mem_earlyoom_enabled | bool
+    - not ansible_check_mode
+    - agent_host_mem_eo_cmdline is changed
+
+- name: Read the earlyoom command line after the converge
+  shell: tr '\0' '\n' < /proc/$(systemctl show earlyoom.service -p MainPID --value)/cmdline
+  register: agent_host_mem_eo_cmdline_after
+  changed_when: false
+  check_mode: false
+  when:
+    - agent_host_mem_earlyoom_enabled | bool
+    - not ansible_check_mode
+
+- name: Require earlyoom running with the rendered arguments
+  assert:
+    that: agent_host_mem_eo_cmdline_after.stdout_lines == ['/usr/bin/earlyoom'] + agent_host_mem_earlyoom_argv
+    quiet: true
+  when:
+    - agent_host_mem_earlyoom_enabled | bool
+    - not ansible_check_mode
+
+- name: Report earlyoom mode
+  debug:
+    msg: "earlyoom mode: {{ 'DRYRUN, logs victims and kills nothing' if agent_host_mem_earlyoom_dryrun | bool else 'LIVE, kills the selected process' }}"
+  when: agent_host_mem_earlyoom_enabled | bool
