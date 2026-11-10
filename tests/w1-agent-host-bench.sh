@@ -145,7 +145,7 @@ m3_bulk() {
     off=$(LC_ALL=C grep -abo '@@MARK@@' "$f" | head -1 | cut -d: -f1)
     [ "$i" -eq $((N - 1)) ] && [ -n "$off" ] && tail -c +$((off + 10)) "$f" | "${STATS[@]}" parse-ss > "$OUT/.ss_after_bulk.json"
     t0=$(now_us)
-    head -c 16777216 /dev/zero | rssh 'timeout 120 cat >/dev/null'
+    rssh 'timeout 120 cat >/dev/null' < <(head -c 16777216 /dev/zero)
     t1=$(now_us)
     up+=("$(awk -v t="$(sec "$t0" "$t1")" -v l="${LOGIN_REF:-0}" 'BEGIN { printf "%.4f", t - l }')")
     [ "$i" -eq 0 ] && project "$p0" "$t1"

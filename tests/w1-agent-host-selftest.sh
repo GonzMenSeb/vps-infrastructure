@@ -199,6 +199,7 @@ SHIM_LOSS=4 SHIM_RETRANS=200000 SHIM_SSTHRESH=40 bench_shim run after --yes > "$
 printf 'cubic' > "$SHIM/state/net.ipv4.tcp_congestion_control"
 bench_shim run same --yes > /dev/null 2>&1
 expect_eq "the run context records loss, the metrics cache and the socket cc" "$(python3 -I -c 'import json,sys; c=json.load(open(sys.argv[1]))["context"]; print(c["m1_loss_pct"], c["tcp_metrics_peer"].strip(), c["ss_cc"])' "$TMP/bout/before.run.json")" "0.0 ssthresh=15 cwnd=10 rtt=180000us rttvar=5000us cubic"
+expect_eq "every upload counts against the login budget" "$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["context"]["logins"])' "$TMP/bout/before.run.json")" 19
 expect_eq "no run file keeps the peer address" "$(grep -l '192\.0\.2' "$TMP"/bout/*.run.json | wc -l)" 0
 
 bench_shim compare before after > "$TMP/cmp1.txt" 2>&1
