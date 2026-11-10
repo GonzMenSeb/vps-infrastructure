@@ -1,2 +1,31 @@
 ---
-agent_host_check_rows_ssh: []
+agent_host_check_rows_ssh:
+  - id: SV17
+    domain: ssh
+    severity: required
+    cmd: sshd -t >/dev/null 2>&1; echo $?
+    cmp: eq
+    expect: "0"
+  - id: SV19
+    domain: ssh
+    severity: required
+    cmd: >-
+      grep -rEn '^\s*(Port|ListenAddress)\b' /etc/ssh/sshd_config /etc/ssh/sshd_config.d | wc -l
+    cmp: eq
+    expect: "0"
+  - {id: SV23a, domain: ssh, severity: required, key: sshd.allowtcpforwarding, cmp: eq, expect: "yes"}
+  - {id: SV23b, domain: ssh, severity: required, key: sshd.gatewayports, cmp: eq, expect: "no"}
+  - id: SV12
+    domain: ssh
+    severity: advisory
+    cmd: >-
+      ss -tulnpH | grep -vE ' (127\.[0-9.]+|\[::1\]|\[::ffff:127\.[0-9.]+\])(%lo)?:[0-9]+ ' | grep -vE '"(sshd|mosh-server)"' | wc -l
+    cmp: eq
+    expect: "0"
+  - id: SV22
+    domain: ssh
+    severity: advisory
+    cmd: >-
+      { for b in docker podman lxc incus; do command -v $b; done; ip -o link | grep -E ': (docker0|lxdbr0|incusbr0|virbr0|br-[0-9a-f]+|veth[0-9a-f]+)[:@]'; } | wc -l
+    cmp: eq
+    expect: "0"
