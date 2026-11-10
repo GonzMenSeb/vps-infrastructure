@@ -64,14 +64,15 @@ check_lint() {
 }
 
 check_reboot_isolation() {
-  local tasks=roles/agent_host/tasks hits lt
+  local tasks=roles/agent_host/tasks hits more lt
   if grep -qE 'reboot' "$tasks/main.yml" w1-playbook.yml; then
     echo "the routine path references reboot:"
     grep -nE 'reboot' "$tasks/main.yml" w1-playbook.yml
     return 1
   fi
   hits=$(grep -rnE '^\s*(ansible\.builtin\.)?reboot:|shutdown|systemctl restart ssh|restart ssh\.socket|systemctl (try-)?restart (sshd|user@|systemd-logind)|meta: *(reset_connection|flush_handlers)|force_handlers' "$tasks" | grep -v "^$tasks/reboot.yml:" || true)
-  hits+=$(grep -rnE '^\s*(ansible\.builtin\.)?reboot:|sysctl --system|daemon-reexec|daemon_reexec' roles/agent_host w1-playbook.yml | grep -v "^$tasks/reboot.yml:" || true)
+  more=$(grep -rnE '^\s*(ansible\.builtin\.)?reboot:|sysctl --system|daemon-reexec|daemon_reexec' roles/agent_host w1-playbook.yml | grep -v "^$tasks/reboot.yml:" || true)
+  hits+=${more:+$'\n'$more}
   if [ -n "$hits" ]; then
     echo "forbidden construct outside reboot.yml:"
     echo "$hits"
