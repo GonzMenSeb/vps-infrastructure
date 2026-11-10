@@ -1,2 +1,127 @@
 ---
-agent_host_check_rows_memory: []
+agent_host_check_rows_memory: >-
+  {{ ((agent_host_mem_rows_swap if agent_host_mem_swap_enabled | bool else [])
+  + (agent_host_mem_rows_zswap if agent_host_mem_zswap_enabled | bool else [])
+  + (agent_host_mem_rows_zswap_compressor if agent_host_mem_zswap_enabled | bool and agent_host_mem_zswap_compressor | length > 0 else [])
+  + (agent_host_mem_rows_earlyoom if agent_host_mem_earlyoom_enabled | bool else [])
+  + agent_host_mem_rows_always
+  + (agent_host_mem_rows_sysctl_file if agent_host_mem_sysctl | length > 0 else agent_host_mem_rows_sysctl_none))
+  if agent_host_mem_state == 'present' else [] }}
+
+agent_host_mem_rows_swap:
+  - id: MEM01
+    domain: memory
+    severity: required
+    cmd: awk 'NR>1 {print $1, $2, $3}' /proc/swaps
+    cmp: eq
+    expect: "{{ agent_host_mem_swap_file }} file {{ agent_host_mem_swap_size_mib | int * 1024 - 4 }}"
+  - id: MEM02
+    domain: memory
+    severity: required
+    cmd: >-
+      echo "$(stat -c '%a %U %s' {{ agent_host_mem_swap_file }}) $(blkid -p -o value -s TYPE {{ agent_host_mem_swap_file }})"
+    cmp: eq
+    expect: "600 root {{ agent_host_mem_swap_size_mib | int * 1048576 }} swap"
+  - id: MEM03
+    domain: memory
+    severity: required
+    cmd: >-
+      u=$(systemd-escape -p --suffix=swap {{ agent_host_mem_swap_file }});
+      echo "$(unit_enabled $u) $(unit_active $u) $(systemd-analyze verify /etc/systemd/system/$u 2>&1 | grep -cF -e "$u:" -e cycle)"
+    cmp: eq
+    expect: enabled active 0
+
+agent_host_mem_rows_zswap:
+  - id: MEM04a
+    domain: memory
+    severity: required
+    key: zswap.enabled
+    cmp: eq
+    expect: "Y"
+  - id: MEM04b
+    domain: memory
+    severity: required
+    key: zswap.zpool
+    cmp: eq
+    expect: "{{ agent_host_mem_zswap_zpool }}"
+  - id: MEM04d
+    domain: memory
+    severity: required
+    cmd: stat -c %a /etc/tmpfiles.d/agent-host-memory.conf
+    cmp: eq
+    expect: "644"
+
+agent_host_mem_rows_zswap_compressor:
+  - id: MEM04c
+    domain: memory
+    severity: required
+    key: zswap.compressor
+    cmp: eq
+    expect: "{{ agent_host_mem_zswap_compressor }}"
+
+agent_host_mem_rows_earlyoom:
+  - id: MEM05
+    domain: memory
+    severity: required
+    cmd: echo "$(unit_enabled earlyoom.service) $(unit_active earlyoom.service)"
+    cmp: eq
+    expect: enabled active
+  - id: MEM06
+    domain: memory
+    severity: required
+    cmd: >-
+      tr '\0' '\n' < /proc/$(systemctl show earlyoom.service -p MainPID --value)/cmdline
+    cmp: eq
+    expect: "{{ (['/usr/bin/earlyoom'] + agent_host_mem_earlyoom_argv) | join(' ') }}"
+  - id: MEM07
+    domain: memory
+    severity: required
+    cmd: >-
+      printf '%s\n' {{ agent_host_mem_earlyoom_avoid | map('quote') | join(' ') }} | grep -cE -- {{ agent_host_mem_earlyoom_avoid_regex | quote }};
+      printf '%s\n' {{ ['bash', 'node', 'python3', 'manim', 'cc1plus', 'git', 'sleep'] | difference(agent_host_mem_earlyoom_avoid) | map('quote') | join(' ') }}
+      | grep -cE -- {{ agent_host_mem_earlyoom_avoid_regex | quote }}; true
+    cmp: eq
+    expect: "{{ agent_host_mem_earlyoom_avoid | length }} 0"
+
+agent_host_mem_rows_always:
+  - id: MEM08
+    domain: memory
+    severity: required
+    cmd: findmnt -no OPTIONS /proc | grep -cE 'hidepid|subset=pid' || true
+    cmp: eq
+    expect: "0"
+  - id: MEM09
+    domain: memory
+    severity: required
+    cmd: >-
+      echo "$(cat /proc/$(systemctl show ssh.service -p MainPID --value)/oom_score_adj) $(systemctl is-active systemd-oomd || true)"
+    cmp: match
+    expect: "^-1000 (inactive|unknown|failed)$"
+  - id: MEM11a
+    domain: memory
+    severity: advisory
+    cmd: journalctl -b -q --no-pager -g 'ordering [c]ycle'
+    cmp: empty
+    expect: ""
+  - id: MEM11b
+    domain: memory
+    severity: required
+    cmd: systemctl is-failed systemd-tmpfiles-setup.service earlyoom.service | grep -c '^failed$' || true
+    cmp: eq
+    expect: "0"
+
+agent_host_mem_rows_sysctl_none:
+  - id: MEM10
+    domain: memory
+    severity: required
+    cmd: test -e /etc/sysctl.d/60-agent-host-memory.conf && echo present || echo absent
+    cmp: eq
+    expect: absent
+
+agent_host_mem_rows_sysctl_file:
+  - id: MEM10
+    domain: sysctl
+    severity: required
+    cmd: stat -c %a /etc/sysctl.d/60-agent-host-memory.conf
+    cmp: eq
+    expect: "644"
