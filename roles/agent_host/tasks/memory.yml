@@ -1,2 +1,10 @@
 ---
-[]
+- name: Validate memory state
+  assert:
+    that: agent_host_mem_state in ['present', 'absent']
+
+- import_tasks: memory_apply.yml
+  when: agent_host_mem_state == 'present'
+
+- import_tasks: memory_rollback.yml
+  when: agent_host_mem_state == 'absent'

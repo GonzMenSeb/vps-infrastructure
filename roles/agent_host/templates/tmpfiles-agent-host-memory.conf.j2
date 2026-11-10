@@ -1,0 +1,5 @@
+w- /sys/module/zswap/parameters/zpool - - - - {{ agent_host_mem_zswap_zpool }}
+{% if agent_host_mem_zswap_compressor %}
+w- /sys/module/zswap/parameters/compressor - - - - {{ agent_host_mem_zswap_compressor }}
+{% endif %}
+w- /sys/module/zswap/parameters/enabled - - - - Y
