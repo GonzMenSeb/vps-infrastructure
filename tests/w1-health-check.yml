@@ -59,6 +59,46 @@
       retries: 10
       delay: 6
 
+    - name: Read the swap total on w1
+      command: awk '/^SwapTotal:/{print $2}' /proc/meminfo
+      register: w1_swap_total_kb
+      changed_when: false
+
+    - name: Verify the swap total reaches the main VPS's Prometheus
+      uri:
+        url: 'http://127.0.0.1:9090/api/v1/query?query=node_memory_SwapTotal_bytes%7Bhost%3D%22w1%22%7D'
+        return_content: true
+      register: remote_swap_query
+      delegate_to: vps
+      become: true
+      until: >
+        remote_swap_query.status == 200 and
+        (remote_swap_query.json.data.result | length > 0) and
+        (remote_swap_query.json.data.result[0].value[1] | float) > 0
+      retries: 18
+      delay: 10
+      when: w1_swap_total_kb.stdout | trim | int > 0
+
+    - name: Read whether the reboot gauge timer exists on w1
+      command: systemctl cat agent-host-reboot-gauge.timer
+      register: w1_gauge_unit
+      changed_when: false
+      failed_when: false
+
+    - name: Verify the reboot gauge reaches the main VPS's Prometheus
+      uri:
+        url: 'http://127.0.0.1:9090/api/v1/query?query=agent_host_reboot_required%7Bhost%3D%22w1%22%7D'
+        return_content: true
+      register: remote_gauge_query
+      delegate_to: vps
+      become: true
+      until: >
+        remote_gauge_query.status == 200 and
+        (remote_gauge_query.json.data.result | length > 0)
+      retries: 12
+      delay: 10
+      when: w1_gauge_unit.rc == 0
+
     - name: Health check summary
       debug:
         msg: "All w1 health checks passed for {{ inventory_hostname }}"
