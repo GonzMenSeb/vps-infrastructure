@@ -1,2 +1,43 @@
 ---
-[]
+- name: Generate extra locales
+  when: agent_host_locale_extra | length > 0
+  block:
+    - name: Install locales
+      import_tasks: apt_install.yml
+      vars:
+        agent_host_apt_names:
+          - locales
+
+    - name: Enable the extra locales in locale.gen
+      lineinfile:
+        path: /etc/locale.gen
+        regexp: '^#?\s*{{ item | regex_escape }}\s+UTF-8\s*$'
+        line: "{{ item }} UTF-8"
+        create: true
+        mode: "0644"
+      loop: "{{ agent_host_locale_extra }}"
+
+    - name: List the generated locales
+      command: locale -a
+      register: agent_host_locale_list
+      changed_when: false
+      check_mode: false
+
+    - name: Generate the missing locales
+      command: "locale-gen {{ item }}"
+      loop: "{{ agent_host_locale_extra }}"
+      when: (item | regex_replace('\.UTF-8$', '.utf8')) not in agent_host_locale_list.stdout_lines
+
+    - name: List the generated locales again
+      command: locale -a
+      register: agent_host_locale_after
+      changed_when: false
+      check_mode: false
+
+    - name: Require every extra locale to exist
+      assert:
+        that: (item | regex_replace('\.UTF-8$', '.utf8')) in agent_host_locale_after.stdout_lines
+        fail_msg: "{{ item }} is not listed by locale -a"
+        quiet: true
+      loop: "{{ agent_host_locale_extra }}"
+      when: not ansible_check_mode
