@@ -9,6 +9,7 @@ ROWS_B64=
 KILL_SINCE=
 CONT_RE=()
 MODE=collect
+FPROOT=
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -18,7 +19,9 @@ while [ $# -gt 0 ]; do
     --kill-since) KILL_SINCE=$2; shift 2 ;;
     --continuity-re) CONT_RE+=("$2"); shift 2 ;;
     --sysboot-stdin) MODE=sysboot; shift ;;
-    *) echo "usage: $0 [--user U] [--sysctl k,..] [--rows-b64 B64] [--continuity-re RE].. [--kill-since EPOCH] [--sysboot-stdin]" >&2; exit 2 ;;
+    --fp-root) FPROOT=$2; shift 2 ;;
+    --fp-only) MODE=fp; shift ;;
+    *) echo "usage: $0 [--user U] [--sysctl k,..] [--rows-b64 B64] [--continuity-re RE].. [--kill-since EPOCH] [--sysboot-stdin] [--fp-root DIR] [--fp-only]" >&2; exit 2 ;;
   esac
 done
 
@@ -55,8 +58,45 @@ file_meta() { if [ -e "$1" ] || [ -L "$1" ]; then stat -c '%a %U:%G' "$1"; else 
 sshd_value() { timeout 10 sshd -T 2>/dev/null | awk -v k="$1" '$1 == k { $1 = ""; sub(/^ /, ""); print; exit }'; }
 export -f unit_active unit_enabled pkg_state file_meta sshd_value
 
+hashfiles() { find "$@" -type f -exec sha256sum {} + 2>/dev/null | sort -k2; }
+fp_cfg() {
+  hashfiles "$FPROOT/etc/ssh/sshd_config" "$FPROOT/etc/ssh/sshd_config.d" "$FPROOT/etc/sysctl.d" "$FPROOT/etc/modules-load.d" "$FPROOT/etc/security/limits.d" "$FPROOT/etc/systemd" "$FPROOT/etc/default/earlyoom" "$FPROOT/etc/needrestart" "$FPROOT/etc/apt/apt.conf.d" "$FPROOT/etc/tmpfiles.d" "$FPROOT/etc/fstab" "$FPROOT/etc/ufw" "$FPROOT/etc/fail2ban"
+  find "$FPROOT/etc/systemd/system" -type l -printf '%p -> %l\n' 2>/dev/null | sort
+}
+fp_live() {
+  while read -r k; do [ -n "$k" ] && printf '%s=%s\n' "$k" "$(t sysctl -n "$k")"; done < <(csv "$SYSCTLS")
+  awk 'NR > 1 { print $1, $2, $3, $5 }' /proc/swaps
+  cat /sys/module/zswap/parameters/enabled 2>/dev/null
+  t tc qdisc show dev "$IFACE" | awk '{ print $1, $2, $3, $4 }'
+}
+fp_role() {
+  hashfiles "$FPROOT/usr/local/sbin" -name 'agent-host-*'
+  hashfiles "$FPROOT/usr/local/lib/agent-host" "$FPROOT/etc/apt/sources.list.d" "$FPROOT/etc/apt/keyrings"
+  sha256sum "$FPROOT/etc/default/locale" "$FPROOT/etc/locale.gen" 2>/dev/null
+  stat -c '%n %a %U:%G %s' "$FPROOT/swapfile" 2>/dev/null
+}
+fp_gauge() { sha256sum "$FPROOT/var/lib/node_exporter/textfile/agent_host_reboot.prom" 2>/dev/null | cut -d' ' -f1; }
+fp_dpkg() {
+  sha256sum "$FPROOT/var/lib/dpkg/status" 2>/dev/null
+  dpkg-query ${FPROOT:+--admindir="$FPROOT/var/lib/dpkg"} -W -f='${Package} ${Version} ${db:Status-Abbrev}\n' 2>/dev/null | sort
+}
+emit_fingerprint() {
+  local all="" part h
+  for part in cfg live role gauge dpkg; do
+    h=$("fp_$part" | sha256sum | cut -c1-16)
+    emit "fp.$part" "$h"
+    all+=$h
+  done
+  emit fingerprint "$(printf '%s' "$all" | sha256sum | cut -c1-16)"
+}
+
 if [ "$MODE" = sysboot ]; then
   sysboot_eval
+  exit 0
+fi
+if [ "$MODE" = fp ]; then
+  IFACE=$(t ip -o route show default | awk '{print $5; exit}')
+  emit_fingerprint
   exit 0
 fi
 
@@ -140,14 +180,7 @@ for r in cpu memory io; do
 done
 emit loadavg "$(cut -d' ' -f1-3 /proc/loadavg)"
 
-{
-  find /etc/ssh/sshd_config /etc/ssh/sshd_config.d /etc/sysctl.d /etc/modules-load.d /etc/security/limits.d /etc/systemd /etc/default/earlyoom /etc/needrestart /etc/apt/apt.conf.d /etc/tmpfiles.d /etc/fstab /etc/ufw /etc/fail2ban -type f -exec sha256sum {} + 2>/dev/null | sort -k2
-  find /etc/systemd/system -type l -printf '%p -> %l\n' 2>/dev/null | sort
-  while read -r k; do [ -n "$k" ] && printf '%s=%s\n' "$k" "$(t sysctl -n "$k")"; done < <(csv "$SYSCTLS")
-  awk 'NR > 1 { print $1, $2, $3, $5 }' /proc/swaps
-  cat /sys/module/zswap/parameters/enabled 2>/dev/null
-  t tc qdisc show dev "$IFACE" | awk '{ print $1, $2, $3, $4 }'
-} | sha256sum | cut -c1-16 | while read -r h; do emit fingerprint "$h"; done
+emit_fingerprint
 
 if [ "${#CONT_RE[@]}" -gt 0 ]; then
   i=0
@@ -164,6 +197,14 @@ if [ "${#CONT_RE[@]}" -gt 0 ]; then
   while read -r pid; do
     emit "claude.$pid" "$(starttime "$pid")"
   done < <(ps -eo pid=,comm= | awk '$2 == "claude" { print $1 }' | sort -n)
+  OWN=$$
+  while [ "${OWN:-0}" -gt 1 ] && [ "$(cat "/proc/$OWN/comm" 2>/dev/null)" != sshd ]; do OWN=$(sed 's/^.*) //' "/proc/$OWN/stat" 2>/dev/null | awk '{print $2}'); done
+  while read -r pid; do
+    [ "$pid" = "$OWN" ] || emit "info.tmux.$pid" "$(starttime "$pid")"
+  done < <(ps -eo pid=,args= | awk '$2 == "tmux:" && $3 == "server" { print $1 }' | sort -n)
+  while read -r pid; do
+    [ "$pid" = "$OWN" ] || emit "info.sshdsess.$pid" "$(starttime "$pid")"
+  done < <(ps -eo pid=,args= | awk '$2 == "sshd:" && $3 ~ /@/ { print $1 }' | sort -n)
   emit sessions "$(t loginctl list-sessions --no-legend | awk '{print $1}' | sort | paste -sd,)"
   emit oom_kill "$(awk '$1 == "oom_kill" { print $2 }' /proc/vmstat)"
   emit um1000_oom_kill "$(awk '$1 == "oom_kill" { print $2 }' /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/memory.events 2>/dev/null)"
