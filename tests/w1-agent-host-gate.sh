@@ -185,6 +185,10 @@ check_lab() {
 }
 
 check_selftest() {
+  if [ "${GATE_VAULT:-0}" != 1 ]; then
+    echo "the selftest loads vault.yml: export ANSIBLE_VAULT_PASSWORD_FILE or create .vault_pass"
+    return 1
+  fi
   bash tests/w1-agent-host-selftest.sh
 }
 
@@ -197,15 +201,13 @@ check_syntax_helpers() {
     fi
   done < <(find tests -name '*.sh' | sort)
   local pys
-  pys=$(find tests -name '*.py' | sort)
-  if [ -n "$pys" ]; then
-    # shellcheck disable=SC2086
-    python3 -I -c 'import os, py_compile, sys
+  mapfile -t pys < <(find tests -name '*.py' | sort)
+  if [ "${#pys[@]}" -gt 0 ]; then
+    python3 -I -c 'import sys
 for p in sys.argv[1:]:
-    py_compile.compile(p, cfile=os.devnull, doraise=True)' $pys
+    compile(open(p).read(), p, "exec")' "${pys[@]}"
     if command -v ruff >/dev/null 2>&1; then
-      # shellcheck disable=SC2086
-      ruff check --no-cache --select F,E9 $pys
+      ruff check --no-cache --select F,E9 "${pys[@]}"
     fi
   fi
   python3 tests/w1-net-lab.py --dry-run >/dev/null
@@ -439,9 +441,12 @@ trap 'rm -rf "$GATE_TMP"' EXIT
 export GATE_TMP
 echo unused >"$GATE_TMP/vault-pass"
 
+GATE_VAULT=1
 if [ -z "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ] && [ ! -f .vault_pass ]; then
   export ANSIBLE_VAULT_PASSWORD_FILE=$GATE_TMP/vault-pass
+  GATE_VAULT=0
 fi
+export GATE_VAULT
 
 git fetch --quiet origin || echo "gate: git fetch failed, using the remote refs already present" >&2
 BASE=${BASE:-$(git merge-base HEAD origin/feat/w1-monitoring 2>/dev/null || git merge-base HEAD origin/main 2>/dev/null || true)}
