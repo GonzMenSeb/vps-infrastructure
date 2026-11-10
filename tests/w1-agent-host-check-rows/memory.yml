@@ -9,12 +9,24 @@ agent_host_check_rows_memory: >-
   if agent_host_mem_state == 'present' else [] }}
 
 agent_host_mem_rows_swap:
-  - id: MEM01
+  - id: MEM01a
     domain: memory
     severity: required
-    cmd: awk 'NR>1 {print $1, $2, $3}' /proc/swaps
+    key: swap_devices
     cmp: eq
-    expect: "{{ agent_host_mem_swap_file }} file {{ agent_host_mem_swap_size_mib | int * 1024 - 4 }}"
+    expect: "1"
+  - id: MEM01b
+    domain: memory
+    severity: required
+    key: swap_total_kb
+    cmp: eq
+    expect: "{{ agent_host_mem_swap_size_mib | int * 1024 - 4 }}"
+  - id: MEM01c
+    domain: memory
+    severity: required
+    cmd: awk 'NR>1 {print $1, $2}' /proc/swaps
+    cmp: eq
+    expect: "{{ agent_host_mem_swap_file }} file"
   - id: MEM02
     domain: memory
     severity: required
