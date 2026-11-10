@@ -1,2 +1,33 @@
 ---
-agent_host_check_rows_repo: []
+agent_host_check_rows_repo:
+  - {id: R01, domain: ssh, severity: required, cmd: "sha256sum /etc/ssh/sshd_config.d/00-no-password.conf | cut -d' ' -f1", cmp: eq, expect: "13f9ae8c96d385aa4521ec4ce26d2a081e56f656b1ea551b73d47d7a6f95746d"}
+  - {id: R02, domain: ssh, severity: required, cmd: "stat -c '%U:%G %a' /etc/ssh/sshd_config.d/00-no-password.conf", cmp: eq, expect: "root:root 644"}
+  - {id: R03a, domain: ssh, severity: required, key: sshd.passwordauthentication, cmp: eq, expect: "no"}
+  - {id: R03b, domain: ssh, severity: required, key: sshd.kbdinteractiveauthentication, cmp: eq, expect: "no"}
+  - id: R04
+    domain: ssh
+    severity: required
+    key: sshd_dropins
+    cmp: eq
+    expect: "{{ (['00-no-password.conf', '50-cloud-init.conf', '60-cloudimg-settings.conf'] + (agent_host_ssh_dropins | selectattr('directives') | map(attribute='file') | list)) | sort | join(',') }}"
+  - id: R06a
+    domain: ssh
+    severity: required
+    key: sshd.permitrootlogin
+    cmp: eq
+    expect: "yes"
+    when: "{{ 'permitrootlogin' not in ((agent_host_ssh_auth | combine(agent_host_ssh_transport)).keys() | map('lower') | list) }}"
+  - id: R06b
+    domain: ssh
+    severity: required
+    key: sshd.maxauthtries
+    cmp: eq
+    expect: "6"
+    when: "{{ 'maxauthtries' not in ((agent_host_ssh_auth | combine(agent_host_ssh_transport)).keys() | map('lower') | list) }}"
+  - {id: R07, domain: ssh, severity: required, cmd: "test -x /usr/local/sbin/agent-host-sshd-rollback && echo yes || echo no", cmp: eq, expect: "yes"}
+  - {id: R08a, domain: ssh, severity: required, cmd: "systemctl is-active agent-host-sshd-rollback.timer", cmp: eq, expect: inactive}
+  - {id: R08b, domain: ssh, severity: required, cmd: "systemctl list-timers --all --no-legend | grep -c agent-host-sshd-rollback", cmp: eq, expect: "0"}
+  - {id: R09, domain: ssh, severity: advisory, key: sshd_daemon_current, cmp: eq, expect: ok}
+  - {id: R11, domain: limits, severity: required, key: limits.nofile_soft, cmp: ge, expect: "{{ agent_host_limits_nofile_soft }}"}
+  - {id: R12, domain: limits, severity: required, cmd: "c=$(grep -cE '^(\\*|root)|nproc' /etc/security/limits.d/60-agent-host.conf 2>/dev/null); echo ${c:-0}", cmp: eq, expect: "0"}
+  - {id: R13, domain: guard, severity: required, key: dpkg_audit, cmp: eq, expect: "0"}

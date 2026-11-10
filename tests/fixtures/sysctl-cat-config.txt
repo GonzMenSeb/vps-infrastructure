@@ -1,0 +1,11 @@
+# /etc/sysctl.d/10-bufferbloat.conf
+# To fight bufferbloat, set it as the default qdisc in Ubuntu.
+-net.core.default_qdisc = fq_codel
+# /etc/sysctl.d/60-agent-host-net.conf
+net.ipv4.tcp_congestion_control = bbr
+net.core.default_qdisc=fq
+net/ipv4/tcp_slow_start_after_idle = 0
+; semicolon comment
+   vm.swappiness   =   100  
+# /etc/sysctl.d/99-late.conf
+-vm.swappiness = 60
