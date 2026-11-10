@@ -1,0 +1,11 @@
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1{% for ip in agent_host_fail2ban_ignoreip %} {{ ip }}{% endfor %}
+
+bantime = {{ agent_host_fail2ban_bantime }}
+findtime = {{ agent_host_fail2ban_findtime }}
+maxretry = {{ agent_host_fail2ban_maxretry }}
+
+[sshd]
+enabled = true
+mode = normal
+port = {{ agent_host_ufw_ssh_ports | join(',') }}

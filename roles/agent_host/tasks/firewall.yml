@@ -1,2 +1,25 @@
 ---
-[]
+- name: Require the independent break-glass session before touching the firewall
+  assert:
+    that: agent_host_second_terminal | default(false) | bool
+    fail_msg: pass -e agent_host_second_terminal=true after opening ssh root@host in a second terminal; the firewall stage can cut the access path
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Install ufw through the apt helper
+  import_tasks: apt_install.yml
+  vars:
+    agent_host_apt_names: [ufw]
+
+- name: Prove an independent login before anything in the firewall changes
+  import_tasks: probe.yml
+  vars:
+    agent_host_probe_label: firewall-preflight
+  tags: [agent_host_live]
+
+- name: Configure ufw behind a dead-man timer
+  import_tasks: firewall_ufw.yml
+
+- name: Configure fail2ban
+  import_tasks: firewall_fail2ban.yml
+  when: agent_host_fail2ban_enabled | bool
