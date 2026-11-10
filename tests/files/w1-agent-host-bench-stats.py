@@ -266,8 +266,8 @@ def snap_compare(b, a, dry=False):
         line = "DRY RUN CHANGED THE HOST: fingerprint differs" + (" in " + ", ".join(parts) if parts else "")
         hints = [DRY_HINTS[p] for p in parts if p in DRY_HINTS]
         return ([line] + (["a false positive if " + " or ".join(hints) + ": retake the pair"] if hints else []), False)
-    sel = lambda kv: {k: v for k, v in kv.items() if k.startswith("strict.") or k.startswith("um.")}
-    sb, sa = sel(kb), sel(ka)
+    sb = {k: v for k, v in kb.items() if k.startswith(("strict.", "um."))}
+    sa = {k: v for k, v in ka.items() if k.startswith(("strict.", "um."))}
     for k in sorted(sb):
         if sa.get(k) != sb[k]:
             bad.append("strict set changed: %s %s -> %s" % (k, sb[k], sa.get(k, "absent")))
