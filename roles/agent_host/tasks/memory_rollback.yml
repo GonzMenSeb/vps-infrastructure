@@ -120,3 +120,4 @@
 - name: Reload systemd after removing the swap unit
   systemd:
     daemon_reload: true
+  when: not ansible_check_mode

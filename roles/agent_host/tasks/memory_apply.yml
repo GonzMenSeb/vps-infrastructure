@@ -157,7 +157,10 @@
 - name: Reload systemd for the swap unit
   systemd:
     daemon_reload: true
-  when: agent_host_mem_swap_enabled | bool and agent_host_mem_swap_unit_file is changed
+  when:
+    - agent_host_mem_swap_enabled | bool
+    - not ansible_check_mode
+    - agent_host_mem_swap_unit_file is changed
 
 - name: Stat swap unit
   stat:
