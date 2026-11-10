@@ -1,2 +1,57 @@
 ---
-agent_host_check_rows_packages: []
+agent_host_check_rows_packages:
+  - id: E01
+    severity: required
+    cmd: "dpkg-query -W -f='${db:Status-Abbrev} ${Package}\\n' {{ agent_host_baseline_packages | join(' ') }} 2>/dev/null | grep -c '^ii '"
+    expect: "{{ agent_host_baseline_packages | length }}"
+    cmp: eq
+  - id: E02
+    severity: required
+    cmd: "python3 -c 'import ensurepip; print(\"ok\")'"
+    expect: ok
+    cmp: eq
+  - id: E03
+    severity: required
+    cmd: "gcc --version >/dev/null && make --version >/dev/null && echo ok"
+    expect: ok
+    cmp: eq
+  - id: E04
+    severity: required
+    cmd: "node -p 'process.versions.node.split(\".\")[0]'"
+    expect: "18"
+    cmp: ge
+  - id: E05
+    severity: advisory
+    cmd: "apt-mark showmanual | grep -cxE '{{ agent_host_baseline_packages | join('|') }}'"
+    expect: "{{ agent_host_baseline_packages | length }}"
+    cmp: ge
+  - id: E10
+    severity: required
+    when: "{{ agent_host_gh_enabled | bool }}"
+    cmd: "apt-cache policy gh | awk '/\\*\\*\\*/{f=1;next} f&&/^ +[0-9]+ http/{print $2; exit}'"
+    expect: "{{ agent_host_gh_repo_url }}"
+    cmp: eq
+  - id: E11
+    severity: required
+    when: "{{ agent_host_gh_enabled | bool }}"
+    cmd: "sha256sum {{ agent_host_gh_keyring }} | cut -d' ' -f1"
+    expect: "{{ agent_host_gh_keyring_sha256 }}"
+    cmp: eq
+  - id: E12
+    severity: required
+    when: "{{ agent_host_gh_enabled | bool }}"
+    cmd: "printf 'deb [arch=%s signed-by={{ agent_host_gh_keyring }}] {{ agent_host_gh_repo_url }} stable main\\n' \"$(dpkg --print-architecture)\" | cmp -s - /etc/apt/sources.list.d/github-cli.list && echo identical || echo different"
+    expect: identical
+    cmp: eq
+  - id: E13
+    severity: required
+    when: "{{ agent_host_gh_enabled | bool }}"
+    cmd: "gh --version >/dev/null 2>&1; echo $?"
+    expect: "0"
+    cmp: eq
+  - id: E14
+    severity: advisory
+    when: "{{ agent_host_gh_enabled | bool }}"
+    cmd: "curl -fsS --max-time 8 {{ agent_host_gh_keyring_url }} | sha256sum | cut -d' ' -f1"
+    expect: "{{ agent_host_gh_keyring_sha256 }}"
+    cmp: eq

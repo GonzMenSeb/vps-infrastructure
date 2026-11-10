@@ -1,2 +1,41 @@
 ---
-[]
+- name: Ensure the apt keyrings directory exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the GitHub CLI archive keyring pinned by checksum
+  get_url:
+    url: "{{ agent_host_gh_keyring_url }}"
+    dest: "{{ agent_host_gh_keyring }}"
+    checksum: "sha256:{{ agent_host_gh_keyring_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+    timeout: 30
+  register: agent_host_gh_key
+
+- name: Install the GitHub CLI apt source
+  copy:
+    dest: /etc/apt/sources.list.d/github-cli.list
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      deb [arch={{ agent_host_gh_apt_arch }} signed-by={{ agent_host_gh_keyring }}] {{ agent_host_gh_repo_url }} stable main
+  register: agent_host_gh_list
+
+- name: Refresh the apt cache when the key or source changed
+  apt:
+    update_cache: true
+    lock_timeout: "{{ agent_host_apt_lock_timeout }}"
+  when: agent_host_gh_key is changed or agent_host_gh_list is changed
+
+- name: Install gh
+  import_tasks: apt_install.yml
+  vars:
+    agent_host_apt_names:
+      - gh

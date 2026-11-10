@@ -1,0 +1,12 @@
+[Unit]
+Description=Write the pending-reboot gauge for the node_exporter textfile collector
+
+[Service]
+Type=oneshot
+Environment=AGENT_HOST_TEXTFILE_DIR={{ agent_host_textfile_dir }}
+ExecStart={{ agent_host_reporting_gauge_script }}
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={{ agent_host_textfile_dir }}

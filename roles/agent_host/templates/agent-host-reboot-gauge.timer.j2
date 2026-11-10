@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh the pending-reboot gauge
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ agent_host_reporting_gauge_interval }}
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target
