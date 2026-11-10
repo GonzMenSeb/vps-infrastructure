@@ -1,0 +1,118 @@
+// Standalone host agent: journald logs and node_exporter/Alloy metrics pushed
+// to the main VPS. No Docker, so no container discovery or cAdvisor.
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// LOGS — journald
+////////////////////////////////////////////////////////////////////////////////
+
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "system" {
+  forward_to    = [loki.write.remote.receiver]
+  labels        = { host = "{{ host_agent_host }}", compose_service = "systemd" }
+  max_age       = "12h"
+  path          = "/var/log/journal"
+  relabel_rules = loki.relabel.journal.rules
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// METRICS — cardinality filter
+////////////////////////////////////////////////////////////////////////////////
+
+prometheus.relabel "drop_noise" {
+  forward_to = [prometheus.remote_write.remote.receiver]
+
+  rule {
+    source_labels = ["__name__", "device"]
+    regex         = "node_network_.*;(veth.+|br-.+|docker0|lo|dummy.+)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__", "fstype"]
+    regex         = "node_filesystem_.*;(overlay|tmpfs|squashfs|nsfs|autofs|ramfs|fuse\\..*)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__", "mountpoint"]
+    regex         = "node_filesystem_.*;(/var/lib/docker/.+|/run/.+|/snap/.+)"
+    action        = "drop"
+  }
+
+  rule {
+    source_labels = ["__name__"]
+    regex         = "go_(gc_.*|sched_.*|sync_.*|memstats_(mspan_.*|mcache_.*|buck_.*|other_.*|gc_.*|next_gc_.*|last_gc_.*))"
+    action        = "drop"
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// METRICS — static scrapes
+////////////////////////////////////////////////////////////////////////////////
+
+prometheus.scrape "alloy_self" {
+  targets         = [{"__address__" = "{{ host_agent_alloy_listen }}", "job" = "alloy", "host" = "{{ host_agent_host }}"}]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "60s"
+}
+
+prometheus.scrape "node_exporter" {
+  targets         = [{"__address__" = "{{ host_agent_node_exporter_listen }}", "job" = "node_exporter", "host" = "{{ host_agent_host }}"}]
+  forward_to      = [prometheus.relabel.drop_noise.receiver]
+  scrape_interval = "30s"
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// WRITES — push to main VPS over HTTPS with bearer auth
+////////////////////////////////////////////////////////////////////////////////
+
+prometheus.remote_write "remote" {
+  endpoint {
+    url          = "{{ prom_push_url }}"
+    bearer_token = "{{ vault_observability_push_token }}"
+
+    queue_config {
+      capacity             = 2500
+      max_shards           = 5
+      min_shards           = 1
+      max_samples_per_send = 1000
+      batch_send_deadline  = "5s"
+    }
+
+    metadata_config {
+      send = false
+    }
+
+    send_exemplars         = false
+    send_native_histograms = false
+  }
+  external_labels = {
+    env = "prod",
+  }
+}
+
+loki.write "remote" {
+  endpoint {
+    url          = "{{ loki_push_url }}"
+    bearer_token = "{{ vault_observability_push_token }}"
+  }
+  external_labels = {
+    env = "prod",
+  }
+}

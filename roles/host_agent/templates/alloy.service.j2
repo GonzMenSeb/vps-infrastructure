@@ -1,0 +1,16 @@
+[Unit]
+Description=Grafana Alloy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=alloy
+Group=alloy
+Type=simple
+ExecStart=/usr/local/bin/alloy run {{ host_agent_alloy_config_dir }}/config.alloy --server.http.listen-addr={{ host_agent_alloy_listen }} --storage.path={{ host_agent_alloy_state_dir }}
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

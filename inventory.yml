@@ -6,3 +6,6 @@ all:
     jenkins:
       ansible_host: "{{ vault_jenkins_vps_ip }}"
       ansible_user: root
+    w1:
+      ansible_host: "{{ vault_w1_ip }}"
+      ansible_user: ubuntu

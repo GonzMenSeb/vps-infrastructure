@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { HostsFrame, HostsPage } from "../src/views/hosts";
-import { buildHosts } from "../src/views/model";
+import { HOSTS, HOST_ROLE, buildHosts } from "../src/views/model";
 import { chrome, downSources, input, render, styleAttrs } from "./views-fixtures";
 
 describe("hosts view", () => {
@@ -44,5 +44,30 @@ describe("hosts view", () => {
     const down = await render(<HostsFrame vm={buildHosts(input(downSources()), { host: "jenkins", metric: "cpu" })} />);
     expect(down).toContain("Prometheus is not answering, so the last 24 hours cannot be shown.");
     expect(down).toContain("Prometheus is not answering, so usage by container cannot be shown.");
+  });
+
+  test("w1 has a card and role but no containers, so the container panels say so", async () => {
+    const vm = buildHosts(input(), { host: "w1", metric: "mem" });
+    expect(vm.host).toBe("w1");
+    expect(vm.hosts).toContain("w1");
+    const html = await render(<HostsPage chrome={chrome} vm={vm} />);
+    expect(html).toContain('aria-label="Host w1"');
+    expect(html).toContain("Claude Code host · Ubuntu 24.04.3 LTS");
+    expect(html).toContain("8 cores");
+    expect(html).toContain('aria-current="true">w1</a>');
+    expect(html).toContain('href="/hosts/w1"');
+    expect((html.match(/<div class="chart">/g) ?? []).length).toBe(5);
+    expect(html).toContain("No container on w1 reports memory use.");
+    expect(html).not.toContain("containers</span>");
+    const disk = await render(<HostsFrame vm={buildHosts(input(), { host: "w1", metric: "disk" })} />);
+    expect(disk).toContain("only reach on vps");
+    const cpu = await render(<HostsFrame vm={buildHosts(input(), { host: "w1", metric: "cpu" })} />);
+    expect(cpu).toContain("No container on w1 reports CPU use.");
+  });
+
+  test("every listed host has a role", () => {
+    expect(HOSTS).toContain("w1");
+    for (const h of HOSTS) expect(HOST_ROLE[h]).toBeTruthy();
+    expect(Object.keys(HOST_ROLE).sort()).toEqual([...HOSTS].sort());
   });
 });

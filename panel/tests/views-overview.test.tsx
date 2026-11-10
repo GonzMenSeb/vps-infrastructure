@@ -15,13 +15,15 @@ describe("overview view", () => {
     expect(html).toContain('href="/services/judicabot"');
     expect(html).toContain(">judicabot.web<");
     expect(html).toContain('class="gauges compact"');
-    expect((html.match(/class="gauge /g) ?? []).length).toBe(8);
+    expect((html.match(/class="gauge /g) ?? []).length).toBe(12);
     expect(html).toContain("Biggest users of the main host");
     expect(html).toContain('data-controller="usage"');
     expect(html).toContain("<foreignObject");
     expect(html).toContain("LLM inference is failing");
+    expect(html).toContain("Claude Code host");
+    expect(html).not.toContain("Both hosts");
     expect(html).toContain("Jenkins is not configured, so running builds cannot be shown.");
-    expect(html).toContain("2 hosts · 3/7 services up");
+    expect(html).toContain("3 hosts · 3/7 services up");
     expect(html).toContain('data-controller="refresh"');
     expect(html).not.toContain(SECRET_HASH);
     expect(styleAttrs(html)).toEqual([]);
