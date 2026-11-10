@@ -1,0 +1,30 @@
+---
+ssh_allowed_users: ubuntu
+agent_host_net_sysctl:
+  net.ipv4.tcp_congestion_control: bbr
+  net.core.default_qdisc: fq
+  net.ipv4.tcp_slow_start_after_idle: "0"
+agent_host_mem_sysctl:
+  vm.swappiness: "100"
+agent_host_sess_sysctl:
+  fs.inotify.max_user_instances: "512"
+agent_host_ssh_auth:
+  AuthenticationMethods: publickey
+  PermitRootLogin: prohibit-password
+agent_host_ssh_transport:
+  ClientAliveInterval: "60"
+  ClientAliveCountMax: "5"
+agent_host_limits_nofile_soft: 65536
+agent_host_ssh_output_aliases:
+  prohibit-password: without-password
+agent_host_ssh_dropins:
+  - {file: 10-agent-host-auth.conf, directives: "{{ agent_host_ssh_auth }}"}
+  - {file: 11-agent-host-transport.conf, directives: "{{ agent_host_ssh_transport }}"}
+agent_host_check_rows_memory:
+  - {id: M01, domain: memory, severity: required, cmd: "awk 'NR>1' /proc/swaps | wc -l", cmp: ge, expect: "1"}
+  - {id: M02, domain: memory, severity: required, cmd: "pkg_state earlyoom", cmp: eq, expect: installed}
+  - {id: M03, domain: memory, severity: required, cmd: "unit_active earlyoom", cmp: eq, expect: active}
+  - {id: M04, domain: memory, severity: required, cmd: "grep -E '^EARLYOOM_ARGS=' /etc/default/earlyoom", cmp: search, expect: "^EARLYOOM_ARGS=.*--avoid"}
+  - {id: M05, domain: memory, severity: advisory, cmd: "echo skipped", cmp: eq, expect: nope, when: "{{ false }}"}
+  - {id: M07, domain: memory, severity: required, cmd: "ls /nonexistent-path-xyz", cmp: absent, expect: ""}
+  - {id: M08, domain: memory, severity: required, cmd: "sleep 1; echo ok", cmp: eq, expect: ok}
