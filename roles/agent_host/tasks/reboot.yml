@@ -1,2 +1,281 @@
 ---
-[]
+- name: Reboot - check the confirmation variable shape
+  assert:
+    that:
+      - agent_host_reboot_confirm is string
+      - agent_host_reboot_confirm is match('^([0-9][0-9A-Za-z.+~-]*)?$')
+    quiet: true
+
+- name: Reboot - read the target machine id
+  command: cat /etc/machine-id
+  register: agent_host_reboot_target_id
+  changed_when: false
+  check_mode: false
+
+- name: Reboot - refuse to reboot the host that runs this play
+  assert:
+    that: (lookup('file', '/etc/machine-id', errors='ignore') | default('', true) | trim) != (agent_host_reboot_target_id.stdout | trim)
+    fail_msg: "The controller is the target host; the reboot would kill this play."
+    quiet: true
+
+- name: Reboot - read the running kernel
+  command: uname -r
+  register: agent_host_reboot_uname
+  changed_when: false
+  check_mode: false
+
+- name: Reboot - read the kernel GRUB boots by default
+  command:
+    argv:
+      - awk
+      - '/^menuentry /{f=1} f && /^[[:space:]]*linux[[:space:]]/{print $2; exit}'
+      - /boot/grub/grub.cfg
+  register: agent_host_reboot_grub
+  changed_when: false
+  check_mode: false
+
+- name: Reboot - look for the reboot-required flag
+  stat:
+    path: /var/run/reboot-required
+  register: agent_host_reboot_flag
+
+- name: Reboot - derive the target kernel
+  set_fact:
+    agent_host_reboot_running_kernel: "{{ agent_host_reboot_uname.stdout | trim }}"
+    agent_host_reboot_target: "{{ agent_host_reboot_grub.stdout | trim | basename | regex_replace('^vmlinuz-', '') }}"
+
+- name: Reboot - decide whether a reboot is pending
+  set_fact:
+    agent_host_reboot_needed: "{{ agent_host_reboot_flag.stat.exists or agent_host_reboot_target != agent_host_reboot_running_kernel }}"
+
+- name: Reboot - assert the target kernel was found
+  assert:
+    that: agent_host_reboot_target | length > 0
+    fail_msg: "Could not read the default kernel from /boot/grub/grub.cfg."
+    quiet: true
+
+- name: Reboot - list agent processes by name and pid only
+  command:
+    argv:
+      - pgrep
+      - -l
+      - -x
+      - "{{ agent_host_reboot_agent_comms }}"
+  register: agent_host_reboot_agents
+  changed_when: false
+  failed_when: agent_host_reboot_agents.rc not in [0, 1]
+  check_mode: false
+
+- name: Reboot - list logind inhibitors
+  command: systemd-inhibit --list --no-pager
+  register: agent_host_reboot_inhibitors
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Reboot - measure Claude scratch space
+  shell: du -sh /tmp/claude-* 2>/dev/null || true
+  register: agent_host_reboot_scratch
+  changed_when: false
+  check_mode: false
+
+- name: Reboot - show what a reboot ends
+  debug:
+    msg:
+      - "Running kernel {{ agent_host_reboot_running_kernel }}, GRUB boots {{ agent_host_reboot_target }}, reboot pending: {{ agent_host_reboot_needed }}"
+      - "Processes a reboot ends: {{ agent_host_reboot_agents.stdout_lines }}"
+      - "Shutdown inhibitors: {{ agent_host_reboot_inhibitors.stdout_lines }}"
+      - "Claude scratch under /tmp, which boot-time tmpfiles cleanup is documented to empty: {{ agent_host_reboot_scratch.stdout_lines }}"
+      - "user@ is stopped within 5 s, so agents get no real shutdown grace."
+
+- name: Reboot - nothing pending
+  debug:
+    msg: "No reboot pending; nothing to do."
+  when: not (agent_host_reboot_needed | bool)
+
+- name: Reboot - pending reboot
+  when: agent_host_reboot_needed | bool
+  block:
+    - name: Reboot - require the target kernel as confirmation
+      assert:
+        that:
+          - agent_host_reboot_confirm == agent_host_reboot_target
+          - ansible_check_mode or (agent_host_second_terminal | default(false) | bool)
+        fail_msg: >-
+          A reboot ends every claude, herdr and tmux process on this host.
+          Review the lists above, open a root session now (ssh root@<host>) and keep it active, then re-run with
+          -e agent_host_reboot_confirm={{ agent_host_reboot_target }}
+          -e agent_host_second_terminal=true
+        quiet: true
+
+    - name: Reboot - stat the target and running kernel files
+      stat:
+        path: "{{ item }}"
+      loop:
+        - "/boot/vmlinuz-{{ agent_host_reboot_target }}"
+        - "/boot/initrd.img-{{ agent_host_reboot_target }}"
+        - "/lib/modules/{{ agent_host_reboot_target }}"
+        - "/boot/vmlinuz-{{ agent_host_reboot_running_kernel }}"
+        - "/lib/modules/{{ agent_host_reboot_running_kernel }}"
+      register: agent_host_reboot_kernel_files
+
+    - name: Reboot - assert both kernels are installed and the target is bootable
+      assert:
+        that:
+          - agent_host_reboot_kernel_files.results | rejectattr('stat.exists') | list | length == 0
+          - agent_host_reboot_kernel_files.results[0].stat.size > 0
+          - agent_host_reboot_kernel_files.results[1].stat.size > 0
+        fail_msg: "Kernel files missing or empty: {{ agent_host_reboot_kernel_files.results | rejectattr('stat.exists') | map(attribute='item') | list }}"
+        quiet: true
+
+    - name: Reboot - resolve the agent user id
+      command: id -u {{ agent_host_user }}
+      register: agent_host_reboot_uid
+      changed_when: false
+      check_mode: false
+
+    - name: Reboot - check whether the user-manager limit drop-in is installed
+      stat:
+        path: /etc/systemd/user.conf.d/60-agent-host.conf
+      register: agent_host_reboot_manager_dropin
+
+    - name: Reboot - capture sshd settings before
+      command: sshd -T
+      register: agent_host_reboot_sshd_raw_before
+      changed_when: false
+      check_mode: false
+
+    - name: Reboot - capture watched sysctls before
+      command: sysctl -e {{ agent_host_reboot_sysctl_watch | join(' ') }}
+      register: agent_host_reboot_sysctl_before
+      changed_when: false
+      check_mode: false
+
+    - name: Reboot - read package manager locks
+      command: fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock
+      register: agent_host_reboot_fuser
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Reboot - read apt timer service states
+      command: systemctl show -p ActiveState --value apt-daily.service apt-daily-upgrade.service
+      register: agent_host_reboot_apt_state
+      changed_when: false
+      check_mode: false
+
+    - name: Reboot - read the apt timers and the clock
+      shell: date +%s; systemctl list-timers apt-daily.timer apt-daily-upgrade.timer --no-pager --output=json
+      register: agent_host_reboot_apt_timers
+      changed_when: false
+      check_mode: false
+
+    - name: Reboot - read dpkg consistency
+      command: dpkg --audit
+      register: agent_host_reboot_dpkg_audit
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Reboot - assert the package manager is idle and dpkg is consistent
+      assert:
+        that:
+          - agent_host_reboot_fuser.rc == 1
+          - agent_host_reboot_apt_state.stdout_lines | select | list | difference(['inactive', 'failed']) | length == 0
+          - agent_host_reboot_dpkg_audit.rc == 0
+          - agent_host_reboot_dpkg_audit.stdout | trim == ''
+          - agent_host_reboot_apt_timers.stdout_lines[1] | from_json | map(attribute='next') | map('int') | select('lt', (agent_host_reboot_apt_timers.stdout_lines[0] | int + agent_host_apt_timer_margin_minutes | int * 60) * 1000000) | list | length == 0
+        fail_msg: "Package manager busy, dpkg inconsistent or an apt timer due within {{ agent_host_apt_timer_margin_minutes }} minutes (or overdue); not rebooting. fuser rc={{ agent_host_reboot_fuser.rc }}, apt states={{ agent_host_reboot_apt_state.stdout_lines | select | list }}, dpkg audit={{ agent_host_reboot_dpkg_audit.stdout }}"
+        quiet: true
+
+    - name: Reboot - reboot the host
+      reboot:
+        reboot_timeout: "{{ agent_host_reboot_timeout }}"
+        pre_reboot_delay: "{{ agent_host_reboot_pre_delay }}"
+        post_reboot_delay: "{{ agent_host_reboot_post_delay }}"
+        msg: "Reboot requested by w1-reboot-playbook.yml"
+
+    - name: Reboot - verify the host after the reboot
+      when: not ansible_check_mode
+      block:
+        - name: Reboot - confirm the target kernel is running
+          command: uname -r
+          register: agent_host_reboot_after_kernel
+          changed_when: false
+          failed_when: agent_host_reboot_after_kernel.stdout | trim != agent_host_reboot_target
+
+        - name: Reboot - wait for the user manager
+          command: systemctl is-active user@{{ agent_host_reboot_uid.stdout | trim }}.service
+          register: agent_host_reboot_user_manager
+          until: agent_host_reboot_user_manager.stdout | trim == 'active'
+          retries: "{{ agent_host_reboot_ready_retries }}"
+          delay: "{{ agent_host_reboot_ready_delay }}"
+          changed_when: false
+
+        - name: Reboot - wait for linger
+          command: loginctl show-user {{ agent_host_user }} -p Linger --value
+          register: agent_host_reboot_linger
+          until: agent_host_reboot_linger.stdout | trim == 'yes'
+          retries: "{{ agent_host_reboot_ready_retries }}"
+          delay: "{{ agent_host_reboot_ready_delay }}"
+          changed_when: false
+
+        - name: Reboot - wait for the user manager default open-file limit
+          command: systemctl --user -M {{ agent_host_user }}@ show -p DefaultLimitNOFILESoft --value
+          register: agent_host_reboot_manager_soft
+          until: agent_host_reboot_manager_soft.stdout | trim == agent_host_limits_nofile_soft | string
+          retries: "{{ agent_host_reboot_ready_retries }}"
+          delay: "{{ agent_host_reboot_ready_delay }}"
+          changed_when: false
+          when: agent_host_reboot_manager_dropin.stat.exists
+
+        - name: Reboot - confirm the reboot-required flag is gone
+          stat:
+            path: /var/run/reboot-required
+          register: agent_host_reboot_flag_after
+          failed_when: agent_host_reboot_flag_after.stat.exists
+
+        - name: Reboot - wait for the repo-managed services
+          command: systemctl is-active {{ item }}
+          loop: "{{ agent_host_reboot_services }}"
+          register: agent_host_reboot_service_state
+          until: agent_host_reboot_service_state.stdout | trim == 'active'
+          retries: "{{ agent_host_reboot_ready_retries }}"
+          delay: "{{ agent_host_reboot_ready_delay }}"
+          changed_when: false
+
+        - name: Reboot - capture sshd settings after
+          command: sshd -T
+          register: agent_host_reboot_sshd_raw_after
+          changed_when: false
+
+        - name: Reboot - capture watched sysctls after
+          command: sysctl -e {{ agent_host_reboot_sysctl_watch | join(' ') }}
+          register: agent_host_reboot_sysctl_after
+          changed_when: false
+
+        - name: Reboot - assert the effective sshd settings did not change
+          assert:
+            that: agent_host_reboot_sshd_after == agent_host_reboot_sshd_before
+            fail_msg: "sshd settings changed across the reboot: before {{ agent_host_reboot_sshd_before }}, after {{ agent_host_reboot_sshd_after }}"
+            quiet: true
+          vars:
+            agent_host_reboot_sshd_pattern: "^({{ agent_host_reboot_sshd_watch | join('|') }}) "
+            agent_host_reboot_sshd_before: "{{ agent_host_reboot_sshd_raw_before.stdout_lines | select('match', agent_host_reboot_sshd_pattern) | sort | list }}"
+            agent_host_reboot_sshd_after: "{{ agent_host_reboot_sshd_raw_after.stdout_lines | select('match', agent_host_reboot_sshd_pattern) | sort | list }}"
+
+        - name: Reboot - show what the reboot changed in the watched sysctls
+          debug:
+            msg:
+              - "Before only: {{ agent_host_reboot_sysctl_before.stdout_lines | difference(agent_host_reboot_sysctl_after.stdout_lines) }}"
+              - "After only: {{ agent_host_reboot_sysctl_after.stdout_lines | difference(agent_host_reboot_sysctl_before.stdout_lines) }}"
+
+        - name: Reboot - read moshi-hook state (user-installed, informational)
+          command: systemctl --user -M {{ agent_host_user }}@ is-active moshi-hook
+          register: agent_host_reboot_moshi
+          changed_when: false
+          failed_when: false
+
+        - name: Reboot - report moshi-hook
+          debug:
+            msg: "moshi-hook is {{ agent_host_reboot_moshi.stdout | trim }}; herdr-core units are transient and return when the user reconnects."

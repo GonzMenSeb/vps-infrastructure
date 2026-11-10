@@ -1,2 +1,96 @@
 ---
-[]
+- name: Validate the session settings
+  assert:
+    that:
+      - agent_host_session_needrestart_mode in ['', 'l']
+      - agent_host_limits_nofile_soft | int >= 1024
+      - agent_host_limits_nofile_soft | int <= agent_host_limits_nofile_hard | int
+    quiet: true
+
+- name: Read the kernel ceiling for open files
+  command: sysctl -n fs.nr_open
+  register: agent_host_session_nr_open
+  changed_when: false
+  check_mode: false
+
+- name: Assert the user manager hard limit is inside the kernel ceiling
+  assert:
+    that: agent_host_limits_nofile_hard | int <= agent_host_session_nr_open.stdout | int
+    quiet: true
+
+- name: Read the user manager default hard limit
+  command: systemctl --user -M {{ agent_host_user }}@ show -p DefaultLimitNOFILE --value
+  register: agent_host_session_manager_hard
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [agent_host_live]
+
+- name: Read the user manager default soft limit
+  command: systemctl --user -M {{ agent_host_user }}@ show -p DefaultLimitNOFILESoft --value
+  register: agent_host_session_manager_soft
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [agent_host_live]
+
+- name: Assert the user manager default hard limit does not exceed the manager's own
+  assert:
+    that: agent_host_session_manager_hard.rc != 0 or agent_host_limits_nofile_hard | int <= agent_host_session_manager_hard.stdout | trim | int
+    quiet: true
+  tags: [agent_host_live]
+
+- name: Enable linger for the agent user
+  command: loginctl enable-linger {{ agent_host_user }}
+  args:
+    creates: /var/lib/systemd/linger/{{ agent_host_user }}
+  tags: [agent_host_live]
+
+- name: Create the user manager drop-in directory
+  file:
+    path: /etc/systemd/user.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: agent_host_session_manager_limits_enabled | bool
+
+- name: Set the user manager default open-file limits
+  template:
+    src: user-manager.conf.j2
+    dest: /etc/systemd/user.conf.d/60-agent-host.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: agent_host_session_manager_limits_enabled | bool
+
+- name: Remove the user manager default open-file limits when not selected
+  file:
+    path: /etc/systemd/user.conf.d/60-agent-host.conf
+    state: absent
+  when: not (agent_host_session_manager_limits_enabled | bool)
+
+- name: Note user manager limits waiting for its next start
+  debug:
+    msg: "User manager default soft limit is {{ agent_host_session_manager_soft.stdout | trim }}, configured {{ agent_host_limits_nofile_soft }}; it applies when the user manager next starts."
+  when:
+    - agent_host_session_manager_limits_enabled | bool
+    - agent_host_session_manager_soft.rc == 0
+    - (agent_host_session_manager_soft.stdout | trim) != (agent_host_limits_nofile_soft | string)
+  tags: [agent_host_live]
+
+- name: Needrestart list-only mode (opt-in)
+  template:
+    src: needrestart.conf.j2
+    dest: /etc/needrestart/conf.d/50-agent-host.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/perl -c %s
+  when: agent_host_session_needrestart_mode == 'l'
+
+- name: Remove the needrestart drop-in when not selected
+  file:
+    path: /etc/needrestart/conf.d/50-agent-host.conf
+    state: absent
+  when: agent_host_session_needrestart_mode != 'l'
