@@ -65,11 +65,11 @@ function orderSettings(h: AgentHost): AgentSettingVM[] {
 
 function reportOf(h: AgentHost, status: SourceStatus, nowMs: number): AgentVM["report"] {
   const ts = h.runTimestampSec;
-  if (h.runTimestampInvalid || (ts !== null && !validRunTimestamp(ts, nowMs))) {
+  const asOf = status.state === "stale" && status.ageMs !== null ? nowMs - status.ageMs : nowMs;
+  if (h.runTimestampInvalid || (ts !== null && !validRunTimestamp(ts, asOf))) {
     return { reporting: false, invalid: true, ageMs: null, text: "Not reporting · report time not valid" };
   }
   if (ts === null) return { reporting: false, invalid: false, ageMs: null, text: "Not reporting" };
-  const asOf = status.state === "stale" && status.ageMs !== null ? nowMs - status.ageMs : nowMs;
   const ageMs = Math.max(0, asOf - ts * 1000);
   const reporting = ageMs <= AGENT_STALE_SEC * 1000;
   return {

@@ -95,9 +95,10 @@ describe("agent host model", () => {
     expect(vmOf({ runTimestampSec: -5 }).report.reporting).toBe(false);
   });
 
-  test("the future limit is measured against the panel clock, not the snapshot age", () => {
-    const sources = { ...fullSources(), agent: snap([agentHost({ runTimestampSec: nowSec + 200 })], { lastError: "down", ageMs: 20 * 60_000 }) };
-    expect(vmOf({}, sources).report).toMatchObject({ reporting: true, invalid: false });
+  test("the future limit is measured against the snapshot capture time", () => {
+    const stale = (ts: number) => ({ ...fullSources(), agent: snap([agentHost({ runTimestampSec: ts })], { lastError: "down", ageMs: 20 * 60_000 }) });
+    expect(vmOf({}, stale(nowSec + 200)).report).toMatchObject({ reporting: false, invalid: true });
+    expect(vmOf({}, stale(nowSec - 20 * 60 - 30)).report).toMatchObject({ reporting: true, invalid: false });
   });
 
   test("setting ids lose control, zero-width and bidi characters for display and stay unknown", () => {

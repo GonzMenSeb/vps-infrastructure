@@ -69,7 +69,7 @@ function Settings({ vm }: { vm: AgentVM }) {
           ))}
         </tbody>
       </table>
-      {vm.settingsDropped > 0 ? <p class="muted">{vm.settingsDropped} more settings are reported and not shown.</p> : null}
+      {vm.settingsDropped > 0 ? <p class="muted">{vm.settingsDropped} more {vm.settingsDropped === 1 ? "setting is" : "settings are"} reported and not shown.</p> : null}
     </div>
   );
 }
