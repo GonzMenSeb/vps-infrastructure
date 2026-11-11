@@ -126,7 +126,7 @@ Three things about this role are easy to misread:
 - settings gauge: `--tags agent_host_reporting -e '{"agent_host_reporting_settings_enabled": false}'`; durable the same key, then `--tags agent_host_reporting`.
 - extra locale: re-comment the line in `/etc/locale.gen` and `localedef --delete-from-archive` it, never a bare `locale-gen`; durable `agent_host_locale_extra: []`.
 - gh and baseline packages: nothing to undo on w1; on a fresh host `apt-get remove gh` and drop its apt source and keyring, with durable `agent_host_gh_enabled: false` and an edited `agent_host_baseline_packages`, then `--tags agent_host_packages`; the manual marks are undone with `apt-mark auto git curl tmux htop`.
-- linger: nothing to undo on w1 (it was already yes); on a fresh host `loginctl disable-linger <user>`; there is no dedicated role switch, `agent_host_session_enabled: false` skips the whole session stage including the user-manager limits.
+- linger: nothing to undo on w1 (it was already yes); on a fresh host `loginctl disable-linger <user>`; there is no dedicated role switch, `agent_host_session_enabled: false` skips the whole session stage including the user-manager limits, then `--tags agent_host_session,agent_host_reporting` (the `linger` id leaves the gauge).
 - firewall: `ufw disable` and `systemctl disable --now fail2ban` (the dead-man does the first after 300 s); durable `agent_host_firewall_enabled: false`.
 - reboot: `shutdown -c` from the already-open root session inside the 60 s window; afterwards provider rescue or console.
 

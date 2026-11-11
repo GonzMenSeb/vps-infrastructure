@@ -65,7 +65,7 @@ agent_host_check_rows_reporting:
     cmd: >-
       ts=$(awk '$1=="agent_host_settings_run_timestamp_seconds"{printf "%d", $2}' {{ agent_host_reporting_settings_prom }} 2>/dev/null);
       now=$(date +%s);
-      if [ -n "$ts" ] && [ $((now-ts)) -lt {{ agent_host_reporting_settings_interval_seconds | int * 3 }} ]; then echo fresh; else echo stale; fi
+      if [ -n "$ts" ] && [ $((now-ts)) -lt {{ [agent_host_reporting_settings_interval_seconds | int * 3, 600] | min }} ]; then echo fresh; else echo stale; fi
     expect: fresh
     cmp: eq
   - id: E41
