@@ -121,7 +121,7 @@ expect_rows() {
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker build -q -t "$IMAGE" - >/dev/null <<'EOF'
 FROM ubuntu:24.04
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 openssh-server sudo procps ca-certificates ufw \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends python3 python3-apt openssh-server sudo procps ca-certificates ufw \
  && ssh-keygen -A && mkdir -p /run/sshd && (id ubuntu >/dev/null 2>&1 || useradd -m ubuntu)
 EOF
 docker run -d --name "$NAME" --network none "$IMAGE" sleep infinity >/dev/null
