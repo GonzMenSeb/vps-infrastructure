@@ -74,6 +74,7 @@ cmd_snapshot() {
   for re in "${CONT_RE[@]}"; do args+=(--continuity-re "$re"); done
   [ -n "${W1_KILL_SINCE:-}" ] && args+=(--kill-since "$W1_KILL_SINCE")
   rssh "sudo -n bash -s -- $(printf '%q ' "${args[@]}")" < "$COLLECT" | "${STATS[@]}" kv-json "$label" > "$OUT/$label.json" || die "snapshot failed"
+  grep -q '"collector.done": "1"' "$OUT/$label.json" || { rm -f "$OUT/$label.json"; die "snapshot incomplete: the collector did not reach collector.done"; }
   echo "snapshot written: $OUT/$label.json"
 }
 
@@ -259,15 +260,15 @@ cmd_run() {
 }
 
 cmd_compare() {
-  local out show=--show-metrics
-  [ "${3:-}" = --public ] && show=
-  out=$("${STATS[@]}" compare "$OUT/${1:?before}.run.json" "$OUT/${2:?after}.run.json" ${show:+"$show"}; [ -f "$OUT/$1.json" ] && [ -f "$OUT/$2.json" ] && "${STATS[@]}" snap-compare "$OUT/$1.json" "$OUT/$2.json")
-  printf '%s\n' "$out"
-  echo "LIMITS: no improvement is claimed for phone behaviour, subjective feel, BBR on a window-limited ssh path, earlyoom victim choice, or reboot persistence; only the pre-registered primary row (m4_last_ms@5s64k) marked attributable may be cited as an improvement, every other cell is descriptive; ssai=0 acts only on non-BBR sockets; compare across different times is bounded by the control rows above."
-  if [ "${3:-}" = --public ]; then
-    need_target
+  local out show=--show-metrics pub=0
+  [ "${3:-}" = --public ] && { show=; pub=1; }
+  [ "$pub" -eq 1 ] && need_target
+  out=$("${STATS[@]}" compare "$OUT/${1:?before}.run.json" "$OUT/${2:?after}.run.json" ${show:+"$show"}; [ -f "$OUT/$1.json" ] && [ -f "$OUT/$2.json" ] && "${STATS[@]}" snap-compare "$OUT/$1.json" "$OUT/$2.json"
+    echo "LIMITS: no improvement is claimed for phone behaviour, subjective feel, BBR on a window-limited ssh path, earlyoom victim choice, or reboot persistence; only the pre-registered primary row (m4_last_ms@5s64k) marked attributable may be cited as an improvement, every other cell is descriptive; ssai=0 acts only on non-BBR sockets; compare across different times is bounded by the control rows above.")
+  if [ "$pub" -eq 1 ]; then
     printf '%s\n' "$out" | W1_SCRUB_DENY="$(host_part),${W1_PING_HOST:-}" "${STATS[@]}" scrub || die "scrub failed, not printing a public block"
   fi
+  printf '%s\n' "$out"
 }
 
 cmd_ab() {

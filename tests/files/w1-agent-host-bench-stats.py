@@ -154,6 +154,7 @@ def compare(b, a):
         demoted = True
     if "tcp_metrics_peer" in cb and "tcp_metrics_peer" in ca and cb["tcp_metrics_peer"] != ca["tcp_metrics_peer"]:
         flags.append("METRICS CACHE DIFFERS: the host's per-destination TCP metrics for this client differ between the runs")
+    pending = []
     for name in sorted(set(mb) & set(ma)):
         if len(mb[name]) < 3 or len(ma[name]) < 3:
             continue
@@ -161,6 +162,10 @@ def compare(b, a):
         if name.split("@")[0] in CONTROLS and row["verdict"] != "WITHIN NOISE":
             flags.append("CONTROL MOVED: %s" % name)
         row["raw_verdict"] = row["verdict"]
+        pending.append((name, row))
+    if any(f.startswith(("PATH CHANGED", "CONTROL MOVED", "NOISY")) for f in flags):
+        demoted = True
+    for name, row in pending:
         row["verdict"] = relabel(row["verdict"], attributable, demoted)
         if name == PRIMARY:
             row["role"] = "primary, attributable" if attributable and not demoted else "primary, not attributable" if not attributable else "primary, descriptive"
@@ -266,6 +271,9 @@ def snap_compare(b, a, dry=False):
         line = "DRY RUN CHANGED THE HOST: fingerprint differs" + (" in " + ", ".join(parts) if parts else "")
         hints = [DRY_HINTS[p] for p in parts if p in DRY_HINTS]
         return ([line] + (["a false positive if " + " or ".join(hints) + ": retake the pair"] if hints else []), False)
+    for kv in (kb, ka):
+        if kv.get("collector.done") != "1" or not any(k.startswith("strict.sshd.") for k in kv):
+            return (["CONTINUITY UNKNOWN: incomplete snapshot"], False)
     sb = {k: v for k, v in kb.items() if k.startswith(("strict.", "um."))}
     sa = {k: v for k, v in ka.items() if k.startswith(("strict.", "um."))}
     for k in sorted(sb):

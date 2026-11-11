@@ -216,6 +216,11 @@ grep -q 'CC UNCHANGED' "$TMP/cmp2.txt" && pass "same congestion control prints C
 grep -qE 'IMPROVED|REGRESSED' "$TMP/cmp2.txt" && fail "no IMPROVED or REGRESSED survives CC UNCHANGED" || pass "no IMPROVED or REGRESSED survives CC UNCHANGED"
 bench_shim compare before after --public > "$TMP/cmp3.txt" 2>&1
 grep -q 'tcp_metrics_peer' "$TMP/cmp3.txt" && fail "public compare hides the metrics entries" || pass "public compare hides the metrics entries"
+python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); d["context"][sys.argv[3]]="203.0.113.9"; json.dump(d, open(sys.argv[2], "w"))' "$TMP/bout/before.run.json" "$TMP/bout/tainted.run.json" "sysctl.net.ipv4.tcp_slow_start_after_idle"
+expect_eq "public compare refuses to print when the scrub finds an address" "$(bench_shim compare tainted after --public 2> "$TMP/cmp4.err" | wc -c) $(bench_shim compare tainted after --public > /dev/null 2>&1; echo $?)" "0 3"
+grep -q 'scrub failed' "$TMP/cmp4.err" && pass "public compare names the scrub failure on stderr" || fail "public compare names the scrub failure on stderr"
+bench_shim compare tainted after 2> /dev/null | grep -q '203.0.113.9' && pass "private compare still prints the address" || fail "private compare still prints the address"
+rm -f "$TMP/bout/tainted.run.json"
 
 printf 'cubic' > "$SHIM/state/net.ipv4.tcp_congestion_control"; printf 1 > "$SHIM/state/net.ipv4.tcp_slow_start_after_idle"; rm -f "$SHIM/state/writes"
 expect_eq "ab-toggle without --yes is refused" "$(bench_shim ab-toggle > /dev/null 2>&1; echo $?)" 3
@@ -243,7 +248,7 @@ assert m.verdict("m3_down_s", b, [x * 1.01 for x in b])["verdict"] == "WITHIN NO
 assert m.verdict("m3_down_s", b, [x * 1.2 for x in b])["verdict"] == "REGRESSED"
 assert m.scrub_findings("host 203.0.113.9") == ["ipv4"]
 assert m.scrub_findings("fine 127.0.0.1 ::1 12:34:56") == []
-before = {"kv": {"strict.1.10": "5", "um.user@1000.service.InvocationID": "a", "claude.7": "9", "oom_kill": "0", "um1000_oom_kill": "0", "um1000_oom_group_kill": "0"}}
+before = {"kv": {"collector.done": "1", "strict.sshd.9": "4", "strict.1.10": "5", "um.user@1000.service.InvocationID": "a", "claude.7": "9", "oom_kill": "0", "um1000_oom_kill": "0", "um1000_oom_group_kill": "0"}}
 added = {"kv": dict(before["kv"], **{"strict.1.11": "6"})}
 lines, ok = m.snap_compare(before, added)
 assert ok and "NEW infra" in lines[0] and lines[-1] == "INFRA PROCESSES UNTOUCHED", lines
@@ -309,6 +314,18 @@ r = m.compare(doc(ctx("cubic", peer="ssthresh=15")), doc(ctx("bbr", peer="ssthre
 assert not any(f.startswith("METRICS CACHE DIFFERS") for f in r["flags"])
 c = ctx("bbr"); del c["tcp_metrics_peer"]
 assert not any(f.startswith("METRICS CACHE DIFFERS") for f in m.compare(doc(ctx("cubic")), doc(c, 0.5))["flags"])
+def shifted(c, shift):
+    d = doc(c, 0.5)
+    d["metrics"]["m1_rtt_ms"] = [x + shift for x in base]
+    return d
+
+b1 = doc(ctx("cubic"))
+b1["metrics"]["m1_rtt_ms"] = list(base)
+r = m.compare(b1, shifted(ctx("bbr"), 40))
+assert any(f.startswith("PATH CHANGED") for f in r["flags"]) and any(f.startswith("CONTROL MOVED") for f in r["flags"]), r["flags"]
+assert row(r, P)["verdict"] == "DESCRIPTIVE (controls changed)" and row(r, P)["role"] == "primary, descriptive" and row(r, P)["raw_verdict"] == "IMPROVED", r
+r = m.compare(doc(ctx("cubic")), doc(dict(ctx("bbr"), psi_cpu_avg10_end="60"), 0.5))
+assert any(f.startswith("NOISY") for f in r["flags"]) and row(r, P)["verdict"] == "DESCRIPTIVE (controls changed)" and row(r, P)["role"] == "primary, descriptive", r
 r = m.compare(doc(ctx("cubic")), doc(ctx("bbr"), 0.5, primary=False))
 assert any(f.startswith("PRIMARY METRIC") for f in r["flags"]) and all(x["role"] == "descriptive" for x in r["rows"])
 
@@ -328,15 +345,22 @@ assert m.scrub_findings("locale " + "es_" + "CO.UTF-8") == ["denied-word"]
 assert m.scrub_findings("vendor " + "CONTA" + "BO") == ["denied-word"]
 assert m.scrub_findings("color column collection") == []
 
-kb = {"strict.1.10": "5", "info.tmux.40": "9", "info.sshdsess.50": "9", "info.sshdsess.51": "9", "claude.1": "1", "claude.2": "2", "oom_kill": "0"}
-ka = {"strict.1.10": "5", "info.sshdsess.51": "9", "oom_kill": "0"}
+kb = {"collector.done": "1", "strict.sshd.9": "4", "strict.1.10": "5", "info.tmux.40": "9", "info.sshdsess.50": "9", "info.sshdsess.51": "9", "claude.1": "1", "claude.2": "2", "oom_kill": "0"}
+ka = {"collector.done": "1", "strict.sshd.9": "4", "strict.1.10": "5", "info.sshdsess.51": "9", "oom_kill": "0"}
 lines, ok = m.snap_compare({"kv": kb}, {"kv": ka})
 assert ok and any(l.startswith("WARNING") and "tmux server" in l and "40" in l for l in lines) and any(l.startswith("WARNING") and "sshd session" in l and "50" in l for l in lines), lines
 assert lines[-1] == "INFRA PROCESSES UNTOUCHED (2 claude process(es) ended)", lines
-lines, ok = m.snap_compare({"kv": {"strict.1.10": "5", "claude.1": "1"}}, {"kv": {"strict.1.10": "6"}})
+K = {"collector.done": "1", "strict.sshd.9": "4"}
+lines, ok = m.snap_compare({"kv": dict(K, **{"strict.1.10": "5", "claude.1": "1"})}, {"kv": dict(K, **{"strict.1.10": "6"})})
 assert not ok and lines[-1].startswith("CONTINUITY BROKEN") and lines[-1].endswith("(1 claude process(es) ended)"), lines
-lines, ok = m.snap_compare({"kv": {"strict.1.10": "5", "info.tmux.40": "9"}}, {"kv": {"strict.1.10": "5", "info.tmux.40": "9"}})
+lines, ok = m.snap_compare({"kv": dict(K, **{"strict.1.10": "5", "info.tmux.40": "9"})}, {"kv": dict(K, **{"strict.1.10": "5", "info.tmux.40": "9"})})
 assert ok and lines == ["INFRA PROCESSES UNTOUCHED"], lines
+lines, ok = m.snap_compare({"kv": {}}, {"kv": {}})
+assert not ok and lines == ["CONTINUITY UNKNOWN: incomplete snapshot"], lines
+lines, ok = m.snap_compare({"kv": K}, {"kv": {"strict.sshd.9": "4"}})
+assert not ok and lines == ["CONTINUITY UNKNOWN: incomplete snapshot"], lines
+lines, ok = m.snap_compare({"kv": {"collector.done": "1", "strict.1.10": "5"}}, {"kv": K})
+assert not ok and lines == ["CONTINUITY UNKNOWN: incomplete snapshot"], lines
 
 same = {"kv": {"fingerprint": "aa", "fp.role": "1", "fp.dpkg": "2"}}
 assert m.snap_compare(same, same, dry=True) == ([m.DRY_OK], True)
