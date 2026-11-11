@@ -137,6 +137,8 @@ export const series: HostSeries[] = ["jenkins", "vps", "w1"].map((host) => ({
   host, startSec: SERIES_START, stepSec: 288, dataStartSec: host === "vps" ? SERIES_START : SERIES_START + 3600,
   cpu: line(301, (i) => 20 + (i % 7)), mem: line(301, () => 40), rx: line(301, (i) => 1e5 * (1 + (i % 3))),
   tx: line(301, () => 5e4), load: line(301, () => 0.7), containers: line(301, () => (host === "vps" ? 19 : host === "jenkins" ? 9 : 0)),
+  swapUsed: line(301, (i) => (host === "w1" ? 1e8 + i * 1e6 : 0)), memPressure: line(301, (i) => (host === "w1" ? (i % 5) * 0.4 : 0)),
+  tcpRetrans: line(301, (i) => (host === "w1" ? 0.1 + (i % 4) * 0.05 : 0)), filesOpen: line(301, (i) => (host === "w1" ? 2000 + i * 3 : 0)),
 }));
 
 export const df: DiskUsage = {
