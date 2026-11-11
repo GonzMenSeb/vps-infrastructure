@@ -56,7 +56,7 @@ describe("hosts view", () => {
     expect(html).toContain("8 cores");
     expect(html).toContain('aria-current="true">w1</a>');
     expect(html).toContain('href="/hosts/w1"');
-    expect((html.match(/<div class="chart">/g) ?? []).length).toBe(5);
+    expect((html.match(/<div class="chart">/g) ?? []).length).toBe(9);
     expect(html).toContain("No container on w1 reports memory use.");
     expect(html).not.toContain("containers</span>");
     const disk = await render(<HostsFrame vm={buildHosts(input(), { host: "w1", metric: "disk" })} />);

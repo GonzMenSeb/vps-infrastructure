@@ -10,6 +10,7 @@ import hostsFixture from "../fixtures/prometheus-hosts.json";
 import containersFixture from "../fixtures/prometheus-containers.json";
 import databasesFixture from "../fixtures/prometheus-databases.json";
 import seriesFixture from "../fixtures/prometheus-series.json";
+import { agentResponse, agentSeries } from "./agent-fixture";
 import { FakeCompose, FakeDocker } from "./docker-fixture";
 import { startFakeJenkins, type FakeJenkins } from "./jenkins-fixture";
 import { startFakeLoki, type FakeLoki } from "./loki-fixture";
@@ -29,10 +30,13 @@ function rebasedSeries(startSec: number, stepSec: number): Matrix {
     ...body,
     data: {
       ...body.data,
-      result: body.data.result.map((r) => ({
-        metric: r.metric,
-        values: r.values.map(([t, v]) => [startSec + Math.round((t - params.start) / params.step) * stepSec, v] as [number, string]),
-      })),
+      result: [
+        ...body.data.result.map((r) => ({
+          metric: r.metric,
+          values: r.values.map(([t, v]) => [startSec + Math.round((t - params.start) / params.step) * stepSec, v] as [number, string]),
+        })),
+        ...agentSeries(startSec, stepSec),
+      ],
     },
   };
 }
@@ -66,6 +70,7 @@ export async function startFixtureUpstreams(opts: { healthDelayMs?: number } = {
       if (path === "/api/v1/query") {
         if (query === QUERIES.hosts) return Response.json(hostsFixture);
         if (query === QUERIES.containers) return Response.json(containersFixture);
+        if (query === QUERIES.agent) return Response.json(agentResponse(Math.floor(Date.now() / 1000)));
         if (query === DB_QUERY) return Response.json(databasesFixture);
         return promError("fixture has no answer for this instant query");
       }

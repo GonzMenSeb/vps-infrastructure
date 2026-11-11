@@ -6,6 +6,7 @@ import {
   QUERIES,
   PROM_SOURCES,
   SERIES_STEP_SEC,
+  fetchAgentHosts,
   fetchContainerMetrics,
   fetchHostMetrics,
   fetchHostSeries,
@@ -13,6 +14,7 @@ import {
   seriesQuery,
 } from "../src/collectors/prometheus";
 import { Store } from "../src/store";
+import { AGENT_IDS } from "./views-fixtures";
 import hostsFixture from "./fixtures/prometheus-hosts.json";
 import containersFixture from "./fixtures/prometheus-containers.json";
 import seriesFixture from "./fixtures/prometheus-series.json";
@@ -67,18 +69,57 @@ describe("queries", () => {
   test("rate windows tolerate the observed sample age: node >= 2m, cAdvisor >= 3m", () => {
     expect(NODE_RATE_WINDOW_SEC).toBeGreaterThanOrEqual(120);
     expect(CADVISOR_RATE_WINDOW_SEC).toBeGreaterThanOrEqual(180);
-    const all = [QUERIES.hosts, QUERIES.containers, QUERIES.series].flatMap(windows);
-    expect(all).toHaveLength(9);
+    const all = [QUERIES.hosts, QUERIES.containers, QUERIES.series, QUERIES.agent].flatMap(windows);
+    expect(all).toHaveLength(17);
     for (const w of all) {
       expect(w.sec).toBeGreaterThanOrEqual(w.metric.startsWith("container_") ? CADVISOR_RATE_WINDOW_SEC : NODE_RATE_WINDOW_SEC);
     }
   });
 
   test("series rate windows cover the whole step, never below the node minimum", () => {
-    expect(windows(QUERIES.series)).toHaveLength(3);
+    expect(windows(QUERIES.series)).toHaveLength(6);
     for (const w of windows(QUERIES.series)) expect(w.sec).toBe(SERIES_STEP_SEC);
     for (const w of windows(seriesQuery(30))) expect(w.sec).toBe(NODE_RATE_WINDOW_SEC);
     expect(QUERIES.series).toBe(seriesQuery(SERIES_STEP_SEC));
+  });
+
+  test("the agent query reads the contract series and the node rates over the shared window", () => {
+    const q = QUERIES.agent;
+    const part = (metric: string, expr: string) => `label_replace(${expr}, "metric", "${metric}", "", "")`;
+    const w = NODE_RATE_WINDOW_SEC;
+    expect(q.split(" or ")).toEqual([
+      part("setting", "min by (host, setting) (agent_host_setting_ok)"),
+      part("runTs", "max by (host) (last_over_time(agent_host_settings_run_timestamp_seconds[24h]))"),
+      part("kernel", "max by (host, running, newest) (agent_host_kernel_info)"),
+      part("reboot", "max by (host) (agent_host_reboot_required)"),
+      part("swapInBps", `sum by (host) (rate(node_vmstat_pswpin[${w}s])) * 4096`),
+      part("swapOutBps", `sum by (host) (rate(node_vmstat_pswpout[${w}s])) * 4096`),
+      part("memPressurePct", `100 * sum by (host) (rate(node_pressure_memory_waiting_seconds_total[${w}s]))`),
+      part(
+        "tcpRetransPct",
+        `100 * sum by (host) (rate(node_netstat_Tcp_RetransSegs[${w}s])) / sum by (host) (rate(node_netstat_Tcp_OutSegs[${w}s]))`,
+      ),
+      part("filesOpen", "max by (host) (node_filefd_allocated)"),
+      part("tcpEstablished", "max by (host) (node_netstat_Tcp_CurrEstab)"),
+      part("oomKills24h", "sum by (host) (increase(node_vmstat_oom_kill[24h]))"),
+    ]);
+    expect(windows(q).every((x) => x.sec === w)).toBe(true);
+  });
+
+  test("the agent series are pinned expression by expression, rate windows following the step", () => {
+    const part = (metric: string, expr: string) => `label_replace(${expr}, "metric", "${metric}", "", "")`;
+    const agentParts = (w: number) => [
+      part("swapUsed", "sum by (host) (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)"),
+      part("memPressure", `100 * sum by (host) (rate(node_pressure_memory_waiting_seconds_total[${w}s]))`),
+      part(
+        "tcpRetrans",
+        `100 * sum by (host) (rate(node_netstat_Tcp_RetransSegs[${w}s])) / sum by (host) (rate(node_netstat_Tcp_OutSegs[${w}s]))`,
+      ),
+      part("filesOpen", "max by (host) (node_filefd_allocated)"),
+    ];
+    for (const [q, w] of [[QUERIES.series, SERIES_STEP_SEC], [seriesQuery(30), NODE_RATE_WINDOW_SEC]] as const) {
+      expect(q.split(" or ").slice(-4)).toEqual(agentParts(w));
+    }
   });
 
   test("container queries group by (name, host)", () => {
@@ -208,10 +249,288 @@ describe("fetchHostSeries", () => {
     expect(v!.cpu.slice(0, 6)).toEqual([1, 2, 2, 2, 3, 3]);
     expect(v!.mem.every((x) => x === 50)).toBe(true);
     expect(v!.rx.every((x) => x === 0)).toBe(true);
+    for (const k of ["swapUsed", "memPressure", "tcpRetrans", "filesOpen"] as const) {
+      expect(v![k]).toEqual([]);
+    }
     expect(j!.cpu.slice(0, 5)).toEqual([5, 5, 5, 6, 6]);
     expect(j!.cpu[300]).toBe(9);
     expect(v).toMatchObject({ startSec: start, stepSec: step, dataStartSec: start });
     expect(j!.dataStartSec).toBe(start + 2 * step);
+  });
+});
+
+describe("fetchHostSeries: agent host series", () => {
+  const nowMs = 1_800_000_000_000;
+  const step = 288;
+  const start = Math.floor(nowMs / 1000 / step) * step - 86400;
+  const pt = (i: number, v: number | string) => [start + i * step, String(v)];
+
+  test("swap used, memory pressure, TCP retransmits and open files keep gaps as gaps and an absent series as empty", async () => {
+    handler = () =>
+      mat([
+        { metric: { host: "w1", metric: "swapUsed" }, values: [pt(1, 100), pt(3, 300)] },
+        { metric: { host: "w1", metric: "memPressure" }, values: [pt(0, 0.5), pt(300, "NaN")] },
+        { metric: { host: "w1", metric: "tcpRetrans" }, values: [pt(2, 0.25)] },
+        { metric: { host: "w1", metric: "filesOpen" }, values: [pt(0, 1000), pt(300, 2000)] },
+      ]);
+    const [w1] = await fetchHostSeries(client, undefined, nowMs);
+    expect(w1!.swapUsed).toHaveLength(301);
+    expect(w1!.swapUsed.slice(0, 5)).toEqual([NaN, 100, NaN, 300, NaN]);
+    expect(w1!.memPressure[0]).toBe(0.5);
+    expect(w1!.memPressure.slice(1).every(Number.isNaN)).toBe(true);
+    expect(w1!.tcpRetrans.filter(Number.isFinite)).toEqual([0.25]);
+    expect([w1!.filesOpen[0], w1!.filesOpen[299], w1!.filesOpen[300]]).toEqual([1000, NaN, 2000]);
+    expect(w1!.dataStartSec).toBe(start);
+  });
+
+  test("an absent agent series is empty, not a zero line, and a non-finite sample is a gap", async () => {
+    handler = () =>
+      mat([
+        { metric: { host: "w1", metric: "cpu" }, values: [pt(0, 1)] },
+        { metric: { host: "w1", metric: "tcpRetrans" }, values: [pt(0, 0.4), pt(1, "NaN")] },
+      ]);
+    const [w1] = await fetchHostSeries(client, undefined, nowMs);
+    expect(w1!.memPressure).toEqual([]);
+    expect(w1!.swapUsed).toEqual([]);
+    expect(w1!.cpu.every((x) => x === 1)).toBe(true);
+    expect(w1!.tcpRetrans[0]).toBe(0.4);
+    expect(w1!.tcpRetrans.slice(1).every(Number.isNaN)).toBe(true);
+  });
+
+  test("the series query asks for all ten series in one range query", () => {
+    const keys = [...QUERIES.series.matchAll(/"metric", "(\w+)"/g)].map((m) => m[1]);
+    expect(keys.sort()).toEqual(
+      ["containers", "cpu", "filesOpen", "load", "mem", "memPressure", "rx", "swapUsed", "tcpRetrans", "tx"].sort(),
+    );
+  });
+});
+
+describe("fetchAgentHosts", () => {
+  const row = (host: string, metric: string, v: number | string, extra: Record<string, string> = {}) => ({
+    metric: { host, metric, ...extra },
+    value: [1, String(v)],
+  });
+  const setting = (host: string, id: string, v: number | string) => row(host, "setting", v, { setting: id });
+
+  test("one batched instant query, assembled per host", async () => {
+    calls.length = 0;
+    handler = () =>
+      vec([
+        setting("w1", "zswap", 0),
+        setting("w1", "congestion_control", 1),
+        row("w1", "runTs", 1_800_000_000),
+        row("w1", "reboot", 1),
+        row("w1", "kernel", 1, { running: "6.8.0-100-generic", newest: "6.8.0-110-generic" }),
+        row("w1", "swapInBps", 4096),
+        row("w1", "swapOutBps", 8192),
+        row("w1", "memPressurePct", 1.5),
+        row("w1", "tcpRetransPct", 0.25),
+        row("w1", "filesOpen", 1234),
+        row("w1", "tcpEstablished", 42),
+        row("w1", "oomKills24h", 2.4),
+      ]);
+    const hosts = await fetchAgentHosts(client);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.path).toBe("/api/v1/query");
+    expect(calls[0]!.params.get("query")).toBe(QUERIES.agent);
+    expect(hosts).toEqual([
+      {
+        host: "w1",
+        settings: [
+          { id: "congestion_control", ok: true },
+          { id: "zswap", ok: false },
+        ],
+        settingsDropped: 0,
+        runTimestampSec: 1_800_000_000,
+        runTimestampInvalid: false,
+        rebootRequired: true,
+        kernelRunning: "6.8.0-100-generic",
+        kernelNewest: "6.8.0-110-generic",
+        swapInBps: 4096,
+        swapOutBps: 8192,
+        memPressurePct: 1.5,
+        tcpRetransPct: 0.25,
+        filesOpen: 1234,
+        tcpEstablished: 42,
+        oomKills24h: 2,
+      },
+    ]);
+  });
+
+  test("hosts that report only node series are left out", async () => {
+    handler = () =>
+      vec([
+        row("vps", "filesOpen", 900),
+        row("vps", "memPressurePct", 0.1),
+        row("jenkins", "oomKills24h", 0),
+        row("w1", "runTs", 1_800_000_000),
+      ]);
+    const hosts = await fetchAgentHosts(client);
+    expect(hosts.map((h) => h.host)).toEqual(["w1"]);
+  });
+
+  test("a host that exports only the reboot gauge is left out until the settings gauge reports", async () => {
+    handler = () => vec([row("w1", "reboot", 1), row("w1", "filesOpen", 900), row("w1", "oomKills24h", 0)]);
+    expect(await fetchAgentHosts(client)).toEqual([]);
+  });
+
+  test("missing series stay null and a host with only the kernel gauge still counts", async () => {
+    handler = () => vec([row("w1", "kernel", 1, { running: "6.8.0-100-generic", newest: "6.8.0-100-generic" })]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h).toEqual({
+      host: "w1", settings: [], settingsDropped: 0, runTimestampSec: null, runTimestampInvalid: false, rebootRequired: null, kernelRunning: "6.8.0-100-generic",
+      kernelNewest: "6.8.0-100-generic", swapInBps: null, swapOutBps: null, memPressurePct: null, tcpRetransPct: null,
+      filesOpen: null, tcpEstablished: null, oomKills24h: null,
+    });
+  });
+
+  test("partial settings keep what was reported and sort by id", async () => {
+    handler = () => vec([setting("w1", "swap_active", 1), setting("w1", "linger", 1), setting("w1", "mosh_installed", 0)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h!.settings).toEqual([
+      { id: "linger", ok: true },
+      { id: "mosh_installed", ok: false },
+      { id: "swap_active", ok: true },
+    ]);
+    expect(h!.runTimestampSec).toBeNull();
+  });
+
+  test("a setting is in place only when its value is exactly 1, so garbage reads as drift", async () => {
+    handler = () =>
+      vec([setting("w1", "a", "NaN"), setting("w1", "b", "+Inf"), setting("w1", "c", 2), setting("w1", "d", 1), setting("w1", "e", 0)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(Object.fromEntries(h!.settings.map((s) => [s.id, s.ok]))).toEqual({ a: false, b: false, c: false, d: true, e: false });
+  });
+
+  test("non-finite numbers become null, the timestamp must be positive and the oom count is rounded and never negative", async () => {
+    handler = () =>
+      vec([
+        row("w1", "runTs", 0),
+        row("w1", "reboot", "NaN"),
+        row("w1", "swapInBps", "NaN"),
+        row("w1", "memPressurePct", "+Inf"),
+        row("w1", "tcpRetransPct", "-Inf"),
+        row("w1", "filesOpen", 12),
+        row("w1", "oomKills24h", -0.2),
+      ]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h).toMatchObject({
+      runTimestampSec: null, rebootRequired: null, swapInBps: null, memPressurePct: null, tcpRetransPct: null, filesOpen: 12,
+      oomKills24h: 0,
+    });
+  });
+
+  test("unknown ids are kept as received, hostile ones included", async () => {
+    handler = () => vec([setting("w1", "<script>alert(1)</script>", 0), setting("w1", "brand_new", 1)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h!.settings).toEqual([
+      { id: "<script>alert(1)</script>", ok: false },
+      { id: "brand_new", ok: true },
+    ]);
+  });
+
+  test("samples without host, with an unknown metric key, an empty or oversized setting id are ignored", async () => {
+    handler = () =>
+      vec([
+        { metric: { metric: "setting", setting: "x" }, value: [1, "1"] },
+        row("w1", "mystery", 1),
+        row("w1", "setting", 1),
+        setting("w1", "", 1),
+        setting("w1", "x".repeat(121), 1),
+        setting("w1", "ok_one", 1),
+        row("w1", "kernel", 1, { running: "", newest: "6.8" }),
+      ]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h!.settings).toEqual([{ id: "ok_one", ok: true }]);
+    expect(h!.kernelRunning).toBeNull();
+  });
+
+  test("an empty newest kernel label reads as unknown and the newest kernel wins when two overlap", async () => {
+    handler = () => vec([row("w1", "kernel", 1, { running: "6.8.0-9-generic", newest: "" })]);
+    expect((await fetchAgentHosts(client))[0]).toMatchObject({ kernelRunning: "6.8.0-9-generic", kernelNewest: null });
+    handler = () =>
+      vec([
+        row("w1", "kernel", 1, { running: "6.8.0-9-generic", newest: "6.8.0-9-generic" }),
+        row("w1", "kernel", 1, { running: "6.8.0-9-generic", newest: "6.8.0-10-generic" }),
+      ]);
+    expect((await fetchAgentHosts(client))[0]).toMatchObject({ kernelNewest: "6.8.0-10-generic" });
+  });
+
+  test("only the known hosts are read, however many host labels are pushed", async () => {
+    handler = () =>
+      vec([
+        ...Array.from({ length: 5000 }, (_, i) => setting(`h${i}`, "zswap", 1)),
+        setting("w1", "zswap", 1),
+        row("jenkins", "runTs", 1_800_000_000),
+        row("w2", "runTs", 1_800_000_000),
+      ]);
+    const hosts = await fetchAgentHosts(client);
+    expect(hosts.map((h) => h.host)).toEqual(["jenkins", "w1"]);
+  });
+
+  test("an oversized host label is ignored", async () => {
+    handler = () => vec([setting("w".repeat(121), "zswap", 1), setting("w1", "zswap", 1)]);
+    expect((await fetchAgentHosts(client)).map((h) => h.host)).toEqual(["w1"]);
+  });
+
+  test("settings per host are capped, the known ids always survive and drifted unknown ids come first", async () => {
+    const flood = Array.from({ length: 20000 }, (_, i) => setting("w1", `aaa_${String(i).padStart(6, "0")}`, 1));
+    handler = () => vec([...flood, setting("w1", "ssh_password_off", 0), setting("w1", "zswap", 1), setting("w1", "zzz_drift", 0)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h!.settings).toHaveLength(64);
+    const ids = h!.settings.map((s) => s.id);
+    expect(ids).toContain("ssh_password_off");
+    expect(ids).toContain("zswap");
+    expect(ids).toContain("zzz_drift");
+    expect(h!.settings.find((s) => s.id === "ssh_password_off")!.ok).toBe(false);
+    expect(h!.settingsDropped).toBe(20003 - 64);
+  });
+
+  test("a full set of known ids plus a handful of others is not truncated", async () => {
+    handler = () => vec([...AGENT_IDS.map((id) => setting("w1", id, 1)), setting("w1", "extra_one", 1)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h!.settings).toHaveLength(14);
+    expect(h!.settingsDropped).toBe(0);
+  });
+
+  test("kernel pairs collapse to the newest one per host", async () => {
+    const kernels = Array.from({ length: 5000 }, (_, i) => row("w1", "kernel", 1, { running: `6.8.0-${i}-generic`, newest: `6.8.0-${i}-generic` }));
+    handler = () => vec([...kernels, row("vps", "kernel", 1, { running: "5.15.0-1-generic", newest: "5.15.0-2-generic" })]);
+    const hosts = await fetchAgentHosts(client);
+    expect(hosts.map((h) => [h.host, h.kernelNewest])).toEqual([
+      ["vps", "5.15.0-2-generic"],
+      ["w1", "6.8.0-4999-generic"],
+    ]);
+  });
+
+  test("oversized kernel labels are ignored", async () => {
+    handler = () => vec([row("w1", "kernel", 1, { running: "k".repeat(81), newest: "6.8.0-1-generic" }), setting("w1", "zswap", 1)]);
+    expect((await fetchAgentHosts(client))[0]!.kernelRunning).toBeNull();
+  });
+
+  test("duplicate series for one setting fail closed: a 0 beats a 1 in any order", async () => {
+    handler = () => vec([setting("w1", "ssh_password_off", 0), setting("w1", "ssh_password_off", 1), setting("w1", "x_dup", 1), setting("w1", "x_dup", 0)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(Object.fromEntries(h!.settings.map((s) => [s.id, s.ok]))).toEqual({ ssh_password_off: false, x_dup: false });
+    handler = () => vec([setting("w1", "ssh_password_off", 1), setting("w1", "ssh_password_off", 0)]);
+    expect((await fetchAgentHosts(client))[0]!.settings).toEqual([{ id: "ssh_password_off", ok: false }]);
+  });
+
+  test("a run timestamp that is not a plausible time is invalid, never a reporting host", async () => {
+    for (const v of ["NaN", "+Inf", "-Inf", 0, -5, 1e300, 9_999_999_999, 4_102_444_801]) {
+      handler = () => vec([row("w1", "runTs", v)]);
+      const [h] = await fetchAgentHosts(client);
+      expect(h).toMatchObject({ host: "w1", runTimestampSec: null, runTimestampInvalid: true });
+    }
+    handler = () => vec([row("w1", "runTs", 4_102_444_800)]);
+    expect((await fetchAgentHosts(client))[0]).toMatchObject({ runTimestampSec: 4_102_444_800, runTimestampInvalid: false });
+  });
+
+  test("an empty answer is an empty list and errors surface", async () => {
+    handler = () => vec([]);
+    expect(await fetchAgentHosts(client)).toEqual([]);
+    handler = () => Response.json({ status: "error", errorType: "execution", error: "query timed out" }, { status: 422 });
+    await expect(fetchAgentHosts(client)).rejects.toThrow(/query timed out/);
   });
 });
 
@@ -277,7 +596,7 @@ describe("live fixtures (sanitized responses captured from the real Prometheus)"
 });
 
 describe("registerPrometheusSources", () => {
-  test("registers three store sources; series is cached 60s", async () => {
+  test("registers four store sources; agent is cached like hosts, series 60s", async () => {
     let t = 1_800_000_000_000;
     const store = new Store(() => t);
     const base = { timeoutMs: 1000, failureThreshold: 3, cooldownMs: 1000 };
@@ -285,8 +604,10 @@ describe("registerPrometheusSources", () => {
     handler = (c) => (c.path.endsWith("query_range") ? mat([]) : vec([hs("vps", "cpuPct", 1)]));
     registerPrometheusSources(store, client, base, () => t);
     expect(store.names().sort()).toEqual(Object.values(PROM_SOURCES).sort());
+    expect(PROM_SOURCES.agent).toBe("prom:agent");
     const s = await store.refresh<{ host: string }[]>(PROM_SOURCES.hosts);
     expect(s.data?.[0]?.host).toBe("vps");
+    expect(store.info(PROM_SOURCES.agent).opts.ttlMs).toBe(store.info(PROM_SOURCES.hosts).opts.ttlMs);
     await store.refresh(PROM_SOURCES.series);
     t += 59_000;
     expect(store.get(PROM_SOURCES.series).stale).toBe(false);

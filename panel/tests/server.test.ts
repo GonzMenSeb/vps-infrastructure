@@ -1,14 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setSystemTime, test } from "bun:test";
 import { localPath } from "../src/auth/dev";
 import { githubClient } from "../src/auth/github";
 import { DOCKER_SOURCES } from "../src/collectors/docker";
-import { PROM_SOURCES } from "../src/collectors/prometheus";
+import { PROM_SOURCES, type AgentHost } from "../src/collectors/prometheus";
 import { loadConfig } from "../src/config";
 import { openDb } from "../src/db";
 import { Poller } from "../src/poller";
 import { createApp, etagMatches } from "../src/server";
 import { Store } from "../src/store";
-import { containers, df, docker, hosts, manifest, series } from "./views-fixtures";
+import { agentHost, containers, df, docker, hosts, manifest, series } from "./views-fixtures";
 
 const env = {
   PUBLIC_URL: "https://panel.example.test",
@@ -21,7 +21,7 @@ const env = {
 
 const opts = { ttlMs: 15_000, timeoutMs: 100, failureThreshold: 3, cooldownMs: 15_000 };
 
-async function rig(extra: Record<string, string> = { DEV_AUTH_BYPASS: "1", NODE_ENV: "test" }) {
+async function rig(extra: Record<string, string> = { DEV_AUTH_BYPASS: "1", NODE_ENV: "test" }, agent?: AgentHost[]) {
   const cfg = loadConfig({ ...env, ...extra });
   const store = new Store();
   const calls = { n: 0 };
@@ -31,6 +31,7 @@ async function rig(extra: Record<string, string> = { DEV_AUTH_BYPASS: "1", NODE_
     [PROM_SOURCES.series]: series,
     [DOCKER_SOURCES.containers]: docker,
     [DOCKER_SOURCES.df]: df,
+    ...(agent ? { [PROM_SOURCES.agent]: agent } : {}),
   };
   const fail = new Set<string>();
   for (const name of Object.keys(data)) {
@@ -165,6 +166,98 @@ describe("pages", () => {
     const [o2, h2] = await tags();
     expect(o2).toBe(o1);
     expect(h2).not.toBe(h1);
+  });
+
+  describe("agent host", () => {
+    const live = () => agentHost({ runTimestampSec: Date.now() / 1000 - 30 });
+    const sick = () => agentHost({ runTimestampSec: Date.now() / 1000 - 30, settings: [{ id: "zswap", ok: false }] });
+
+    test("w1 shows the section from the cache, other hosts and the overview follow the same data", async () => {
+      const { app, calls } = await rig(undefined, [sick()]);
+      const cookie = await signIn(app);
+      const w1 = await (await app.request("/hosts/w1", { headers: { cookie } })).text();
+      expect(w1).toContain('aria-label="Agent host"');
+      expect(w1).toContain("0 of 1 settings in place");
+      expect(w1).toContain("Last report 30 s ago");
+      for (const host of ["vps", "jenkins"]) {
+        expect(await (await app.request(`/hosts/${host}`, { headers: { cookie } })).text()).not.toContain("Agent host");
+      }
+      const overview = await (await app.request("/", { headers: { cookie } })).text();
+      expect(overview).toContain("1 setting is out of place on w1");
+      expect(calls.n).toBe(0);
+    });
+
+    test("without the source registered nothing changes on w1", async () => {
+      const { app } = await rig();
+      const cookie = await signIn(app);
+      const w1 = await (await app.request("/hosts/w1", { headers: { cookie } })).text();
+      expect(w1).not.toContain("Agent host");
+    });
+
+    test("the agent data moves the hosts and overview ETags, not the services page", async () => {
+      const { app, store, data } = await rig(undefined, [live()]);
+      const cookie = await signIn(app);
+      const tags = async () =>
+        Promise.all(["/", "/hosts/w1", "/services"].map(async (p) => (await app.request(p, { headers: { cookie } })).headers.get("etag")));
+      const [o1, h1, s1] = await tags();
+      data[PROM_SOURCES.agent] = [{ ...live(), tcpEstablished: 99 }];
+      await store.refresh(PROM_SOURCES.agent);
+      const [o2, h2, s2] = await tags();
+      expect(o2).not.toBe(o1);
+      expect(h2).not.toBe(h1);
+      expect(s2).toBe(s1);
+    });
+
+    const settle = async (store: Store) => {
+      for (const name of store.names()) await store.refresh(name);
+    };
+
+    test("with agent data the w1 ETag rolls over each minute even if nothing else changed; other hosts keep theirs", async () => {
+      const { app, store } = await rig(undefined, [live()]);
+      const t0 = Math.floor(Date.now() / 60_000) * 60_000 + 1000;
+      try {
+        setSystemTime(new Date(t0));
+        await settle(store);
+        const cookie = await signIn(app);
+        const tag = async (p: string) => (await app.request(p, { headers: { cookie } })).headers.get("etag");
+        const [w1, vps] = [await tag("/hosts/w1"), await tag("/hosts/vps")];
+        setSystemTime(new Date(t0 + 30_000));
+        await settle(store);
+        expect(await tag("/hosts/w1")).toBe(w1);
+        setSystemTime(new Date(t0 + 61_000));
+        await settle(store);
+        expect(await tag("/hosts/w1")).not.toBe(w1);
+        expect(await tag("/hosts/vps")).toBe(vps);
+      } finally {
+        setSystemTime();
+      }
+    });
+
+    test("without agent data the w1 ETag does not depend on the clock", async () => {
+      const { app, store } = await rig();
+      const t0 = Math.floor(Date.now() / 60_000) * 60_000 + 1000;
+      try {
+        setSystemTime(new Date(t0));
+        await settle(store);
+        const cookie = await signIn(app);
+        const before = (await app.request("/hosts/w1", { headers: { cookie } })).headers.get("etag");
+        setSystemTime(new Date(t0 + 61_000));
+        await settle(store);
+        expect((await app.request("/hosts/w1", { headers: { cookie } })).headers.get("etag")).toBe(before);
+      } finally {
+        setSystemTime();
+      }
+    });
+
+    test("an agent error with older data keeps the section and flags the stale source", async () => {
+      const { app, store, fail } = await rig(undefined, [live()]);
+      const cookie = await signIn(app);
+      fail.add(PROM_SOURCES.agent);
+      await store.refresh(PROM_SOURCES.agent);
+      const w1 = await (await app.request("/hosts/w1", { headers: { cookie } })).text();
+      expect(w1).toContain("Agent host");
+      expect(w1).toContain("Stale");
+    });
   });
 
   test("another session never revalidates against this session's page", async () => {

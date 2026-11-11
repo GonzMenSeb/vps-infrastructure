@@ -154,6 +154,9 @@ h1 .chip{vertical-align:middle;font-size:13px;letter-spacing:0}
 .gauge .big small{font:400 13px var(--sans);color:var(--ink-3);margin-left:4px;letter-spacing:0}
 .gauge .sub{font-size:13px;color:var(--ink-2)}
 .gauge .duo{display:grid;gap:3px;font:500 16px var(--mono)}
+.agent-status{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.agent-split{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+.agent-split>*{background:var(--surface)}
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));overflow:hidden}
 .chart{padding:16px 18px 6px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0;min-width:0}
 .chart .t{font:500 12px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
@@ -211,6 +214,7 @@ h1 .chip{vertical-align:middle;font-size:13px;letter-spacing:0}
 @media (max-width:1040px){
   .gauges,.gauges.compact{grid-template-columns:repeat(2,1fr)}
   .charts{grid-template-columns:1fr}
+  .agent-split{grid-template-columns:1fr}
   .refresh .status{display:none}
   .treemap,.treemap.compact{aspect-ratio:auto;height:360px}
   .app{grid-template-columns:1fr}

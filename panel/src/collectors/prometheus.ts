@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { AGENT_RUN_TS_MAX_SEC, AGENT_SETTINGS_MAX, isKnownSetting } from "../lib/agent-contract";
+import { HOST_IDS } from "../manifest";
 import type { SourceOptions, Store } from "../store";
 
 const vectorSchema = z.object({
@@ -111,6 +113,30 @@ const CONTAINER_EXPRS = {
   txBps: cad("container_network_transmit_bytes_total"),
 } as const;
 
+const SWAP_PAGE_BYTES = 4096;
+const OOM_LOOKBACK = "24h";
+export const AGENT_REPORT_LOOKBACK = "24h";
+
+const memPressure = (w: number) => `100 * sum by (host) (rate(node_pressure_memory_waiting_seconds_total[${w}s]))`;
+const tcpRetrans = (w: number) =>
+  `100 * sum by (host) (rate(node_netstat_Tcp_RetransSegs[${w}s])) / sum by (host) (rate(node_netstat_Tcp_OutSegs[${w}s]))`;
+const swapPages = (metric: string, w: number) => `sum by (host) (rate(${metric}[${w}s])) * ${SWAP_PAGE_BYTES}`;
+const filesOpen = "max by (host) (node_filefd_allocated)";
+
+const AGENT_EXPRS = {
+  setting: "min by (host, setting) (agent_host_setting_ok)",
+  runTs: `max by (host) (last_over_time(agent_host_settings_run_timestamp_seconds[${AGENT_REPORT_LOOKBACK}]))`,
+  kernel: "max by (host, running, newest) (agent_host_kernel_info)",
+  reboot: "max by (host) (agent_host_reboot_required)",
+  swapInBps: swapPages("node_vmstat_pswpin", NODE_RATE_WINDOW_SEC),
+  swapOutBps: swapPages("node_vmstat_pswpout", NODE_RATE_WINDOW_SEC),
+  memPressurePct: memPressure(NODE_RATE_WINDOW_SEC),
+  tcpRetransPct: tcpRetrans(NODE_RATE_WINDOW_SEC),
+  filesOpen,
+  tcpEstablished: "max by (host) (node_netstat_Tcp_CurrEstab)",
+  oomKills24h: `sum by (host) (increase(node_vmstat_oom_kill[${OOM_LOOKBACK}]))`,
+} as const;
+
 const seriesExprs = (stepSec: number) => {
   const w = Math.max(stepSec, NODE_RATE_WINDOW_SEC);
   return {
@@ -120,6 +146,10 @@ const seriesExprs = (stepSec: number) => {
     tx: nodeTx(w),
     load: HOST_EXPRS.load1,
     containers: containerCount,
+    swapUsed: "sum by (host) (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)",
+    memPressure: memPressure(w),
+    tcpRetrans: tcpRetrans(w),
+    filesOpen,
   };
 };
 
@@ -138,6 +168,7 @@ export const QUERIES = {
   hosts: unionQuery(HOST_EXPRS),
   containers: unionQuery(CONTAINER_EXPRS),
   series: seriesQuery(SERIES_STEP_SEC),
+  agent: unionQuery(AGENT_EXPRS),
 };
 
 export interface HostMetrics {
@@ -180,7 +211,64 @@ export interface HostSeries {
   tx: number[];
   load: number[];
   containers: number[];
+  swapUsed: number[];
+  memPressure: number[];
+  tcpRetrans: number[];
+  filesOpen: number[];
 }
+
+export interface AgentSetting {
+  id: string;
+  ok: boolean;
+}
+
+export interface AgentHost {
+  host: string;
+  settings: AgentSetting[];
+  settingsDropped: number;
+  runTimestampSec: number | null;
+  runTimestampInvalid: boolean;
+  rebootRequired: boolean | null;
+  kernelRunning: string | null;
+  kernelNewest: string | null;
+  swapInBps: number | null;
+  swapOutBps: number | null;
+  memPressurePct: number | null;
+  tcpRetransPct: number | null;
+  filesOpen: number | null;
+  tcpEstablished: number | null;
+  oomKills24h: number | null;
+}
+
+const LABEL_MAX = 120;
+const label = z.string().min(1).max(LABEL_MAX);
+const KERNEL_LABEL_MAX = 80;
+
+const agentLabelsSchema = z.object({
+  host: z.string().min(1).max(LABEL_MAX),
+  metric: z.string(),
+  setting: label.optional(),
+  running: z.string().max(KERNEL_LABEL_MAX).optional(),
+  newest: z.string().max(KERNEL_LABEL_MAX).optional(),
+});
+
+const agentHostSchema = z.object({
+  host: z.string().min(1).max(LABEL_MAX),
+  settings: z.array(z.object({ id: label, ok: z.boolean() })).max(AGENT_SETTINGS_MAX),
+  settingsDropped: z.number().int().nonnegative(),
+  runTimestampSec: z.number().positive().max(AGENT_RUN_TS_MAX_SEC).nullable(),
+  runTimestampInvalid: z.boolean(),
+  rebootRequired: z.boolean().nullable(),
+  kernelRunning: z.string().max(KERNEL_LABEL_MAX).nullable(),
+  kernelNewest: z.string().max(KERNEL_LABEL_MAX).nullable(),
+  swapInBps: z.number().nullable(),
+  swapOutBps: z.number().nullable(),
+  memPressurePct: z.number().nullable(),
+  tcpRetransPct: z.number().nullable(),
+  filesOpen: z.number().nullable(),
+  tcpEstablished: z.number().nullable(),
+  oomKills24h: z.number().nullable(),
+});
 
 const fin = (v: number | undefined): number | null => (v === undefined || !Number.isFinite(v) ? null : v);
 const sub = (a: number | null, b: number | null): number | null => (a === null || b === null ? null : Math.max(a - b, 0));
@@ -278,6 +366,8 @@ export async function fetchHostSeries(
     }
     return out;
   };
+  const fillAgent = (grid: Map<number, number> | undefined): number[] =>
+    !grid || grid.size === 0 ? [] : Array.from({ length: len }, (_, i) => grid.get(i) ?? NaN);
   const dataStart = (m: Map<string, Map<number, number>>): number | null => {
     const idx = [...m.values()].flatMap((g) => [...g.keys()]);
     return idx.length ? startSec + Math.min(...idx) * stepSec : null;
@@ -295,13 +385,113 @@ export async function fetchHostSeries(
       tx: fill(m.get("tx")),
       load: fill(m.get("load")),
       containers: fill(m.get("containers")),
+      swapUsed: fillAgent(m.get("swapUsed")),
+      memPressure: fillAgent(m.get("memPressure")),
+      tcpRetrans: fillAgent(m.get("tcpRetrans")),
+      filesOpen: fillAgent(m.get("filesOpen")),
     }));
+}
+
+const AGENT_OWN = ["setting", "runTs", "kernel", "reboot"] as const;
+const AGENT_NODE = ["swapInBps", "swapOutBps", "memPressurePct", "tcpRetransPct", "filesOpen", "tcpEstablished", "oomKills24h"] as const;
+const AGENT_METRICS: ReadonlySet<string> = new Set([...AGENT_OWN, ...AGENT_NODE]);
+
+interface AgentAcc {
+  known: Map<string, boolean>;
+  drifted: Set<string>;
+  fine: Set<string>;
+  overflow: number;
+  kernel: { running: string; newest: string } | null;
+  numbers: Record<string, number>;
+}
+
+const AGENT_EXTRA_HARD_MAX = 1024;
+const AGENT_HOSTS: ReadonlySet<string> = new Set(HOST_IDS);
+const kernelKey = (k: { running: string; newest: string }) => `${k.newest}\u0000${k.running}`;
+const versionOrder = new Intl.Collator("en", { numeric: true });
+const byVersion = (a: string, b: string) => versionOrder.compare(a, b);
+
+function keepSettings(a: AgentAcc): { settings: AgentSetting[]; dropped: number } {
+  const byId = (x: string, y: string) => x.localeCompare(y);
+  const known = [...a.known.entries()].sort(([x], [y]) => byId(x, y)).map(([id, ok]) => ({ id, ok }));
+  const extra = [
+    ...[...a.drifted].sort(byId).map((id) => ({ id, ok: false })),
+    ...[...a.fine].sort(byId).map((id) => ({ id, ok: true })),
+  ];
+  const room = Math.max(AGENT_SETTINGS_MAX - known.length, 0);
+  return { settings: [...known, ...extra.slice(0, room)], dropped: a.overflow + Math.max(extra.length - room, 0) };
+}
+
+function noteSetting(a: AgentAcc, id: string, ok: boolean): void {
+  if (isKnownSetting(id)) {
+    const prev = a.known.get(id);
+    a.known.set(id, prev === undefined ? ok : prev && ok);
+  } else if (a.drifted.has(id)) {
+    return;
+  } else if (!ok) {
+    a.fine.delete(id);
+    if (a.drifted.size < AGENT_EXTRA_HARD_MAX) a.drifted.add(id);
+    else a.overflow++;
+  } else if (a.fine.has(id)) {
+    return;
+  } else if (a.fine.size < AGENT_EXTRA_HARD_MAX) a.fine.add(id);
+  else a.overflow++;
+}
+
+export async function fetchAgentHosts(client: PromClient, signal?: AbortSignal): Promise<AgentHost[]> {
+  const samples = await client.instant(QUERIES.agent, signal);
+  const byHost = new Map<string, AgentAcc>();
+  for (const s of samples) {
+    if (!AGENT_HOSTS.has(s.labels.host ?? "")) continue;
+    const labels = agentLabelsSchema.safeParse(s.labels);
+    if (!labels.success) continue;
+    const { host, metric, setting, running, newest } = labels.data;
+    if (!AGENT_METRICS.has(metric)) continue;
+    if (metric === "setting" && setting === undefined) continue;
+    if (metric === "kernel" && !running) continue;
+    const acc: AgentAcc = byHost.get(host) ?? { known: new Map(), drifted: new Set(), fine: new Set(), overflow: 0, kernel: null, numbers: {} };
+    if (metric === "setting") noteSetting(acc, setting!, s.value === 1);
+    else if (metric === "kernel") {
+      const k = { running: running!, newest: newest ?? "" };
+      if (!acc.kernel || byVersion(kernelKey(k), kernelKey(acc.kernel)) > 0) acc.kernel = k;
+    } else acc.numbers[metric] = s.value;
+    byHost.set(host, acc);
+  }
+  const out = [...byHost.entries()]
+    .filter(([, a]) => a.known.size + a.drifted.size + a.fine.size > 0 || a.overflow > 0 || a.kernel !== null || "runTs" in a.numbers)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([host, a]): AgentHost => {
+      const ts = fin(a.numbers.runTs);
+      const tsValid = ts !== null && ts > 0 && ts <= AGENT_RUN_TS_MAX_SEC;
+      const reboot = fin(a.numbers.reboot);
+      const oom = fin(a.numbers.oomKills24h);
+      const { settings, dropped } = keepSettings(a);
+      return {
+        host,
+        settings,
+        settingsDropped: dropped,
+        runTimestampSec: tsValid ? ts : null,
+        runTimestampInvalid: "runTs" in a.numbers && !tsValid,
+        rebootRequired: reboot === 1 ? true : reboot === 0 ? false : null,
+        kernelRunning: a.kernel?.running ?? null,
+        kernelNewest: a.kernel?.newest || null,
+        swapInBps: fin(a.numbers.swapInBps),
+        swapOutBps: fin(a.numbers.swapOutBps),
+        memPressurePct: fin(a.numbers.memPressurePct),
+        tcpRetransPct: fin(a.numbers.tcpRetransPct),
+        filesOpen: fin(a.numbers.filesOpen),
+        tcpEstablished: fin(a.numbers.tcpEstablished),
+        oomKills24h: oom === null ? null : Math.max(Math.round(oom), 0),
+      };
+    });
+  return agentHostSchema.array().parse(out);
 }
 
 export const PROM_SOURCES = {
   hosts: "prom:hosts",
   containers: "prom:containers",
   series: "prom:series",
+  agent: "prom:agent",
 } as const;
 
 export const PROM_TTL = { instantMs: 15_000, seriesMs: 60_000 } as const;
@@ -315,6 +505,7 @@ export function registerPrometheusSources(
   const instant: SourceOptions = { ...base, ttlMs: PROM_TTL.instantMs };
   store.register(PROM_SOURCES.hosts, (signal) => fetchHostMetrics(client, signal), instant);
   store.register(PROM_SOURCES.containers, (signal) => fetchContainerMetrics(client, signal), instant);
+  store.register(PROM_SOURCES.agent, (signal) => fetchAgentHosts(client, signal), instant);
   store.register(PROM_SOURCES.series, (signal) => fetchHostSeries(client, signal, now()), {
     ...base,
     ttlMs: PROM_TTL.seriesMs,

@@ -1,18 +1,35 @@
 import { raw } from "hono/html";
 import { chart } from "../lib/charts";
 import { Layout } from "./layout";
+import { AgentSection } from "./agent";
+import { fmtFinePct } from "./agent-model";
 import { HostCard, LiveFrame, SourceEmpty, SourceNote, Treemap } from "./components";
-import { USAGE_METRICS, fmtRate, hasData, type ChartsVM, type HostsVM } from "./model";
+import { USAGE_METRICS, fmtBytes, fmtRate, hasData, type ChartsVM, type HostsVM } from "./model";
 import type { Chrome } from "./overview";
 
 const pc = (v: number) => `${Math.round(v)}%`;
 const ld = (v: number) => (v >= 10 ? v.toFixed(0) : String(Number(v.toFixed(2))));
 const ct = (v: number) => String(Math.round(v));
 
+const firstPoint = (s: NonNullable<ChartsVM["series"]>) =>
+  s.dataStartSec !== null ? Math.max(0, Math.round((s.dataStartSec - s.startSec) / s.stepSec)) : 0;
+
+export function agentChartsHtml(c: ChartsVM): string {
+  const s = c.series!;
+  const x = c.xLabels;
+  const from = firstPoint(s);
+  return [
+    chart({ title: "Swap used", series: [{ name: "Swap", c: "swap", data: s.swapUsed }], fmt: fmtBytes, xLabels: x, from }),
+    chart({ title: "Memory pressure", series: [{ name: "Pressure", c: "mem", data: s.memPressure }], fmt: fmtFinePct, xLabels: x, from }),
+    chart({ title: "TCP retransmits", series: [{ name: "Retransmitted", c: "cnt", data: s.tcpRetrans }], fmt: fmtFinePct, xLabels: x, from }),
+    chart({ title: "Open files", series: [{ name: "Files", c: "disk", data: s.filesOpen }], fmt: ct, xLabels: x, from }),
+  ].join("");
+}
+
 export function chartsHtml(c: ChartsVM): string {
   const s = c.series!;
   const x = c.xLabels;
-  const from = s.dataStartSec !== null ? Math.max(0, Math.round((s.dataStartSec - s.startSec) / s.stepSec)) : 0;
+  const from = firstPoint(s);
   return [
     chart({ title: "CPU busy", series: [{ name: "CPU", c: "cpu", data: s.cpu }], fmt: pc, xLabels: x, fixedMax: 100, from }),
     chart({ title: "Memory used", series: [{ name: "Memory", c: "mem", data: s.mem }], fmt: pc, xLabels: x, fixedMax: 100, from }),
@@ -55,6 +72,18 @@ function Charts({ vm, host }: { vm: ChartsVM; host: string }) {
   );
 }
 
+function AgentCharts({ vm, host }: { vm: ChartsVM; host: string }) {
+  return vm.series ? (
+    <div class="charts">{raw(agentChartsHtml(vm))}</div>
+  ) : hasData(vm.status) ? (
+    <div class="body empty">
+      <p>Prometheus returned no series for {host} in the last 24 hours.</p>
+    </div>
+  ) : (
+    <SourceEmpty status={vm.status} what="the agent host charts" />
+  );
+}
+
 export const hostsHref = (host: string, metric: string) =>
   `/hosts/${encodeURIComponent(host)}${metric === "mem" ? "" : `?metric=${encodeURIComponent(metric)}`}`;
 
@@ -73,6 +102,7 @@ export function HostsFrame({ vm }: { vm: HostsVM }) {
       <div class="stack">
         <HostCard vm={vm.card} compact={false} />
         <Charts vm={vm.charts} host={vm.host} />
+        {vm.agent ? <AgentSection vm={vm.agent} charts={<AgentCharts vm={vm.charts} host={vm.host} />} /> : null}
         <section class="panel" aria-label="Usage by container">
           <header>
             <h2>Usage by container</h2>

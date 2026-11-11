@@ -29,7 +29,7 @@ import {
   type JenkinsJobs,
 } from "./collectors/jenkins";
 import { FilterError, LOKI_SOURCES, LOKI_TTL, LokiClient, normalizeFilter, registerLokiSources, type LogTargets } from "./collectors/loki";
-import { PromClient, registerPrometheusSources } from "./collectors/prometheus";
+import { PROM_SOURCES, PromClient, registerPrometheusSources, type AgentHost } from "./collectors/prometheus";
 import { type Config, configWarnings, loadConfig } from "./config";
 import { openDataDb } from "./db";
 import { JobActions } from "./actions/jobs";
@@ -118,7 +118,8 @@ const DOCTYPE = "<!doctype html>";
 export const TURBO_PROGRESS_STYLE_HASH = "'sha256-WAyOw4V+FqDc35lQPyRADLBWbuNK8ahvYEaQIYF1+Ps='";
 const BUILD_ID = Date.now().toString(36);
 const BASE_SOURCES: readonly SourceKey[] = ["hosts", "containers", "docker", "df"];
-const ALL_SOURCES: readonly SourceKey[] = [...BASE_SOURCES, "series"];
+const OVERVIEW_SOURCES: readonly SourceKey[] = [...BASE_SOURCES, "agent"];
+const HOSTS_SOURCES: readonly SourceKey[] = [...OVERVIEW_SOURCES, "series"];
 
 export function monitorLoopLag(intervalMs = 250): { read: () => number; stop: () => void } {
   let expected = performance.now() + intervalMs;
@@ -260,6 +261,11 @@ export function createApp(deps: Deps): Hono<AppEnv> {
         }
       : undefined;
 
+  const agentClock = (host: string): string[] => {
+    const data = registered.has(PROM_SOURCES.agent) ? store.peek<AgentHost[]>(PROM_SOURCES.agent).data : undefined;
+    return data?.some((a) => a.host === host) ? [`agent:${Math.floor(Date.now() / IDLE_CLOCK_BUCKET_MS)}`] : [];
+  };
+
   const serviceSig = (id: string): string => {
     const z = service && registered.has(ZOT_TAG_SOURCE) ? store.peek<ZotRepoTags>(ZOT_TAG_SOURCE) : null;
     return ["service", service?.locks.has(id) ? "locked" : "", z?.hash ?? "", z?.lastError ?? "", z?.breaker ?? ""].join("\u0001");
@@ -305,7 +311,7 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     live(c, {
       key: "overview",
       clock: true,
-      sources: BASE_SOURCES,
+      sources: OVERVIEW_SOURCES,
       page: (input, chrome) => OverviewPage({ chrome, vm: buildOverview(input) }),
       frame: (input) => OverviewFrame({ vm: buildOverview(input) }),
     }),
@@ -324,7 +330,8 @@ export function createApp(deps: Deps): Hono<AppEnv> {
     const q = { host, metric };
     return live(c, {
       key: `hosts:${host}:${metric}`,
-      sources: ALL_SOURCES,
+      extra: agentClock(host),
+      sources: HOSTS_SOURCES,
       page: (input, chrome) => HostsPage({ chrome, vm: buildHosts(input, q) }),
       frame: (input) => HostsFrame({ vm: buildHosts(input, q) }),
     });

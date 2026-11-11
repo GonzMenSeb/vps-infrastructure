@@ -18,6 +18,7 @@ const PANEL: Shot[] = [
   { name: "overview", url: `${base}/` },
   { name: "hosts-vps", url: `${base}/hosts/vps` },
   { name: "hosts-jenkins", url: `${base}/hosts/jenkins` },
+  { name: "hosts-w1", url: `${base}/hosts/w1` },
   { name: "services", url: `${base}/services` },
   { name: "service-judicabot", url: `${base}/services/judicabot` },
   { name: "service-builds", url: `${base}/services/judicabot?tab=builds` },
