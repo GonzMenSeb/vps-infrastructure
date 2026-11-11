@@ -33,7 +33,7 @@ function Settings({ vm }: { vm: AgentVM }) {
   if (vm.settings.length === 0) {
     return (
       <div class="body empty">
-        <p>{vm.host} has not reported any setting yet.</p>
+        <p>{vm.host} is not reporting any setting right now.</p>
       </div>
     );
   }

@@ -161,7 +161,7 @@ describe("agent host section", () => {
   test("no timestamp and no settings read as not reporting with an empty table", async () => {
     const html = await w1(withAgent(agentHost({ settings: [], runTimestampSec: null, rebootRequired: true, kernelRunning: null, kernelNewest: null })));
     expect(html).toContain("No settings reported");
-    expect(html).toContain("w1 has not reported any setting yet.");
+    expect(html).toContain("w1 is not reporting any setting right now.");
     expect(html).toContain("Not reporting");
     expect(html).toContain("Reboot pending");
     expect(html).not.toContain("· running");
