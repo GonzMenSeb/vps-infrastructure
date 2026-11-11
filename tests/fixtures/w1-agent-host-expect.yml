@@ -7,6 +7,7 @@ agent_host_net_sysctl:
 agent_host_mem_sysctl:
   vm.swappiness: "100"
 agent_host_sess_sysctl:
+  fs.inotify.max_user_watches: "262144"
   fs.inotify.max_user_instances: "512"
 agent_host_ssh_auth:
   AuthenticationMethods: publickey

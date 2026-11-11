@@ -15,6 +15,7 @@ R04
 R07
 R11
 RS01
+RS02
 RS03
 RS04
 RS05
@@ -31,6 +32,8 @@ SSHD:clientaliveinterval
 SSHD:permitrootlogin
 SYS:fs.inotify.max_user_instances:boot
 SYS:fs.inotify.max_user_instances:runtime
+SYS:fs.inotify.max_user_watches:boot
+SYS:fs.inotify.max_user_watches:runtime
 SYS:net.core.default_qdisc:boot
 SYS:net.core.default_qdisc:runtime
 SYS:net.ipv4.tcp_congestion_control:boot

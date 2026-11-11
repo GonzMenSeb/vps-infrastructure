@@ -91,7 +91,8 @@
         that:
           - agent_host_reporting_settings_interval_seconds is match('^[0-9]+$')
           - agent_host_reporting_settings_interval_seconds | int >= 30
-        fail_msg: agent_host_reporting_settings_interval_seconds must be a whole number of seconds, 30 or more
+          - agent_host_reporting_settings_interval_seconds | int <= 300
+        fail_msg: agent_host_reporting_settings_interval_seconds must be a whole number of seconds, from 30 to 300
         quiet: true
 
     - name: Install the settings gauge script

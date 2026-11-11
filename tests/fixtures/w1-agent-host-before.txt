@@ -6,6 +6,7 @@ sysctl.net.core.default_qdisc=fq_codel
 sysctl.net.ipv4.tcp_slow_start_after_idle=1
 sysctl.vm.swappiness=60
 sysctl.fs.inotify.max_user_instances=128
+sysctl.fs.inotify.max_user_watches=93016
 sysboot.net.ipv4.conf.all.rp_filter=2
 sysbootfile.net.ipv4.conf.all.rp_filter=/etc/sysctl.d/10-network-security.conf
 sysboot.fs.protected_hardlinks=1

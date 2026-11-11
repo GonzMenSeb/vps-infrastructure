@@ -219,6 +219,12 @@ gauge_files_half() {
   else
     fail "an interval under 30 seconds is refused ($RECAP)"
   fi
+  run "$PLAIN" settings-interval-long --tags "$tags" --skip-tags "$skip" -e agent_host_reporting_settings_interval_seconds=301
+  if printf '%s' "$RECAP" | grep -Eq 'failed=1 '; then
+    pass "an interval over 300 seconds is refused"
+  else
+    fail "an interval over 300 seconds is refused ($RECAP)"
+  fi
 
   settings_lean_half
 
@@ -327,6 +333,15 @@ settings_lean_half() {
     test "$(grep -cE '^check (swap_active|zswap|ssh_keepalive|inotify_watches|inotify_instances|ssh_publickey_only) ' "$SCRATCH/settings-some.sh")" = 0
   check "the other seven settings are still checked" test "$(grep -c '^check ' "$SCRATCH/settings-some.sh")" = 7
 
+  run "$PLAIN" settings-nokeys --tags "$tags" --skip-tags "$skip" -e '{"agent_host_net_sysctl": {}, "agent_host_ssh_transport": {}}'
+  recap_ok "emptying the net sysctl and the ssh transport changes only the settings script" 1
+  docker exec "$PLAIN" cat "$SETTINGS_SCRIPT" >"$SCRATCH/settings-nokeys.sh"
+  check "congestion control and keepalive are not checked without their keys" \
+    test "$(grep -cE '^check (congestion_control|ssh_keepalive) ' "$SCRATCH/settings-nokeys.sh")" = 0
+  check "the script without those keys is valid sh" sh -n "$SCRATCH/settings-nokeys.sh"
+  check "the script without those keys still checks the other eleven settings" \
+    test "$(grep -c '^check ' "$SCRATCH/settings-nokeys.sh")" = 11
+
   run "$PLAIN" settings-absent --tags "$tags" --skip-tags "$skip" -e agent_host_mem_state=absent
   recap_ok "memory state absent changes only the settings script" 1
   docker exec "$PLAIN" cat "$SETTINGS_SCRIPT" >"$SCRATCH/settings-absent.sh"
@@ -337,6 +352,11 @@ settings_lean_half() {
   recap_ok "the default settings script is restored" 1
   run "$PLAIN" settings-lean-again --tags "$tags" --skip-tags "$skip"
   recap_ok "the restored settings script is idempotent" 0
+  docker exec "$PLAIN" cat "$SETTINGS_SCRIPT" >"$SCRATCH/settings-default.sh"
+  check "the script bounds sshd, systemctl, dpkg-query and loginctl with timeout" \
+    test "$(grep -cE 'timeout 10 (sshd -T|systemctl is-active|dpkg-query -W|loginctl show-user)' "$SCRATCH/settings-default.sh")" -ge 4
+  check "the service bounds a stalled run with TimeoutStartSec" \
+    dexec "$PLAIN" "grep -qx 'TimeoutStartSec=60' /etc/systemd/system/agent-host-settings-gauge.service"
 }
 
 settings_removal_half() {
