@@ -64,8 +64,9 @@ ansible-playbook --check --diff playbook.yml
 ansible-playbook tests/health-check.yml
 
 # w1 (by hand, staged; see CLAUDE.md)
-ansible-playbook w1-playbook.yml
+ansible-playbook w1-playbook.yml --tags <stage> --check --diff
 ansible-playbook w1-playbook.yml --tags agent_host --check --diff
+# a plain run (no --tags) plays host_agent and every agent_host stage at once; it is not a runbook step (CLAUDE.md, agent_host rule 11)
 ansible-playbook tests/w1-health-check.yml
 ```
 
