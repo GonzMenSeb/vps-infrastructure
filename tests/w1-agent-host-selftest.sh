@@ -17,7 +17,7 @@ run_check() {
   case $fx in /*) ;; *) fx=$PWD/$fx ;; esac
   ansible-playbook -i 'w1,' -c local -e ansible_become=false \
     -e "agent_host_check_fixture=$fx" -e "@$FX/w1-agent-host-expect.yml" -e "agent_host_check_report=$TMP/report.json" \
-    -e '{"agent_host_row_domains":["prove","repo","memory"]}' \
+    -e '{"agent_host_row_domains":["prove","repo","memory","reporting"]}' \
     "$@" tests/w1-agent-host-check.yml > "$TMP/out.txt" 2>&1
   echo $?
 }
@@ -50,6 +50,27 @@ expect_eq "stale sshd daemon is listed" "$(ids adv_fail)" "R09"
 mutate inconc -e 's/^sshd_daemon_current=ok/sshd_daemon_current=inconclusive/'
 expect_eq "rotated journal is inconclusive, not failed" "$(run_check "$TMP/inconc.txt")" 0
 expect_eq "rotated journal is listed" "$(ids inconclusive)" "R09"
+
+mutate rsdrift -e 's/^row.RS12=1/row.RS12=0/'
+expect_eq "a drifted setting fails the run" "$(run_check "$TMP/rsdrift.txt")" 2
+expect_eq "a drifted setting fails only its own row" "$(ids req_fail)" "RS12"
+mutate rsstale -e 's/^row.RS12=1/row.RS12=inconclusive/'
+expect_eq "a setting older than its config is inconclusive, not failed" "$(run_check "$TMP/rsstale.txt")" 0
+expect_eq "a setting older than its config is listed" "$(ids inconclusive)" "RS12"
+
+SS_DIR=$TMP/ss
+mkdir -p "$SS_DIR"
+: > "$SS_DIR/cfg"
+touch -d @2000000010 "$SS_DIR/cfg"
+printf 'agent_host_setting_ok{setting="a"} 1\nagent_host_setting_ok{setting="b"} 0\nagent_host_setting_ok{setting="ab"} 1\nagent_host_settings_run_timestamp_seconds 2000000000\n' > "$SS_DIR/p"
+setting_state() { bash -c "$(sed -n '/^setting_state() {/,/^}/p' tests/files/w1-agent-host-collect.sh); setting_state \"\$@\"" _ "$@"; }
+expect_eq "setting_state: a 1 stays 1 even when older than its config" "$(setting_state "$SS_DIR/p" a "$SS_DIR/cfg")" 1
+expect_eq "setting_state: a 0 older than its config is inconclusive" "$(setting_state "$SS_DIR/p" b "$SS_DIR/cfg")" inconclusive
+expect_eq "setting_state: a 0 without a config path is a 0" "$(setting_state "$SS_DIR/p" b)" 0
+expect_eq "setting_state: a 0 with only missing config paths is a 0" "$(setting_state "$SS_DIR/p" b "$SS_DIR/none")" 0
+expect_eq "setting_state: an id that prefixes another is matched exactly" "$(setting_state "$SS_DIR/p" a)" 1
+expect_eq "setting_state: an id that is not in the file is absent" "$(setting_state "$SS_DIR/p" c)" absent
+expect_eq "setting_state: a missing file is absent" "$(setting_state "$SS_DIR/none" a)" absent
 
 mutate guard -e 's/^visudo_rc=0/visudo_rc=1/'
 expect_eq "broken sudoers fails the run" "$(run_check "$TMP/guard.txt")" 2

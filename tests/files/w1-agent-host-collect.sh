@@ -56,7 +56,22 @@ unit_enabled() { local o; o=$(timeout 10 systemctl is-enabled "$1" 2>/dev/null |
 pkg_state() { [ "$(dpkg-query -W -f='${db:Status-Abbrev}' "$1" 2>/dev/null | tr -d ' ')" = ii ] && echo installed || echo absent; }
 file_meta() { if [ -e "$1" ] || [ -L "$1" ]; then stat -c '%a %U:%G' "$1"; else echo absent; fi; }
 sshd_value() { timeout 10 sshd -T 2>/dev/null | awk -v k="$1" '$1 == k { $1 = ""; sub(/^ /, ""); print; exit }'; }
-export -f unit_active unit_enabled pkg_state file_meta sshd_value
+setting_state() {
+  local prom=$1 id=$2 v ts newest=0 m f
+  shift 2
+  v=$(awk -v key="agent_host_setting_ok{setting=\"$id\"} " 'index($0, key) == 1 { print $2; exit }' "$prom" 2>/dev/null)
+  if [ -z "$v" ]; then
+    echo absent
+    return
+  fi
+  ts=$(awk '$1 == "agent_host_settings_run_timestamp_seconds" { printf "%d", $2 }' "$prom" 2>/dev/null)
+  for f in "$@"; do
+    m=$(stat -c %Y "$f" 2>/dev/null) || continue
+    [ "$m" -gt "$newest" ] && newest=$m
+  done
+  if [ "$v" != 1 ] && [ "${ts:-0}" -lt "$newest" ]; then echo inconclusive; else echo "$v"; fi
+}
+export -f unit_active unit_enabled pkg_state file_meta sshd_value setting_state
 
 hashfiles() { find "$@" -type f -exec sha256sum {} + 2>/dev/null | sort -k2; }
 fp_cfg() {

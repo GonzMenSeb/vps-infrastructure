@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh the settings drift gauge
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec={{ agent_host_reporting_settings_interval_seconds }}s
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

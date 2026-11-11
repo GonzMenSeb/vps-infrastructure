@@ -41,3 +41,144 @@ agent_host_check_rows_reporting:
     cmd: "systemctl show -p LoadState -p Result agent-host-reboot-gauge.service | sort | tr '\\n' ' ' | sed 's/ $//'"
     expect: "LoadState=loaded Result=success"
     cmp: eq
+  - id: E37
+    severity: required
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: "systemctl is-enabled agent-host-settings-gauge.timer 2>&1"
+    expect: enabled
+    cmp: eq
+  - id: E38
+    severity: required
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: "systemctl is-active agent-host-settings-gauge.timer 2>&1"
+    expect: active
+    cmp: eq
+  - id: E39
+    severity: required
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: "stat -c '%a %U' {{ agent_host_reporting_settings_prom }} 2>&1"
+    expect: "644 root"
+    cmp: eq
+  - id: E40
+    severity: required
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: >-
+      ts=$(awk '$1=="agent_host_settings_run_timestamp_seconds"{printf "%d", $2}' {{ agent_host_reporting_settings_prom }} 2>/dev/null);
+      now=$(date +%s);
+      if [ -n "$ts" ] && [ $((now-ts)) -lt {{ [agent_host_reporting_settings_interval_seconds | int * 3, 600] | min }} ]; then echo fresh; else echo stale; fi
+    expect: fresh
+    cmp: eq
+  - id: E41
+    severity: advisory
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: >-
+      f=$(grep -c '^agent_host_setting_ok{' {{ agent_host_reporting_settings_prom }} 2>/dev/null);
+      m=$(curl -fsS --max-time 5 http://127.0.0.1:9100/metrics | grep -c '^agent_host_setting_ok{');
+      [ "$f" = "$m" ] && echo consistent || echo "file=$f exporter=$m"
+    expect: consistent
+    cmp: eq
+  - id: E42
+    severity: advisory
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: "systemctl show -p LoadState -p Result agent-host-settings-gauge.service | sort | tr '\\n' ' ' | sed 's/ $//'"
+    expect: "LoadState=loaded Result=success"
+    cmp: eq
+  - id: E43
+    severity: required
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: >-
+      sed -n 's/^agent_host_setting_ok{setting="\([a-z_]*\)"}.*/\1/p' {{ agent_host_reporting_settings_prom }} 2>&1 | sort | tr '\n' ' ' | sed 's/ $//'
+    expect: "{{ agent_host_reporting_settings_ids | sort | join(' ') }}"
+    cmp: eq
+  - id: E44
+    severity: advisory
+    when: "{{ agent_host_reporting_settings_enabled | bool }}"
+    cmd: >-
+      r=$(sed -n 's/^agent_host_kernel_info{running="\([^"]*\)".*/\1/p' {{ agent_host_reporting_settings_prom }} 2>/dev/null);
+      [ "$r" = "$(uname -r)" ] && echo consistent || echo "gauge=$r kernel=$(uname -r)"
+    expect: consistent
+    cmp: eq
+  - id: RS01
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'congestion_control' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} congestion_control"
+    expect: "1"
+    cmp: eq
+  - id: RS02
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'inotify_watches' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} inotify_watches"
+    expect: "1"
+    cmp: eq
+  - id: RS03
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'inotify_instances' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} inotify_instances"
+    expect: "1"
+    cmp: eq
+  - id: RS04
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'swap_active' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} swap_active"
+    expect: "1"
+    cmp: eq
+  - id: RS05
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'zswap' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} zswap"
+    expect: "1"
+    cmp: eq
+  - id: RS06
+    domain: ssh
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'ssh_publickey_only' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} ssh_publickey_only /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*"
+    expect: "1"
+    cmp: eq
+  - id: RS07
+    domain: ssh
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'ssh_password_off' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} ssh_password_off /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*"
+    expect: "1"
+    cmp: eq
+  - id: RS08
+    domain: ssh
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'ssh_keepalive' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} ssh_keepalive /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*"
+    expect: "1"
+    cmp: eq
+  - id: RS09
+    domain: ssh
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'ssh_guard_intact' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} ssh_guard_intact /etc/ssh/sshd_config.d/00-no-password.conf"
+    expect: "1"
+    cmp: eq
+  - id: RS10
+    domain: ssh
+    severity: advisory
+    when: "{{ agent_host_reporting_enabled | bool and 'ssh_rollback_idle' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} ssh_rollback_idle"
+    expect: "1"
+    cmp: eq
+  - id: RS11
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'mosh_installed' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} mosh_installed"
+    expect: "1"
+    cmp: eq
+  - id: RS12
+    domain: limits
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'limits_nofile' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} limits_nofile /etc/security/limits.d/60-agent-host.conf"
+    expect: "1"
+    cmp: eq
+  - id: RS13
+    severity: required
+    when: "{{ agent_host_reporting_enabled | bool and 'linger' in agent_host_reporting_settings_ids }}"
+    cmd: "setting_state {{ agent_host_reporting_settings_prom }} linger"
+    expect: "1"
+    cmp: eq
