@@ -1,0 +1,417 @@
+---
+- name: Look for the ufw configuration files
+  stat:
+    path: /etc/ufw/ufw.conf
+  register: agent_host_ufw_conf
+
+- name: Converge ufw
+  when: agent_host_ufw_conf.stat.exists
+  block:
+    - name: Validate the ufw variables
+      assert:
+        that:
+          - agent_host_ufw_ssh_ports | length > 0
+          - agent_host_ufw_default_incoming in ['allow', 'deny', 'reject']
+          - agent_host_ufw_default_outgoing in ['allow', 'deny', 'reject']
+          - agent_host_ufw_default_routed in ['allow', 'deny', 'reject']
+          - agent_host_ufw_logging in ['off', 'low', 'medium', 'high']
+          - agent_host_ufw_mosh_rule | string | lower in ['auto', 'true', 'false']
+          - agent_host_ufw_rollback_seconds | int >= 120
+          - agent_host_ufw_prewarm_seconds | int >= 0
+          - agent_host_ufw_extra_rules | rejectattr('port', 'defined') | list | length == 0
+        quiet: true
+
+    - name: Read the ufw configuration files
+      shell: |
+        . /etc/default/ufw
+        . /etc/ufw/ufw.conf
+        printf '%s=%s\n' enabled "$ENABLED" ipv6 "$IPV6" logging "$LOGLEVEL" incoming "$DEFAULT_INPUT_POLICY" outgoing "$DEFAULT_OUTPUT_POLICY" routed "$DEFAULT_FORWARD_POLICY"
+      register: agent_host_ufw_cfg
+      changed_when: false
+      check_mode: false
+
+    - name: Read whether ufw chains are loaded in the kernel
+      command: iptables -S ufw-user-input
+      register: agent_host_ufw_live_chain
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Read the dead-man timer state
+      command: systemctl show agent-host-ufw-rollback.timer -p LoadState -p SubState
+      register: agent_host_ufw_timer_pre
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Read the ssh listener unit state and listen ports
+      command: systemctl show ssh.socket -p Listen -p ActiveState
+      register: agent_host_ufw_socket
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Read the sshd configured ports
+      command: /usr/sbin/sshd -T
+      register: agent_host_ufw_sshd_t
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Read the ports sshd holds open
+      command: ss -ltnpH
+      register: agent_host_ufw_ss
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Look for mosh-server
+      stat:
+        path: /usr/bin/mosh-server
+      register: agent_host_ufw_mosh_bin
+
+    - name: Derive the ufw plan
+      set_fact:
+        agent_host_ufw_state: "{{ dict(agent_host_ufw_cfg.stdout_lines | map('split', '=', 1)) }}"
+        agent_host_ufw_policy_map:
+          allow: ACCEPT
+          deny: DROP
+          reject: REJECT
+        agent_host_ufw_timer_waiting: "{{ 'SubState=waiting' in agent_host_ufw_timer_pre.stdout_lines }}"
+        agent_host_ufw_socket_ports: "{{ agent_host_ufw_socket.stdout_lines | select('match', '^Listen=') | map('regex_replace', '^.*:(\\d+) \\(.*$', '\\1') | map('int') | unique | sort | list }}"
+        agent_host_ufw_sshd_ports: "{{ agent_host_ufw_sshd_t.stdout_lines | select('match', '^port ') | map('split') | map(attribute=1) | map('int') | unique | sort | list }}"
+        agent_host_ufw_ss_ports: "{{ agent_host_ufw_ss.stdout_lines | select('search', '\"sshd\"') | map('split') | map(attribute=3) | map('regex_replace', '^.*:(\\d+)$', '\\1') | map('int') | unique | sort | list }}"
+        agent_host_ufw_mosh_wanted: >-
+          {{ agent_host_ufw_mosh_rule | string | lower == 'true'
+          or (agent_host_ufw_mosh_rule | string | lower == 'auto'
+          and (agent_host_mosh_enabled | bool or agent_host_ufw_mosh_bin.stat.exists)) }}
+
+    - name: Decide whether a firewall transition is needed
+      set_fact:
+        agent_host_ufw_needs_enable: "{{ agent_host_ufw_state.enabled != 'yes' or agent_host_ufw_live_chain.rc != 0 }}"
+        agent_host_ufw_defaults_diff: >-
+          {{ [
+            {'direction': 'incoming', 'policy': agent_host_ufw_default_incoming, 'differs': agent_host_ufw_state.incoming != agent_host_ufw_policy_map[agent_host_ufw_default_incoming]},
+            {'direction': 'outgoing', 'policy': agent_host_ufw_default_outgoing, 'differs': agent_host_ufw_state.outgoing != agent_host_ufw_policy_map[agent_host_ufw_default_outgoing]},
+            {'direction': 'routed', 'policy': agent_host_ufw_default_routed, 'differs': agent_host_ufw_state.routed != agent_host_ufw_policy_map[agent_host_ufw_default_routed]}
+          ] }}
+
+    - name: Derive the transition flag
+      set_fact:
+        agent_host_ufw_transition: "{{ agent_host_ufw_needs_enable or (agent_host_ufw_defaults_diff | selectattr('differs') | list | length > 0) }}"
+        agent_host_ufw_logging_diff: "{{ agent_host_ufw_state.logging != agent_host_ufw_logging }}"
+
+    - name: Refuse to touch the firewall unless every ssh port source agrees
+      assert:
+        that:
+          - agent_host_ufw_state.ipv6 == 'yes'
+          - "'ActiveState=active' in agent_host_ufw_socket.stdout_lines"
+          - agent_host_ufw_socket_ports | length > 0
+          - agent_host_ufw_sshd_ports | length > 0
+          - agent_host_ufw_ss_ports | length > 0
+          - agent_host_ufw_socket_ports | difference(agent_host_ufw_ssh_ports | map('int') | list) | length == 0
+          - agent_host_ufw_sshd_ports | difference(agent_host_ufw_ssh_ports | map('int') | list) | length == 0
+          - agent_host_ufw_ss_ports | difference(agent_host_ufw_ssh_ports | map('int') | list) | length == 0
+          - (ansible_port | default(22) | int) in (agent_host_ufw_ssh_ports | map('int') | list)
+        fail_msg: >-
+          ssh ports disagree or IPV6 is off: listener unit {{ agent_host_ufw_socket_ports }}, sshd -T {{ agent_host_ufw_sshd_ports }},
+          ss {{ agent_host_ufw_ss_ports }}, agent_host_ufw_ssh_ports {{ agent_host_ufw_ssh_ports }}, IPV6={{ agent_host_ufw_state.ipv6 }}
+        quiet: true
+      tags: [agent_host_live]
+
+    - name: Report the firewall plan
+      debug:
+        msg: >-
+          ufw enabled={{ agent_host_ufw_state.enabled }} live={{ agent_host_ufw_live_chain.rc == 0 }}
+          transition={{ agent_host_ufw_transition }} logging_change={{ agent_host_ufw_logging_diff }}
+          mosh_rule={{ agent_host_ufw_mosh_wanted }} stale_timer={{ agent_host_ufw_timer_waiting }}
+
+    - name: Clear dead-man units and the pre-warm table left by an interrupted run
+      command: "{{ item }}"
+      loop:
+        - systemctl stop agent-host-ufw-rollback.timer agent-host-ufw-rollback.service
+        - systemctl reset-failed agent-host-ufw-rollback.timer agent-host-ufw-rollback.service
+        - nft delete table inet agent_host_prewarm
+      changed_when: false
+      failed_when: false
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Read which ssh allow tuples are loaded
+      shell: >-
+        a=$(grep -Ec '^### tuple ### allow tcp {{ item }} 0\.0\.0\.0/0 any 0\.0\.0\.0/0 in( |$)' /etc/ufw/user.rules 2>/dev/null);
+        b=$(grep -Ec '^### tuple ### allow tcp {{ item }} ::/0 any ::/0 in( |$)' /etc/ufw/user6.rules 2>/dev/null);
+        echo {{ item }} ${a:-0} ${b:-0}
+      loop: "{{ agent_host_ufw_ssh_ports }}"
+      register: agent_host_ufw_tuples_pre
+      changed_when: agent_host_ufw_tuples_pre.stdout.split()[1:] | map('int') | min == 0
+      check_mode: false
+
+    - name: Allow the ssh ports
+      command: "ufw allow in {{ item.item }}/tcp comment ssh"
+      loop: "{{ agent_host_ufw_tuples_pre.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      register: agent_host_ufw_allow_ssh
+      changed_when: agent_host_ufw_allow_ssh.stdout is search('(?m)^Rule')
+      when:
+        - not ansible_check_mode
+        - item.stdout.split()[1:] | map('int') | min == 0
+
+    - name: Allow the mosh UDP range
+      command:
+        argv: [ufw, allow, in, proto, udp, from, any, to, any, port, "{{ agent_host_mosh_udp_range }}", comment, mosh]
+      register: agent_host_ufw_allow_mosh
+      changed_when: agent_host_ufw_allow_mosh.stdout is search('(?m)^Rule')
+      when:
+        - not ansible_check_mode
+        - agent_host_ufw_mosh_wanted | bool
+
+    - name: Allow the extra ports
+      command:
+        argv:
+          - ufw
+          - allow
+          - in
+          - proto
+          - "{{ item.proto | default('tcp') }}"
+          - from
+          - "{{ item.from_ip | default('any') }}"
+          - to
+          - any
+          - port
+          - "{{ item.port | string }}"
+          - comment
+          - "{{ item.comment | default('agent_host') }}"
+      loop: "{{ agent_host_ufw_extra_rules }}"
+      loop_control:
+        label: "{{ item.port }}"
+      register: agent_host_ufw_allow_extra
+      changed_when: agent_host_ufw_allow_extra.stdout is search('(?m)^Rule')
+      when: not ansible_check_mode
+
+    - name: Count the loaded ssh allow tuples for IPv4 and IPv6
+      shell: >-
+        a=$(grep -Ec '^### tuple ### allow tcp {{ item }} 0\.0\.0\.0/0 any 0\.0\.0\.0/0 in( |$)' /etc/ufw/user.rules 2>/dev/null);
+        b=$(grep -Ec '^### tuple ### allow tcp {{ item }} ::/0 any ::/0 in( |$)' /etc/ufw/user6.rules 2>/dev/null);
+        echo {{ item }} ${a:-0} ${b:-0}
+      loop: "{{ agent_host_ufw_ssh_ports }}"
+      register: agent_host_ufw_tuples
+      changed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+    - name: Refuse to enable unless every ssh port has an allow tuple for both families
+      assert:
+        that:
+          - item.stdout.split() | length == 3
+          - item.stdout.split()[1:] | map('int') | min > 0
+        fail_msg: "Port {{ item.item }} has no allow tuple in user.rules and user6.rules: {{ item.stdout }}"
+        quiet: true
+      loop: "{{ agent_host_ufw_tuples.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+      when: not ansible_check_mode
+
+    - name: Set the ufw logging level
+      command: "ufw logging {{ agent_host_ufw_logging }}"
+      when:
+        - not ansible_check_mode
+        - agent_host_ufw_logging_diff | bool
+
+    - name: Apply the firewall transition behind the dead-man timer
+      when:
+        - not ansible_check_mode
+        - agent_host_ufw_transition | bool
+      tags: [agent_host_live]
+      block:
+        - name: Mark the time before anything is armed
+          command: date +%s
+          register: agent_host_ufw_mark
+          changed_when: false
+          check_mode: false
+
+        - name: Install the dead-man rollback script
+          template:
+            src: agent-host-ufw-rollback.sh.j2
+            dest: /usr/local/sbin/agent-host-ufw-rollback
+            owner: root
+            group: root
+            mode: "0750"
+
+        - name: Pre-warm connection tracking so live outbound flows survive the first enable
+          command: nft -f -
+          args:
+            stdin: |
+              add table inet agent_host_prewarm
+              add chain inet agent_host_prewarm c { type filter hook input priority -300; policy accept; }
+              add rule inet agent_host_prewarm c ct state new counter
+          register: agent_host_ufw_prewarm
+          changed_when: true
+          failed_when: false
+          when:
+            - agent_host_ufw_needs_enable | bool
+            - agent_host_ufw_prewarm_seconds | int > 0
+
+        - name: Warn when the pre-warm table could not be loaded
+          debug:
+            msg: "Pre-warm skipped: {{ agent_host_ufw_prewarm.stderr | default('nft failed') }}"
+          when: agent_host_ufw_prewarm.rc | default(0) != 0
+
+        - name: Wait for live flows to be tracked in both directions
+          pause:
+            seconds: "{{ agent_host_ufw_prewarm_seconds }}"
+          when:
+            - agent_host_ufw_prewarm.changed | default(false)
+            - agent_host_ufw_prewarm.rc == 0
+
+        - name: Count live flows and tracked flows
+          shell: |
+            printf 'live=%s\n' "$(ss -tnH state established | awk '$3 !~ /^(127\.|\[::1\])/' | wc -l)"
+            printf 'tracked=%s\n' "$(awk '$3 == "tcp" && $6 == "ESTABLISHED" && $0 !~ /src=127\./' /proc/net/nf_conntrack 2>/dev/null | wc -l)"
+          register: agent_host_ufw_flows
+          changed_when: false
+          when: agent_host_ufw_needs_enable | bool
+
+        - name: Report the flows that may stall after the first enable
+          debug:
+            msg: "{{ agent_host_ufw_flows.stdout_lines | join(' ') }} (a live flow with no tracked entry may stall until the application retries)"
+          when: agent_host_ufw_needs_enable | bool
+
+        - name: Arm the dead-man timer that disables ufw if this run cannot prove SSH still works
+          command: >-
+            systemd-run --unit=agent-host-ufw-rollback --collect
+            --on-active={{ agent_host_ufw_rollback_seconds }}s
+            /usr/local/sbin/agent-host-ufw-rollback
+          changed_when: false
+
+        - name: Read the armed dead-man timer state
+          command: systemctl show agent-host-ufw-rollback.timer -p LoadState -p SubState
+          register: agent_host_ufw_timer_armed
+          changed_when: false
+
+        - name: Confirm the dead-man timer is waiting before touching the firewall
+          assert:
+            that:
+              - "'SubState=waiting' in agent_host_ufw_timer_armed.stdout_lines"
+            quiet: true
+
+        - name: Remember that the dead-man timer is armed
+          set_fact:
+            agent_host_ufw_armed: true
+
+        - name: Set the default policies
+          command: "ufw default {{ item.policy }} {{ item.direction }}"
+          loop: "{{ agent_host_ufw_defaults_diff }}"
+          loop_control:
+            label: "{{ item.direction }}"
+          when: item.differs | bool
+
+        - name: Enable the firewall
+          command: ufw --force enable
+          when: agent_host_ufw_needs_enable | bool
+
+        - name: Read the live built-in chain policies
+          command: "{{ item }} -S INPUT"
+          loop:
+            - iptables
+            - ip6tables
+          register: agent_host_ufw_policies
+          changed_when: false
+
+        - name: Read the firewall status
+          command: ufw status verbose
+          register: agent_host_ufw_status
+          changed_when: false
+
+        - name: Assert the firewall is live and allows ssh
+          assert:
+            that:
+              - agent_host_ufw_policies.results | map(attribute='stdout_lines') | map('first') | unique | list == ['-P INPUT DROP']
+              - "'Status: active' in agent_host_ufw_status.stdout_lines"
+              - agent_host_ufw_status.stdout is search(item ~ '/tcp\s+ALLOW IN\s+Anywhere')
+              - agent_host_ufw_status.stdout is search(item ~ '/tcp \(v6\)\s+ALLOW IN\s+Anywhere \(v6\)')
+            quiet: true
+          loop: "{{ agent_host_ufw_ssh_ports }}"
+
+        - name: Prove a fresh login and sudo through the firewall while the current session stays open
+          import_tasks: probe.yml
+          vars:
+            agent_host_probe_label: firewall
+
+        - name: Ping over the existing connection
+          ping:
+
+        - name: Disarm the dead-man timer
+          command: systemctl stop agent-host-ufw-rollback.timer
+          changed_when: false
+
+        - name: Confirm the dead-man timer is gone
+          command: systemctl show agent-host-ufw-rollback.timer -p SubState
+          register: agent_host_ufw_timer_post
+          changed_when: false
+          failed_when: "'SubState=waiting' in agent_host_ufw_timer_post.stdout_lines"
+
+        - name: Read whether the dead-man rollback fired during the stage
+          command: journalctl -t agent-host-ufw-rollback --since "@{{ agent_host_ufw_mark.stdout }}" --no-pager -o cat
+          register: agent_host_ufw_rollback_fired
+          changed_when: false
+          failed_when: agent_host_ufw_rollback_fired.stdout | trim != ''
+
+        - name: Count the ssh allow tuples after the stage
+          shell: >-
+            a=$(grep -Ec '^### tuple ### allow tcp {{ item }} 0\.0\.0\.0/0 any 0\.0\.0\.0/0 in( |$)' /etc/ufw/user.rules 2>/dev/null);
+            b=$(grep -Ec '^### tuple ### allow tcp {{ item }} ::/0 any ::/0 in( |$)' /etc/ufw/user6.rules 2>/dev/null);
+            echo {{ item }} ${a:-0} ${b:-0}
+          loop: "{{ agent_host_ufw_ssh_ports }}"
+          register: agent_host_ufw_tuples_post
+          changed_when: false
+
+        - name: Stat the dead-man rollback script
+          stat:
+            path: /usr/local/sbin/agent-host-ufw-rollback
+          register: agent_host_ufw_script
+
+        - name: Assert the rollback script survived the stage
+          assert:
+            that: agent_host_ufw_script.stat.exists
+            fail_msg: the dead-man rollback script is missing after the firewall stage
+            quiet: true
+
+        - name: Assert the ssh allow tuples survived the stage
+          assert:
+            that:
+              - item.stdout.split() | length == 3
+              - item.stdout.split()[1:] | map('int') | min > 0
+            fail_msg: "Port {{ item.item }} lost its allow tuple: {{ item.stdout }}"
+            quiet: true
+          loop: "{{ agent_host_ufw_tuples_post.results }}"
+          loop_control:
+            label: "{{ item.item }}"
+
+        - name: Remove the pre-warm table
+          command: nft delete table inet agent_host_prewarm
+          changed_when: false
+          failed_when: false
+      rescue:
+        - name: Fail open, disable ufw
+          command: ufw disable
+          register: agent_host_ufw_rescue
+          failed_when: false
+          when: agent_host_ufw_armed | default(false)
+
+        - name: Disarm the dead-man timer once ufw is disabled
+          command: systemctl stop agent-host-ufw-rollback.timer
+          failed_when: false
+          when: agent_host_ufw_rescue.rc | default(1) == 0
+
+        - name: Remove the pre-warm table after the failure
+          command: nft delete table inet agent_host_prewarm
+          failed_when: false
+
+        - name: Stop after the firewall transition failed
+          fail:
+            msg: >-
+              Firewall transition failed at '{{ ansible_failed_task.name }}'. ufw was disabled again when the rescue could run;
+              if SSH is blocked the dead-man timer disables it within {{ agent_host_ufw_rollback_seconds }} seconds.
+              Run tests/w1-agent-host-check.yml with -e agent_host_firewall_enabled=true before trusting the host.

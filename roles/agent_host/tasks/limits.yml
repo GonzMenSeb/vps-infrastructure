@@ -1,0 +1,23 @@
+---
+- name: Read the kernel ceiling for open files
+  command: sysctl -n fs.nr_open
+  register: agent_host_nr_open
+  changed_when: false
+  check_mode: false
+
+- name: Assert the limit values are inside the kernel ceiling and name one user
+  assert:
+    that:
+      - agent_host_limits_nofile_soft | int <= agent_host_limits_nofile_hard | int
+      - agent_host_limits_nofile_hard | int <= agent_host_nr_open.stdout | int
+      - agent_host_user not in ['root', '*', '']
+    fail_msg: refusing a pam_limits entry that could reject logins
+    quiet: true
+
+- name: Render the pam_limits drop-in for the agent user only
+  template:
+    src: limits.conf.j2
+    dest: /etc/security/limits.d/60-agent-host.conf
+    owner: root
+    group: root
+    mode: "0644"

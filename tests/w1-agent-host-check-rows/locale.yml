@@ -1,0 +1,24 @@
+---
+agent_host_check_rows_locale:
+  - id: E20
+    severity: required
+    cmd: "locale -a | grep -cx 'en_US.utf8'"
+    expect: "1"
+    cmp: eq
+  - id: E21
+    severity: required
+    cmd: "grep -cx 'LANG=C.UTF-8' /etc/default/locale"
+    expect: "1"
+    cmp: eq
+  - id: E22
+    severity: required
+    when: "{{ agent_host_locale_extra | length > 0 }}"
+    cmd: "for l in {{ agent_host_locale_extra | map('regex_replace', '\\.UTF-8$', '.utf8') | join(' ') }}; do locale -a | grep -cx \"$l\"; done | sort -u"
+    expect: "1"
+    cmp: eq
+  - id: E23
+    severity: required
+    when: "{{ agent_host_locale_extra | length > 0 }}"
+    cmd: "for l in {{ agent_host_locale_extra | join(' ') }}; do LC_ALL=$l locale charmap 2>&1; done | sort -u"
+    expect: UTF-8
+    cmp: eq

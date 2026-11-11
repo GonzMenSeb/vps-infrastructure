@@ -8,6 +8,15 @@
   roles:
     - host_agent
 
+- name: Configure w1 agent host
+  hosts: w1
+  become: true
+  vars_files:
+    - vault.yml
+
+  roles:
+    - { role: agent_host, tags: [agent_host] }
+
   post_tasks:
     - name: Write Ansible deploy marker (textfile collector)
       ansible.builtin.copy:

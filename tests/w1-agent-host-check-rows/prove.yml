@@ -1,0 +1,20 @@
+---
+agent_host_check_rows_prove:
+  - {id: G01, domain: guard, severity: required, key: visudo_rc, cmp: eq, expect: "0"}
+  - {id: G02, domain: guard, severity: required, key: ssh_perm_ok, cmp: eq, expect: "1"}
+  - {id: G03, domain: guard, severity: required, key: authkeys_fp, cmp: eq_base, expect: ""}
+  - {id: G04, domain: guard, severity: required, key: pam_fp, cmp: eq_base, expect: ""}
+  - {id: G05, domain: guard, severity: required, key: sshd_restrict, cmp: eq, expect: "0"}
+  - {id: G06, domain: guard, severity: required, key: unit.ssh.socket.active, cmp: eq, expect: active}
+  - {id: G07, domain: guard, severity: required, key: unit.ssh.service.active, cmp: eq, expect: active}
+  - {id: G08, domain: guard, severity: required, key: sshd_listen_count, cmp: ge, expect: "2"}
+  - {id: G09, domain: guard, severity: required, key: initrd_missing, cmp: eq, expect: "0"}
+  - {id: G10, domain: guard, severity: required, key: findmnt_verify_rc, cmp: eq, expect: "0"}
+  - {id: G11, domain: guard, severity: required, key: unit.node_exporter.active, cmp: eq, expect: active}
+  - {id: G12, domain: guard, severity: required, key: unit.alloy.active, cmp: eq, expect: active}
+  - {id: G13, domain: guard, severity: required, key: infra_listeners, cmp: ge, expect: "2"}
+  - {id: G14, domain: guard, severity: required, key: infra_nonloopback, cmp: eq, expect: "0"}
+  - {id: G15, domain: guard, severity: required, key: unit.unattended-upgrades.active, cmp: eq, expect: active}
+  - {id: G16, domain: guard, severity: advisory, key: psi.memory.some_avg10, cmp: le_f, expect: "5"}
+  - {id: K01, domain: kernel, severity: advisory, key: kernel_running_is_newest, cmp: eq, expect: "1"}
+  - {id: K02, domain: kernel, severity: advisory, key: reboot_required, cmp: eq, expect: "0"}

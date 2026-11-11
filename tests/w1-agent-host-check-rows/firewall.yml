@@ -1,0 +1,111 @@
+---
+agent_host_check_rows_firewall:
+  - id: FW01
+    domain: firewall
+    severity: required
+    cmd: ufw status | head -1
+    cmp: eq
+    expect: "Status: active"
+    when: &fw "{{ agent_host_firewall_enabled | bool }}"
+  - id: FW02
+    domain: firewall
+    severity: required
+    cmd: ufw status verbose | grep '^Default:'
+    cmp: any
+    expect: >-
+      {% set b = 'Default: ' ~ agent_host_ufw_default_incoming ~ ' (incoming), ' ~ agent_host_ufw_default_outgoing ~ ' (outgoing), ' %}{{ b ~ agent_host_ufw_default_routed ~ ' (routed)|' ~ b ~ 'disabled (routed)' }}
+    when: *fw
+  - id: FW03
+    domain: firewall
+    severity: required
+    cmd: ufw status verbose | grep '^Logging:'
+    cmp: eq
+    expect: "{{ 'Logging: off' if agent_host_ufw_logging == 'off' else 'Logging: on (' ~ agent_host_ufw_logging ~ ')' }}"
+    when: *fw
+  - id: FW04
+    domain: firewall
+    severity: required
+    cmd: >-
+      m=0; for p in {{ agent_host_ufw_ssh_ports | join(' ') }}; do ufw status verbose | grep -Eq "^$p/tcp +ALLOW IN +Anywhere( |$)" && ufw status verbose | grep -Eq "^$p/tcp \(v6\) +ALLOW IN +Anywhere \(v6\)( |$)" || m=$((m+1)); done; echo $m
+    cmp: eq
+    expect: "0"
+    when: *fw
+  - id: FW05
+    domain: firewall
+    severity: required
+    cmd: printf '%s %s\n' "$(iptables -S INPUT | head -1)" "$(ip6tables -S INPUT | head -1)"
+    cmp: eq
+    expect: "-P INPUT DROP -P INPUT DROP"
+    when: *fw
+  - id: FW06
+    domain: firewall
+    severity: required
+    cmd: iptables -S ufw-user-input >/dev/null 2>&1; echo $?
+    cmp: eq
+    expect: "0"
+    when: *fw
+  - id: FW07
+    domain: firewall
+    severity: required
+    cmd: systemctl show agent-host-ufw-rollback.timer -p SubState
+    cmp: ne
+    expect: SubState=waiting
+    when: *fw
+  - id: FW08
+    domain: firewall
+    severity: required
+    cmd: >-
+      w={{ 1 if (agent_host_ufw_mosh_rule | string | lower == 'true' or agent_host_mosh_enabled | bool) else 0 }}; if [ "$w" = 1 ] || [ -x /usr/bin/mosh-server ]; then n=$(ufw status verbose | grep -Ec '^{{ agent_host_mosh_udp_range }}/udp +ALLOW IN +Anywhere( |$)'); [ "$n" -ge 1 ] && echo ok || echo missing; else echo ok; fi
+    cmp: eq
+    expect: ok
+    when: "{{ agent_host_firewall_enabled | bool and agent_host_ufw_mosh_rule | string | lower != 'false' }}"
+  - id: FW09
+    domain: firewall
+    severity: required
+    cmd: >-
+      m=0; for t in {% for r in agent_host_ufw_extra_rules if r.from_ip is not defined %}{{ r.port }}/{{ r.proto | default('tcp') }} {% endfor %}; do ufw status verbose | grep -Eq "^$t +ALLOW IN +Anywhere( |$)" || m=$((m+1)); done; echo $m
+    cmp: eq
+    expect: "0"
+    when: *fw
+  - id: FW30a
+    domain: firewall
+    severity: required
+    cmd: systemctl is-active fail2ban
+    cmp: eq
+    expect: active
+    when: &f2b "{{ agent_host_firewall_enabled | bool and agent_host_fail2ban_enabled | bool }}"
+  - id: FW30b
+    domain: firewall
+    severity: required
+    cmd: fail2ban-client status sshd | head -1
+    cmp: eq
+    expect: "Status for the jail: sshd"
+    when: *f2b
+  - id: FW30c
+    domain: firewall
+    severity: required
+    cmd: nft list chain inet f2b-table f2b-chain | grep -c 'ct state new'
+    cmp: ge
+    expect: "1"
+    when: *f2b
+  - id: FW30d
+    domain: firewall
+    severity: required
+    cmd: j=$(fail2ban-client get sshd journalmatch | grep -c '_COMM=sshd'); n=$(journalctl _COMM=sshd -n 1 -q --no-pager | wc -l); echo $j $n
+    cmp: search
+    expect: ^[1-9][0-9]* [1-9][0-9]*$
+    when: *f2b
+  - id: FW30e
+    domain: firewall
+    severity: advisory
+    cmd: "fail2ban-regex 'Nov 10 12:00:00 h sshd[1]: Invalid user admin from 192.0.2.1 port 1234' sshd | grep '^Lines:'"
+    cmp: search
+    expect: '\b1 matched'
+    when: *f2b
+  - id: FW30f
+    domain: firewall
+    severity: advisory
+    cmd: "fail2ban-regex 'Nov 10 12:00:00 h sshd[1]: Connection closed by authenticating user root 192.0.2.1 port 1 [preauth]' sshd | grep '^Lines:'"
+    cmp: search
+    expect: '\b1 ignored'
+    when: *f2b

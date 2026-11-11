@@ -1,0 +1,362 @@
+---
+- name: Assert the owned sshd key sets are disjoint and avoid the password guard keys
+  assert:
+    that:
+      - agent_host_ssh_auth.keys() | map('lower') | list | intersect(agent_host_ssh_transport.keys() | map('lower') | list) | length == 0
+      - (agent_host_ssh_auth | combine(agent_host_ssh_transport)).keys() | map('lower') | list | intersect(['passwordauthentication', 'kbdinteractiveauthentication']) | length == 0
+    fail_msg: the auth and transport maps share a directive, or set a key owned by the password guard
+    quiet: true
+
+- name: Assert no protected sshd key is owned without an explicit user decision
+  assert:
+    that:
+      - >-
+        (agent_host_ssh_auth | combine(agent_host_ssh_transport)).keys() | map('lower') | list
+        | intersect(agent_host_ssh_protected) | difference(agent_host_ssh_unlocked_keys) | length == 0
+    fail_msg: a protected sshd key (root login, auth tries, user or group filters, listen) needs the user to unlock it in agent_host_ssh_unlocked_keys
+    quiet: true
+
+- name: Read the baseline sshd configuration check
+  command: /usr/sbin/sshd -t
+  changed_when: false
+  check_mode: false
+
+- name: Capture the protected sshd values before any change
+  shell: /usr/sbin/sshd -T | grep -E '^({{ agent_host_ssh_protected_effective | join('|') }}) ' || true
+  register: agent_host_ssh_protected_before
+  changed_when: false
+  check_mode: false
+
+- name: Plan the rollback script without writing it
+  template:
+    src: agent-host-sshd-rollback.sh.j2
+    dest: /usr/local/sbin/agent-host-sshd-rollback
+    owner: root
+    group: root
+    mode: "0750"
+  check_mode: true
+  diff: false
+  register: agent_host_ssh_plan_script
+
+- name: Plan the password guard without writing it
+  copy:
+    dest: /etc/ssh/sshd_config.d/00-no-password.conf
+    content: "PasswordAuthentication no\nKbdInteractiveAuthentication no\n"
+    owner: root
+    group: root
+    mode: "0644"
+  check_mode: true
+  diff: false
+  register: agent_host_ssh_plan_guard
+
+- name: Plan the owned drop-ins without writing them
+  template:
+    src: sshd-dropin.conf.j2
+    dest: "/etc/ssh/sshd_config.d/{{ item.file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ agent_host_ssh_dropins | rejectattr('directives', 'equalto', {}) | list }}"
+  loop_control:
+    label: "{{ item.file }}"
+  check_mode: true
+  diff: false
+  register: agent_host_ssh_plan_dropins
+
+- name: Plan the removal of the owned drop-ins that have no directives
+  file:
+    path: "/etc/ssh/sshd_config.d/{{ item.file }}"
+    state: absent
+  loop: "{{ agent_host_ssh_dropins | selectattr('directives', 'equalto', {}) | list }}"
+  loop_control:
+    label: "{{ item.file }}"
+  check_mode: true
+  register: agent_host_ssh_plan_removed
+
+- name: Read whether a rollback timer is armed
+  command: systemctl is-active agent-host-sshd-rollback.timer
+  register: agent_host_ssh_timer_pre
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [agent_host_live]
+
+- name: Read whether the running sshd predates its newest configuration file
+  shell: |
+    pid=$(systemctl show -p MainPID --value ssh.service)
+    [ "${pid:-0}" -gt 0 ] || { echo stale; exit 0; }
+    age=$(ps -o etimes= -p "$pid" | tr -d ' ')
+    last=$(( $(date +%s) - ${age:-0} ))
+    hup=$(journalctl -u ssh -g 'Received SIGHUP' -o short-unix --no-pager 2>/dev/null | tail -n 1 | cut -d. -f1)
+    case $hup in ''|*[!0-9]*) hup=0 ;; esac
+    [ "$hup" -gt "$last" ] && last=$hup
+    newest=$(find /etc/ssh/sshd_config /etc/ssh/sshd_config.d -type f -printf '%T@\n' | sort -n | tail -n 1 | cut -d. -f1)
+    [ "$last" -ge "${newest:-0}" ] && echo current || echo stale
+  register: agent_host_ssh_daemon_pre
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [agent_host_live]
+
+- name: Decide whether the stage has to apply
+  set_fact:
+    agent_host_ssh_apply_needed: >-
+      {{ agent_host_ssh_plan_script.changed
+         or agent_host_ssh_plan_guard.changed
+         or (agent_host_ssh_plan_dropins.results | selectattr('changed') | list | length > 0)
+         or (agent_host_ssh_plan_removed.results | selectattr('changed') | list | length > 0)
+         or ((agent_host_ssh_timer_pre.stdout | default('inactive') | trim) == 'active')
+         or ((agent_host_ssh_daemon_pre.stdout | default('current') | trim) != 'current') }}
+
+- name: Report the stage decision
+  debug:
+    msg: "sshd stage: {{ 'applying' if agent_host_ssh_apply_needed | bool else 'nothing to apply' }}"
+
+- name: Mark the time before anything is armed or written
+  command: date +%s
+  register: agent_host_stage_mark
+  changed_when: false
+  check_mode: false
+  when:
+    - not ansible_check_mode
+    - agent_host_ssh_apply_needed | bool
+  tags: [agent_host_live]
+
+- name: Require the independent break-glass session before touching sshd
+  assert:
+    that: agent_host_second_terminal | default(false) | bool
+    fail_msg: pass -e agent_host_second_terminal=true after opening ssh root@host in a second terminal; this stage has to change sshd
+    quiet: true
+  when:
+    - not ansible_check_mode
+    - agent_host_ssh_apply_needed | bool
+
+- name: Stage the sshd drop-ins
+  block:
+    - name: Install the rollback script
+      template:
+        src: agent-host-sshd-rollback.sh.j2
+        dest: /usr/local/sbin/agent-host-sshd-rollback
+        owner: root
+        group: root
+        mode: "0750"
+
+    - name: Clear any stale rollback timer
+      shell: >-
+        systemctl stop agent-host-sshd-rollback.timer agent-host-sshd-rollback.service;
+        systemctl reset-failed agent-host-sshd-rollback.timer agent-host-sshd-rollback.service;
+        true
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Arm the dead-man rollback timer
+      command: >-
+        systemd-run --unit=agent-host-sshd-rollback --collect
+        --on-active={{ agent_host_ssh_deadman_seconds }}s
+        /usr/local/sbin/agent-host-sshd-rollback
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Adopt the hand-made password guard in place
+      copy:
+        dest: /etc/ssh/sshd_config.d/00-no-password.conf
+        content: "PasswordAuthentication no\nKbdInteractiveAuthentication no\n"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+        validate: /usr/sbin/sshd -t -f %s
+
+    - name: Render the owned drop-ins
+      template:
+        src: sshd-dropin.conf.j2
+        dest: "/etc/ssh/sshd_config.d/{{ item.file }}"
+        owner: root
+        group: root
+        mode: "0644"
+        backup: true
+        validate: /usr/sbin/sshd -t -f %s
+      loop: "{{ agent_host_ssh_dropins | rejectattr('directives', 'equalto', {}) | list }}"
+      loop_control:
+        label: "{{ item.file }}"
+
+    - name: Remove the owned drop-ins that have no directives
+      file:
+        path: "/etc/ssh/sshd_config.d/{{ item.file }}"
+        state: absent
+      loop: "{{ agent_host_ssh_dropins | selectattr('directives', 'equalto', {}) | list }}"
+      loop_control:
+        label: "{{ item.file }}"
+
+    - name: Validate the merged sshd configuration
+      command: /usr/sbin/sshd -t
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Read the effective sshd configuration from disk
+      command: /usr/sbin/sshd -T
+      register: agent_host_sshd_t
+      changed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+    - name: Assert the password invariant on disk
+      assert:
+        that:
+          - "'passwordauthentication no' in agent_host_sshd_t.stdout_lines"
+          - "'kbdinteractiveauthentication no' in agent_host_sshd_t.stdout_lines"
+        fail_msg: sshd -T on disk does not report password authentication off
+        quiet: true
+      when: not ansible_check_mode
+
+    - name: Assert the owned directives on disk
+      assert:
+        that:
+          - >-
+            (item.key | lower ~ ' ' ~ (item.value | string | lower)) in agent_host_sshd_t.stdout_lines
+            or (item.key | lower ~ ' ' ~ agent_host_ssh_output_aliases.get(item.value | string | lower, item.value | string | lower)) in agent_host_sshd_t.stdout_lines
+        fail_msg: "sshd -T does not report {{ item.key }} {{ item.value }}"
+        quiet: true
+      loop: "{{ agent_host_ssh_auth | combine(agent_host_ssh_transport) | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      when: not ansible_check_mode
+
+    - name: Assert the protected sshd values did not change
+      assert:
+        that:
+          - >-
+            agent_host_sshd_t.stdout_lines | select('match', '^(' ~ agent_host_ssh_protected_effective | join('|') ~ ') ') | list | sort
+            == agent_host_ssh_protected_before.stdout_lines | sort
+        fail_msg: an access-affecting sshd value changed
+        quiet: true
+      when: not ansible_check_mode
+
+    - name: Reload sshd, which self-validates and keeps existing sessions
+      systemd:
+        name: ssh
+        state: reloaded
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Read the reload from the journal
+      command: journalctl -u ssh --since "@{{ agent_host_stage_mark.stdout }}" --no-pager -o cat
+      register: agent_host_reload_journal
+      changed_when: false
+      check_mode: false
+      until: >-
+        'Received SIGHUP' in agent_host_reload_journal.stdout
+        and 'Reloaded ssh.service' in agent_host_reload_journal.stdout
+      retries: 5
+      delay: 1
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Prove a fresh login and sudo against the reloaded daemon
+      import_tasks: probe.yml
+      vars:
+        agent_host_probe_label: ssh
+      tags: [agent_host_live]
+
+    - name: Prove the running daemon refuses password authentication
+      command:
+        argv: "{{ ['ssh'] + agent_host_probe_ssh_args + agent_host_probe_target_args + ['-o', 'PreferredAuthentications=password', '-o', 'PubkeyAuthentication=no', ansible_user ~ '@' ~ ansible_host, 'true'] }}"
+      delegate_to: localhost
+      become: false
+      register: agent_host_probe_nopw
+      changed_when: false
+      failed_when: agent_host_probe_nopw.rc != 255 or 'Permission denied (publickey).' not in agent_host_probe_nopw.stderr
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Disarm the dead-man rollback timer
+      command: systemctl stop agent-host-sshd-rollback.timer
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Assert no rollback timer is left armed
+      command: systemctl is-active agent-host-sshd-rollback.timer
+      register: agent_host_timer_state
+      changed_when: false
+      failed_when: agent_host_timer_state.rc == 0
+      check_mode: false
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Read whether the dead-man rollback fired during the stage
+      command: journalctl -t agent-host-sshd-rollback --since "@{{ agent_host_stage_mark.stdout }}" --no-pager -o cat
+      register: agent_host_rollback_fired
+      changed_when: false
+      failed_when: agent_host_rollback_fired.stdout | trim != ''
+      check_mode: false
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Stat the owned drop-ins that must still exist
+      stat:
+        path: "/etc/ssh/sshd_config.d/{{ item.file }}"
+      loop: "{{ agent_host_ssh_dropins | rejectattr('directives', 'equalto', {}) | list }}"
+      loop_control:
+        label: "{{ item.file }}"
+      register: agent_host_dropin_stat
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+    - name: Assert the owned drop-ins survived the stage
+      assert:
+        that: item.stat.exists
+        fail_msg: "{{ item.item.file }} is missing; the dead-man rollback or a manual change removed it"
+        quiet: true
+      loop: "{{ agent_host_dropin_stat.results }}"
+      loop_control:
+        label: "{{ item.item.file }}"
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
+  rescue:
+    - name: Disarm the dead-man rollback timer before the explicit rollback
+      shell: systemctl stop agent-host-sshd-rollback.timer; true
+      changed_when: false
+
+    - name: Roll sshd back to the password guard alone
+      command: /usr/local/sbin/agent-host-sshd-rollback
+      changed_when: true
+
+    - name: Fail the play after the rollback
+      fail:
+        msg: the sshd stage failed and sshd was rolled back to the password guard alone
+
+  always:
+    - name: Read the password invariant from disk
+      shell: /usr/sbin/sshd -T | grep -E '^(passwordauthentication|kbdinteractiveauthentication) ' | sort
+      register: agent_host_ssh_invariant
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Repair and fail when the password invariant does not hold
+      command: /usr/local/sbin/agent-host-sshd-rollback
+      register: agent_host_ssh_repair
+      failed_when: true
+      when:
+        - not ansible_check_mode
+        - agent_host_ssh_invariant.stdout_lines != ['kbdinteractiveauthentication no', 'passwordauthentication no']
+
+  when: agent_host_ssh_apply_needed | bool or ansible_check_mode
+
+- name: Read the password invariant when the stage had nothing to apply
+  shell: /usr/sbin/sshd -T | grep -E '^(passwordauthentication|kbdinteractiveauthentication) ' | sort
+  register: agent_host_ssh_invariant_idle
+  changed_when: false
+  check_mode: false
+  when: not (agent_host_ssh_apply_needed | bool or ansible_check_mode)
+
+- name: Assert the password invariant when the stage had nothing to apply
+  assert:
+    that: agent_host_ssh_invariant_idle.stdout_lines == ['kbdinteractiveauthentication no', 'passwordauthentication no']
+    fail_msg: sshd -T on disk does not report password authentication off and the stage had nothing to apply; run the stage again with -e agent_host_second_terminal=true
+    quiet: true
+  when: not (agent_host_ssh_apply_needed | bool or ansible_check_mode)

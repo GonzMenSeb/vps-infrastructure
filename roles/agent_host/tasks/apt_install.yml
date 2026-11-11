@@ -1,0 +1,51 @@
+---
+- name: Read dpkg consistency
+  command: dpkg --audit
+  register: agent_host_dpkg_audit
+  changed_when: false
+  check_mode: false
+
+- name: Read apt background jobs
+  command: systemctl is-active apt-daily.service apt-daily-upgrade.service
+  register: agent_host_apt_jobs
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read free MiB on /boot and /
+  shell: df -BM --output=avail {{ item }} | tail -n 1 | tr -dc 0-9
+  loop: [/boot, /]
+  register: agent_host_free_mib
+  changed_when: false
+  check_mode: false
+
+- name: Assert the package manager is idle and space is sufficient
+  assert:
+    that:
+      - agent_host_dpkg_audit.stdout | trim == ''
+      - agent_host_apt_jobs.stdout_lines | select('in', ['active', 'activating']) | list | length == 0
+      - agent_host_free_mib.results[1].stdout | int >= agent_host_apt_min_root_free_mib
+      - >-
+        (agent_host_apt_names | select('match', '^linux-') | list | length == 0)
+        or (agent_host_free_mib.results[0].stdout | int >= agent_host_apt_min_boot_free_mib)
+    fail_msg: dpkg is inconsistent, an apt job is running, or /boot or / is short of space
+    quiet: true
+
+- name: Install {{ agent_host_apt_names | join(', ') }}
+  apt:
+    name: "{{ agent_host_apt_names }}"
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: "{{ agent_host_apt_lock_timeout }}"
+  environment: "{{ agent_host_apt_environment }}"
+  async: "{{ agent_host_apt_timeout }}"
+  poll: 10
+
+- name: Read dpkg consistency after the install
+  command: dpkg --audit
+  register: agent_host_dpkg_audit_after
+  changed_when: false
+  failed_when: agent_host_dpkg_audit_after.stdout | trim != ''
+  check_mode: false
+  when: not ansible_check_mode

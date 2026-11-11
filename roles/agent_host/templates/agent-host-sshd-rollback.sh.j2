@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+dir=/etc/ssh/sshd_config.d
+printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\n' > "$dir/00-no-password.conf.new~"
+chmod 0644 "$dir/00-no-password.conf.new~"
+mv -f "$dir/00-no-password.conf.new~" "$dir/00-no-password.conf"
+for f in{% for d in agent_host_ssh_dropins %} {{ d.file }}{% endfor %}; do
+  if [ -e "$dir/$f" ]; then
+    mv -f "$dir/$f" "$dir/$f.rolledback~"
+  fi
+done
+/usr/sbin/sshd -t
+systemctl reload ssh
+logger -t agent-host-sshd-rollback "sshd drop-ins rolled back to the password guard alone"

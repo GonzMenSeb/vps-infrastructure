@@ -1,9 +1,10 @@
 # vps-infrastructure
 
-Ansible-based Infrastructure-as-Code for a two-VPS setup:
+Ansible-based Infrastructure-as-Code for two VPS hosts and a personal agent host:
 
 - **Main VPS** — public web services behind Traefik + Let's Encrypt.
 - **Jenkins VPS** — dedicated CI/CD host that deploys back to the main VPS.
+- **w1** — personal agent host (Claude Code sessions), applied by hand.
 
 All identifying values (IPs, domain, admin email, credentials) are stored in an
 encrypted `vault.yml`. Nothing sensitive lives in plaintext in this repo.
@@ -37,7 +38,7 @@ encrypted `vault.yml`. Nothing sensitive lives in plaintext in this repo.
 
 - Ansible 2.15+
 - A vault password file at `.vault_pass` (gitignored; `ansible.cfg` picks it up automatically, so run ansible from the repo root)
-- SSH access to both hosts
+- SSH access to the hosts
 - Required collections: `ansible-galaxy collection install -r requirements.yml`
 
 ## Usage
@@ -61,21 +62,29 @@ ansible-playbook --check --diff playbook.yml
 
 # Post-deploy health checks
 ansible-playbook tests/health-check.yml
+
+# w1 (by hand, staged; see w1-agent-host-runbook.md and CLAUDE.md)
+ansible-playbook w1-playbook.yml --tags <stage> --check --diff
+ansible-playbook w1-playbook.yml --tags agent_host --check --diff
+# a plain run (no --tags) plays host_agent and every agent_host stage at once; it is not a runbook step (CLAUDE.md, agent_host rule 11)
+ansible-playbook tests/w1-health-check.yml
 ```
 
 ## Layout
 
 ```
 .
-├── inventory.yml                 # Hosts (vps, jenkins) — values from vault
+├── inventory.yml                 # Hosts (vps, jenkins, w1) — values from vault
 ├── playbook.yml                  # Main VPS deploy
 ├── jenkins-playbook.yml          # Jenkins VPS deploy
+├── w1-playbook.yml               # w1 agent host (by hand)
+├── w1-reboot-playbook.yml        # w1 guarded reboot (by hand)
 ├── group_vars/all.yml            # Shared vars (domain, subdomains, image pins)
 ├── host_vars/{vps,jenkins}.yml   # Per-host overrides
 ├── vault.yml                     # AES256-encrypted secrets + identifying info
 ├── vault.yml.example             # Template for first-time setup
 ├── roles/                        # One role per service
-├── tests/health-check.yml        # Post-deploy asserts
+├── tests/                        # Post-deploy asserts and the w1 gate, lab and benchmark
 └── Jenkinsfile                   # CI pipeline run by Jenkins
 ```
 
@@ -91,7 +100,7 @@ Jenkins watches this repo. Pushing to `main` triggers:
 6. `ansible-playbook tests/health-check.yml`
 
 Vault password and SSH keys are injected from Jenkins credentials — never
-written to disk beyond the build workspace.
+written to disk beyond the build workspace. w1 is not deployed by CI.
 
 ## License
 

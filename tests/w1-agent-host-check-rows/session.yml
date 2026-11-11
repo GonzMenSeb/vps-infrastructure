@@ -1,0 +1,82 @@
+---
+agent_host_check_rows_session:
+  - id: SE01
+    domain: session
+    severity: required
+    cmd: "loginctl show-user {{ agent_host_user }} -p Linger --value"
+    cmp: eq
+    expect: "yes"
+  - id: SE02
+    domain: session
+    severity: required
+    cmd: "systemctl show user@$(id -u {{ agent_host_user }}).service -p ActiveState --value"
+    cmp: eq
+    expect: "active"
+  - id: SE03
+    domain: session
+    severity: required
+    cmd: "systemctl show ssh.service -p KillMode --value"
+    cmp: eq
+    expect: "process"
+  - id: SE04
+    domain: session
+    severity: required
+    cmd: "busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager KillUserProcesses"
+    cmp: eq
+    expect: "b false"
+  - id: SE05
+    domain: session
+    severity: required
+    cmd: "for p in $(cat /sys/fs/cgroup/system.slice/ssh.service/cgroup.procs 2>/dev/null); do cat /proc/$p/comm 2>/dev/null; done | sort -u"
+    cmp: match
+    expect: "^(sshd)?$"
+  - id: SE06
+    domain: session
+    severity: required
+    cmd: "apt-config dump | grep -i '^Unattended-Upgrade::Automatic-Reboot ' || true"
+    cmp: match
+    expect: "^(Unattended-Upgrade::Automatic-Reboot \"false\";)?$"
+  - id: SE07
+    domain: session
+    severity: advisory
+    when: "{{ agent_host_session_manager_limits_enabled | bool }}"
+    cmd: "systemctl --user -M {{ agent_host_user }}@ show -p DefaultLimitNOFILESoft --value"
+    cmp: eq
+    expect: "{{ agent_host_limits_nofile_soft }}"
+  - id: SE08
+    domain: session
+    severity: advisory
+    cmd: "if [ \"$(uname -r)\" = \"$(awk '/^menuentry /{f=1} f && /^[[:space:]]*linux[[:space:]]/{print $2; exit}' /boot/grub/grub.cfg | sed 's#^.*/vmlinuz-##')\" ]; then echo current; else echo pending; fi"
+    cmp: eq
+    expect: "current"
+  - id: SE09
+    domain: session
+    severity: advisory
+    cmd: "if [ -e /var/run/reboot-required ]; then echo present; else echo absent; fi"
+    cmp: eq
+    expect: "absent"
+  - id: SE10
+    domain: session
+    severity: advisory
+    cmd: >-
+      v=$(for p in $(pgrep -u {{ agent_host_user }} -x herdr-core); do
+      if tr '\0' ' ' < /proc/$p/cmdline | grep -q ' serve'; then awk '/Max open files/{print $4}' /proc/$p/limits; fi;
+      done | sort -n | head -n 1); echo "${v:-na}"
+    cmp: search
+    expect: ""
+  - id: SE11
+    domain: session
+    severity: advisory
+    cmd: >-
+      v=$(for p in $(pgrep -u {{ agent_host_user }} -x bash); do
+      pp=$(awk '{print $4}' /proc/$p/stat);
+      case "$(cat /proc/$pp/comm 2>/dev/null)" in herdr|herdr-core|"tmux: server") awk '/Max open files/{print $4}' /proc/$p/limits;; esac;
+      done | sort -n | head -n 1); echo "${v:-na}"
+    cmp: search
+    expect: ""
+  - id: SE12
+    domain: session
+    severity: advisory
+    cmd: "cat /etc/cron.hourly/* 2>/dev/null | grep -cE 'drop_caches|fstrim' || true"
+    cmp: search
+    expect: ""

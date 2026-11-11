@@ -1,0 +1,7 @@
+---
+agent_host_sess_sysctl:
+  fs.inotify.max_user_watches: 262144
+  fs.inotify.max_user_instances: 512
+
+agent_host_session_manager_limits_enabled: true
+agent_host_session_needrestart_mode: ""

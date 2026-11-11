@@ -1,0 +1,123 @@
+---
+- name: Probe earlyoom unit
+  command: systemctl cat earlyoom.service
+  register: agent_host_mem_eo_unit
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Stop and disable earlyoom
+  systemd:
+    name: earlyoom
+    enabled: false
+    state: stopped
+  when: agent_host_mem_eo_unit.rc == 0
+
+- name: Purge earlyoom
+  apt:
+    name: earlyoom
+    state: absent
+    purge: true
+  environment: "{{ agent_host_apt_environment }}"
+
+- name: Probe vm sysctl drop-in
+  stat:
+    path: /etc/sysctl.d/60-agent-host-memory.conf
+  register: agent_host_mem_sysctl_file
+
+- name: Remove vm sysctl drop-in
+  file:
+    path: /etc/sysctl.d/60-agent-host-memory.conf
+    state: absent
+
+- name: Read current vm sysctls
+  command: sysctl -n {{ item.key }}
+  loop: "{{ agent_host_mem_sysctl_defaults | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: agent_host_mem_sysctl_now
+  changed_when: false
+  check_mode: false
+  when: agent_host_mem_sysctl_file.stat.exists
+
+- name: Restore kernel default vm sysctls
+  command: sysctl -w {{ item.item.key }}={{ item.item.value }}
+  loop: "{{ agent_host_mem_sysctl_now.results }}"
+  loop_control:
+    label: "{{ item.item.key }}"
+  when: agent_host_mem_sysctl_file.stat.exists and item.stdout | trim != item.item.value | string
+
+- name: Remove zswap tmpfiles rule
+  file:
+    path: /etc/tmpfiles.d/agent-host-memory.conf
+    state: absent
+
+- name: Read zswap enabled flag
+  command: cat /sys/module/zswap/parameters/enabled
+  register: agent_host_mem_zswap_now
+  changed_when: false
+  check_mode: false
+
+- name: Disable zswap and leave zpool and compressor as they are
+  shell: printf N > /sys/module/zswap/parameters/enabled
+  when: agent_host_mem_zswap_now.stdout | trim == 'Y'
+
+- name: Read swap state
+  shell: |
+    cat /proc/swaps
+    echo ---
+    grep -E '^(MemAvailable|SwapTotal|SwapFree):' /proc/meminfo
+    echo ---
+    cat /proc/pressure/memory
+  register: agent_host_mem_swap_state
+  changed_when: false
+  check_mode: false
+
+- name: Derive swap unit name
+  command: systemd-escape -p --suffix=swap {{ agent_host_mem_swap_file }}
+  register: agent_host_mem_swap_unit_name
+  changed_when: false
+  check_mode: false
+
+- name: Derive swapoff safety
+  set_fact:
+    agent_host_mem_swap_unit: "{{ agent_host_mem_swap_unit_name.stdout }}"
+    agent_host_mem_swap_is_active: "{{ agent_host_mem_swap_file in (agent_host_mem_swap_state.stdout.split('---')[0].splitlines()[1:] | map('split') | map('first') | list) }}"
+    agent_host_mem_swapoff_safe: >-
+      {{ ((agent_host_mem_swap_state.stdout.split('---')[1] | regex_search('SwapTotal:\s+(\d+)', '\1') | first | int)
+      - (agent_host_mem_swap_state.stdout.split('---')[1] | regex_search('SwapFree:\s+(\d+)', '\1') | first | int)) * 2
+      < (agent_host_mem_swap_state.stdout.split('---')[1] | regex_search('MemAvailable:\s+(\d+)', '\1') | first | int)
+      and (agent_host_mem_swap_state.stdout.split('---')[2] | regex_search('some avg10=([0-9.]+)', '\1') | first | float) < 1.0 }}
+
+- name: Stop swap
+  systemd:
+    name: "{{ agent_host_mem_swap_unit }}"
+    enabled: false
+    state: stopped
+  when: agent_host_mem_swap_is_active | bool and agent_host_mem_swapoff_safe | bool
+
+- name: Disable swap without stopping it
+  systemd:
+    name: "{{ agent_host_mem_swap_unit }}"
+    enabled: false
+  when: agent_host_mem_swap_is_active | bool and not (agent_host_mem_swapoff_safe | bool)
+
+- name: Report swap left active
+  debug:
+    msg: "{{ agent_host_mem_swap_file }} stays active until the next reboot because swapoff is not safe now. Re-run with agent_host_mem_state=absent after the reboot to delete it."
+  when: agent_host_mem_swap_is_active | bool and not (agent_host_mem_swapoff_safe | bool)
+
+- name: Remove swap unit and files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/systemd/system/{{ agent_host_mem_swap_unit }}"
+    - "{{ agent_host_mem_swap_file }}"
+    - "{{ agent_host_mem_swap_file }}.tmp"
+  when: not (agent_host_mem_swap_is_active | bool) or agent_host_mem_swapoff_safe | bool
+
+- name: Reload systemd after removing the swap unit
+  systemd:
+    daemon_reload: true
+  when: not ansible_check_mode

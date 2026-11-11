@@ -1,0 +1,79 @@
+---
+agent_host_check_rows_network: >-
+  {{ agent_host_net_rows_always
+     + (agent_host_net_rows_bbr if agent_host_net_modules | length > 0 else agent_host_net_rows_cubic)
+     + (agent_host_net_rows_mosh if agent_host_mosh_enabled | bool else []) }}
+
+agent_host_net_rows_always:
+  - id: NET03
+    domain: sysctl
+    severity: required
+    cmd: >-
+      python3 -c 'import socket; print(socket.socket().getsockopt(socket.IPPROTO_TCP, socket.TCP_CONGESTION, 16).split(b"\0")[0].decode())'
+    cmp: eq
+    expect: "{{ agent_host_net_congestion_control }}"
+  - id: NET04
+    domain: network
+    severity: required
+    cmd: ip -6 route show default | wc -l
+    cmp: ge
+    expect: "1"
+  - id: NET05
+    domain: network
+    severity: required
+    cmd: >-
+      tc qdisc show dev "$(ip -j route show default | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["dev"])')"
+      | head -n 1 | cut -d' ' -f1,2
+    cmp: eq
+    expect: qdisc fq_codel
+  - id: NET06
+    domain: network
+    severity: required
+    cmd: grep -ci '^LANG=.*utf-\?8' /etc/default/locale
+    cmp: ge
+    expect: "1"
+  - id: NET07
+    domain: network
+    severity: advisory
+    cmd: >-
+      for l in {{ agent_host_net_client_locales | join(' ') }}; do
+      env LC_ALL=$l python3 -c "import locale; locale.setlocale(locale.LC_ALL, ''); assert locale.nl_langinfo(locale.CODESET) == 'UTF-8'" >/dev/null 2>&1 || echo $l;
+      done
+    cmp: empty
+    expect: ""
+
+agent_host_net_rows_bbr:
+  - id: NET09
+    domain: sysctl
+    severity: required
+    cmd: lsmod | awk '$1=="tcp_bbr"{print "loaded"}'
+    cmp: eq
+    expect: loaded
+  - id: NET10
+    domain: network
+    severity: required
+    cmd: cat /etc/modules-load.d/agent-host-net.conf
+    cmp: eq
+    expect: tcp_bbr
+
+agent_host_net_rows_cubic:
+  - id: NET10
+    domain: network
+    severity: required
+    cmd: test -e /etc/modules-load.d/agent-host-net.conf && echo present || echo absent
+    cmp: eq
+    expect: absent
+
+agent_host_net_rows_mosh:
+  - id: NET11
+    domain: network
+    severity: required
+    cmd: dpkg-query -W -f='${Status}' mosh
+    cmp: match
+    expect: install ok installed
+  - id: NET12
+    domain: network
+    severity: required
+    cmd: mosh-server --version 2>&1 | head -n 1 | cut -d' ' -f1
+    cmp: eq
+    expect: mosh-server

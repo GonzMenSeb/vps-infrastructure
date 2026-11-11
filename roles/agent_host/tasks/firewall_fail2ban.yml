@@ -1,0 +1,65 @@
+---
+- name: Install fail2ban through the apt helper
+  import_tasks: apt_install.yml
+  vars:
+    agent_host_apt_names: [fail2ban]
+
+- name: Render the fail2ban action override that bans only new connections
+  template:
+    src: fail2ban-nftables.local.j2
+    dest: /etc/fail2ban/action.d/nftables.local
+    owner: root
+    group: root
+    mode: "0644"
+  register: agent_host_f2b_action
+
+- name: Render the fail2ban jail configuration
+  template:
+    src: fail2ban-jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  register: agent_host_f2b_jail
+
+- name: Validate the fail2ban configuration
+  command: fail2ban-client -t
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [agent_host_live]
+
+- name: Enable and start fail2ban
+  systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+  tags: [agent_host_live]
+
+- name: Reload fail2ban on the new configuration
+  command: fail2ban-client reload
+  when:
+    - not ansible_check_mode
+    - agent_host_f2b_action is changed or agent_host_f2b_jail is changed
+  tags: [agent_host_live]
+
+- name: Read the fail2ban state
+  command: "{{ item }}"
+  loop:
+    - fail2ban-client ping
+    - fail2ban-client status sshd
+    - nft list chain inet f2b-table f2b-chain
+  register: agent_host_f2b_state
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [agent_host_live]
+
+- name: Assert the sshd jail runs and bans only new connections
+  assert:
+    that:
+      - agent_host_f2b_state.results[0].stdout is search('pong')
+      - agent_host_f2b_state.results[1].stdout is search('Status for the jail: sshd')
+      - agent_host_f2b_state.results[2].stdout is search('ct state new')
+    quiet: true
+  when: not ansible_check_mode
+  tags: [agent_host_live]

@@ -1,0 +1,7 @@
+---
+agent_host_textfile_dir: "{{ host_agent_node_exporter_textfile_dir | default('/var/lib/node_exporter/textfile') }}"
+agent_host_reporting_gauge_enabled: true
+agent_host_reporting_gauge_dir: /usr/local/lib/agent-host
+agent_host_reporting_gauge_script: "{{ agent_host_reporting_gauge_dir }}/reboot-gauge.sh"
+agent_host_reporting_gauge_prom: "{{ agent_host_textfile_dir }}/agent_host_reboot.prom"
+agent_host_reporting_gauge_interval: 5min

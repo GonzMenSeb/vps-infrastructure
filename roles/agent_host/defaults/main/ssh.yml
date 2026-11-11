@@ -1,0 +1,23 @@
+---
+agent_host_ssh_auth:
+  AuthenticationMethods: "publickey"
+agent_host_ssh_transport_enabled: true
+agent_host_ssh_transport: "{{ agent_host_net_ssh_transport if agent_host_ssh_transport_enabled | bool else {} }}"
+agent_host_ssh_dropins:
+  - { file: 10-agent-host-auth.conf, directives: "{{ agent_host_ssh_auth }}" }
+  - { file: 11-agent-host-transport.conf, directives: "{{ agent_host_ssh_transport }}" }
+agent_host_ssh_deadman_seconds: 300
+agent_host_ssh_unlocked_keys: []
+agent_host_ssh_output_aliases:
+  prohibit-password: without-password
+agent_host_ssh_protected:
+  - permitrootlogin
+  - maxauthtries
+  - allowusers
+  - denyusers
+  - allowgroups
+  - denygroups
+  - port
+  - listenaddress
+agent_host_ssh_protected_effective: >-
+  {{ agent_host_ssh_protected | difference((agent_host_ssh_auth | combine(agent_host_ssh_transport)).keys() | map('lower') | list) }}

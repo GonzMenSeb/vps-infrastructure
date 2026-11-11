@@ -1,0 +1,9 @@
+[Unit]
+Description=Agent host swap file
+
+[Swap]
+What={{ agent_host_mem_swap_file }}
+Options=nofail
+
+[Install]
+WantedBy=swap.target

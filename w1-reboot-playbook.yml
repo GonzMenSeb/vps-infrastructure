@@ -1,0 +1,16 @@
+---
+- name: Reboot w1 into the pending kernel
+  hosts: w1
+  become: true
+  gather_facts: false
+  vars_files:
+    - vault.yml
+
+  tasks:
+    - name: Run the guarded reboot
+      import_role:
+        name: agent_host
+        tasks_from: reboot.yml
+
+- name: Verify w1 after the reboot
+  import_playbook: tests/w1-agent-host-check.yml

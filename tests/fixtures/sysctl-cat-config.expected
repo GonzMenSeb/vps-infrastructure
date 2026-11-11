@@ -1,0 +1,8 @@
+sysboot.net.core.default_qdisc=fq
+sysboot.net.ipv4.tcp_congestion_control=bbr
+sysboot.net.ipv4.tcp_slow_start_after_idle=0
+sysboot.vm.swappiness=60
+sysbootfile.net.core.default_qdisc=/etc/sysctl.d/60-agent-host-net.conf
+sysbootfile.net.ipv4.tcp_congestion_control=/etc/sysctl.d/60-agent-host-net.conf
+sysbootfile.net.ipv4.tcp_slow_start_after_idle=/etc/sysctl.d/60-agent-host-net.conf
+sysbootfile.vm.swappiness=/etc/sysctl.d/99-late.conf

@@ -1,0 +1,9 @@
+---
+- name: Install the GitHub CLI from its apt repository
+  import_tasks: gh.yml
+  when: agent_host_gh_enabled | bool
+
+- name: Install the baseline packages
+  import_tasks: apt_install.yml
+  vars:
+    agent_host_apt_names: "{{ agent_host_baseline_packages }}"

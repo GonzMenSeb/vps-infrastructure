@@ -54,3 +54,6 @@ infra/terraform/.plan
 infra/terraform/.generated/
 infra/terraform/.backups/
 infra/terraform/modules/**/.terraform.lock.hcl
+
+# Benchmarks
+bench-out/

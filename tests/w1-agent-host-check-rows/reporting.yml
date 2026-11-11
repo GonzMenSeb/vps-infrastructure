@@ -1,0 +1,43 @@
+---
+agent_host_check_rows_reporting:
+  - id: E30
+    severity: required
+    when: "{{ agent_host_reporting_gauge_enabled | bool }}"
+    cmd: "systemctl is-enabled agent-host-reboot-gauge.timer 2>&1"
+    expect: enabled
+    cmp: eq
+  - id: E31
+    severity: required
+    when: "{{ agent_host_reporting_gauge_enabled | bool }}"
+    cmd: "systemctl is-active agent-host-reboot-gauge.timer 2>&1"
+    expect: active
+    cmp: eq
+  - id: E32
+    severity: required
+    when: "{{ agent_host_reporting_gauge_enabled | bool }}"
+    cmd: "stat -c '%a %U' {{ agent_host_reporting_gauge_prom }} 2>&1"
+    expect: "644 root"
+    cmp: eq
+  - id: E33
+    severity: advisory
+    when: "{{ agent_host_reporting_gauge_enabled | bool }}"
+    cmd: "expected=0; [ -e /run/reboot-required ] && expected=1; got=$(curl -fsS --max-time 5 http://127.0.0.1:9100/metrics | awk '$1==\"agent_host_reboot_required\"{print $2}'); [ \"$got\" = \"$expected\" ] && echo consistent || echo \"expected=$expected got=$got\""
+    expect: consistent
+    cmp: eq
+  - id: E34
+    severity: required
+    cmd: "curl -fsS --max-time 5 http://127.0.0.1:9100/metrics | awk '$1==\"node_textfile_scrape_error\"{print $2}'"
+    expect: "0"
+    cmp: eq
+  - id: E35
+    severity: required
+    when: "{{ agent_host_reporting_gauge_enabled | bool }}"
+    cmd: "m=$(stat -c %Y {{ agent_host_reporting_gauge_prom }}) && now=$(date +%s) && { [ $((now-m)) -lt 900 ] && echo fresh || echo stale; }"
+    expect: fresh
+    cmp: eq
+  - id: E36
+    severity: advisory
+    when: "{{ agent_host_reporting_gauge_enabled | bool }}"
+    cmd: "systemctl show -p LoadState -p Result agent-host-reboot-gauge.service | sort | tr '\\n' ' ' | sed 's/ $//'"
+    expect: "LoadState=loaded Result=success"
+    cmp: eq
