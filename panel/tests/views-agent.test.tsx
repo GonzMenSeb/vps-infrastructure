@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import type { AgentHost, HostSeries } from "../src/collectors/prometheus";
 import { AGENT_SETTING_NAMES, AGENT_STALE_SEC, buildAgent, fmtFinePct } from "../src/views/agent-model";
 import { HostsFrame, agentChartsHtml } from "../src/views/hosts";
-import { buildHosts, sourceStatus } from "../src/views/model";
+import { buildHosts, fmtBytes, sourceStatus } from "../src/views/model";
 import {
   AGENT_IDS,
   FIXTURE_NOW_MS,
@@ -213,6 +213,67 @@ describe("agent host section", () => {
     expect(html).toContain("var(--swap)");
     expect(html).toContain("var(--mem)");
     expect(html).not.toMatch(/\bstyle=/);
+  });
+});
+
+describe("agent host section tones and plotted data", () => {
+  const chip = (html: string, text: string) => html.match(new RegExp(`<span class="chip([^"]*)"><span class="lamp"></span>${text}</span>`))?.[1]?.trim();
+
+  test("the status line is green only when nothing drifted, nothing is pending and the host is reporting", async () => {
+    const healthy = await w1();
+    expect(chip(healthy, "13 of 13 settings in place")).toBe("ok");
+    expect(chip(healthy, "No reboot pending")).toBe("ok");
+    expect(chip(healthy, "Last report 1 min ago")).toBe("ok");
+    expect((healthy.match(/>In place</g) ?? []).length).toBe(13);
+    expect(healthy).not.toMatch(/chip (bad|warn)/);
+  });
+
+  test("drift is red, a pending reboot and a silent agent are amber", async () => {
+    const html = await w1(
+      withAgent(
+        agentHost({
+          settings: AGENT_IDS.map((id) => ({ id, ok: id !== "zswap" })),
+          rebootRequired: true,
+          kernelRunning: "6.8.0-100-generic",
+          kernelNewest: "6.8.0-110-generic",
+          runTimestampSec: nowSec - 11 * 60,
+        }),
+      ),
+    );
+    expect(chip(html, "12 of 13 settings in place")).toBe("bad");
+    expect(chip(html, "Reboot pending · running 6.8.0-100-generic · newest 6.8.0-110-generic")).toBe("warn");
+    expect(chip(html, "Not reporting · last report 11 min ago")).toBe("warn");
+    expect(html).not.toMatch(/chip ok"><span class="lamp"><\/span>(Last report|No reboot)/);
+  });
+
+  test("a host with no timestamp is amber even when every setting is in place", async () => {
+    const html = await w1(withAgent(agentHost({ runTimestampSec: null })));
+    expect(chip(html, "Not reporting")).toBe("warn");
+    expect(chip(html, "13 of 13 settings in place")).toBe("ok");
+  });
+
+  test("table chips follow each setting's own state", async () => {
+    const html = await w1(withAgent(agentHost({ settings: [{ id: "linger", ok: true }, { id: "zswap", ok: false }] })));
+    expect(html).toMatch(/<td>User services survive logout<\/td><td><span class="chip ok"><span class="lamp"><\/span>In place<\/span><\/td>/);
+    expect(html).toMatch(/<td>zswap on<\/td><td><span class="chip bad"><span class="lamp"><\/span>Drifted<\/span><\/td>/);
+    expect(chip(html, "1 of 2 settings in place")).toBe("bad");
+  });
+
+  test("each chart plots its own series with its own formatter", () => {
+    const flat = (v: number) => Array.from({ length: 301 }, () => v);
+    const base = buildHosts(input(), { host: "w1" }).charts;
+    const html = agentChartsHtml({
+      ...base,
+      series: { ...base.series!, dataStartSec: base.series!.startSec, cpu: flat(11), mem: flat(12), swapUsed: flat(5e8), memPressure: flat(2.5), tcpRetrans: flat(0.35), filesOpen: flat(7000) },
+    });
+    const row = (title: string) => {
+      const block = html.split('<div class="chart">').find((b) => b.includes(`<div class="t">${title}</div>`))!;
+      return [...block.matchAll(/<td>([^<]*)<\/td>/g)].map((m) => m[1]);
+    };
+    expect(row("Swap used")).toEqual(["Swap", ...Array(4).fill(fmtBytes(5e8))]);
+    expect(row("Memory pressure")).toEqual(["Pressure", ...Array(4).fill("2.5%")]);
+    expect(row("TCP retransmits")).toEqual(["Retransmitted", ...Array(4).fill("0.35%")]);
+    expect(row("Open files")).toEqual(["Files", ...Array(4).fill("7000")]);
   });
 });
 

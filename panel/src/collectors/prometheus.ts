@@ -416,7 +416,7 @@ export async function fetchAgentHosts(client: PromClient, signal?: AbortSignal):
     byHost.set(host, acc);
   }
   const out = [...byHost.entries()]
-    .filter(([, a]) => a.settings.size > 0 || a.kernel !== null || "runTs" in a.numbers || "reboot" in a.numbers)
+    .filter(([, a]) => a.settings.size > 0 || a.kernel !== null || "runTs" in a.numbers)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([host, a]): AgentHost => {
       const ts = fin(a.numbers.runTs);

@@ -84,16 +84,41 @@ describe("queries", () => {
 
   test("the agent query reads the contract series and the node rates over the shared window", () => {
     const q = QUERIES.agent;
-    for (const name of [
-      "agent_host_setting_ok", "agent_host_settings_run_timestamp_seconds", "agent_host_kernel_info", "agent_host_reboot_required",
-      "node_vmstat_pswpin", "node_vmstat_pswpout", "node_pressure_memory_waiting_seconds_total", "node_netstat_Tcp_RetransSegs",
-      "node_netstat_Tcp_OutSegs", "node_filefd_allocated", "node_netstat_Tcp_CurrEstab", "node_vmstat_oom_kill",
-    ]) expect(q).toContain(name);
-    expect(q).toContain("max by (host, setting) (agent_host_setting_ok)");
-    expect(q).toContain("max by (host, running, newest) (agent_host_kernel_info)");
-    expect(q).toContain("increase(node_vmstat_oom_kill[24h])");
-    expect(q).toContain("* 4096");
-    expect(windows(q).every((w) => w.sec === NODE_RATE_WINDOW_SEC)).toBe(true);
+    const part = (metric: string, expr: string) => `label_replace(${expr}, "metric", "${metric}", "", "")`;
+    const w = NODE_RATE_WINDOW_SEC;
+    expect(q.split(" or ")).toEqual([
+      part("setting", "max by (host, setting) (agent_host_setting_ok)"),
+      part("runTs", "max by (host) (last_over_time(agent_host_settings_run_timestamp_seconds[24h]))"),
+      part("kernel", "max by (host, running, newest) (agent_host_kernel_info)"),
+      part("reboot", "max by (host) (agent_host_reboot_required)"),
+      part("swapInBps", `sum by (host) (rate(node_vmstat_pswpin[${w}s])) * 4096`),
+      part("swapOutBps", `sum by (host) (rate(node_vmstat_pswpout[${w}s])) * 4096`),
+      part("memPressurePct", `100 * sum by (host) (rate(node_pressure_memory_waiting_seconds_total[${w}s]))`),
+      part(
+        "tcpRetransPct",
+        `100 * sum by (host) (rate(node_netstat_Tcp_RetransSegs[${w}s])) / sum by (host) (rate(node_netstat_Tcp_OutSegs[${w}s]))`,
+      ),
+      part("filesOpen", "max by (host) (node_filefd_allocated)"),
+      part("tcpEstablished", "max by (host) (node_netstat_Tcp_CurrEstab)"),
+      part("oomKills24h", "sum by (host) (increase(node_vmstat_oom_kill[24h]))"),
+    ]);
+    expect(windows(q).every((x) => x.sec === w)).toBe(true);
+  });
+
+  test("the agent series are pinned expression by expression, rate windows following the step", () => {
+    const part = (metric: string, expr: string) => `label_replace(${expr}, "metric", "${metric}", "", "")`;
+    const agentParts = (w: number) => [
+      part("swapUsed", "sum by (host) (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes)"),
+      part("memPressure", `100 * sum by (host) (rate(node_pressure_memory_waiting_seconds_total[${w}s]))`),
+      part(
+        "tcpRetrans",
+        `100 * sum by (host) (rate(node_netstat_Tcp_RetransSegs[${w}s])) / sum by (host) (rate(node_netstat_Tcp_OutSegs[${w}s]))`,
+      ),
+      part("filesOpen", "max by (host) (node_filefd_allocated)"),
+    ];
+    for (const [q, w] of [[QUERIES.series, SERIES_STEP_SEC], [seriesQuery(30), NODE_RATE_WINDOW_SEC]] as const) {
+      expect(q.split(" or ").slice(-4)).toEqual(agentParts(w));
+    }
   });
 
   test("container queries group by (name, host)", () => {
@@ -320,19 +345,24 @@ describe("fetchAgentHosts", () => {
         row("vps", "filesOpen", 900),
         row("vps", "memPressurePct", 0.1),
         row("jenkins", "oomKills24h", 0),
-        row("w1", "reboot", 0),
+        row("w1", "runTs", 1_800_000_000),
       ]);
     const hosts = await fetchAgentHosts(client);
     expect(hosts.map((h) => h.host)).toEqual(["w1"]);
   });
 
-  test("missing series stay null and a host with only the reboot gauge still counts", async () => {
-    handler = () => vec([row("w1", "reboot", 0)]);
+  test("a host that exports only the reboot gauge is left out until the settings gauge reports", async () => {
+    handler = () => vec([row("w1", "reboot", 1), row("w1", "filesOpen", 900), row("w1", "oomKills24h", 0)]);
+    expect(await fetchAgentHosts(client)).toEqual([]);
+  });
+
+  test("missing series stay null and a host with only the kernel gauge still counts", async () => {
+    handler = () => vec([row("w1", "kernel", 1, { running: "6.8.0-100-generic", newest: "6.8.0-100-generic" })]);
     const [h] = await fetchAgentHosts(client);
     expect(h).toEqual({
-      host: "w1", settings: [], runTimestampSec: null, rebootRequired: false, kernelRunning: null, kernelNewest: null,
-      swapInBps: null, swapOutBps: null, memPressurePct: null, tcpRetransPct: null, filesOpen: null, tcpEstablished: null,
-      oomKills24h: null,
+      host: "w1", settings: [], runTimestampSec: null, rebootRequired: null, kernelRunning: "6.8.0-100-generic",
+      kernelNewest: "6.8.0-100-generic", swapInBps: null, swapOutBps: null, memPressurePct: null, tcpRetransPct: null,
+      filesOpen: null, tcpEstablished: null, oomKills24h: null,
     });
   });
 
