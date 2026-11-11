@@ -5,6 +5,7 @@ dir=${AGENT_HOST_TEXTFILE_DIR:-{{ agent_host_textfile_dir }}}
 root=${AGENT_HOST_ROOT:-}
 tmp=$(mktemp "$dir/.agent_host_settings.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
+trap 'exit 1' HUP INT TERM
 check() {
   setting=$1
   shift
@@ -13,7 +14,7 @@ check() {
 }
 sysval() { cat "$root/proc/sys/$1" 2>/dev/null || true; }
 {% if 'ssh_password_off' in agent_host_reporting_settings_ids %}
-sshd_t=$(sshd -T 2>/dev/null || true)
+sshd_t=$(timeout 10 sshd -T 2>/dev/null || true)
 sshd_val() { printf '%s\n' "$sshd_t" | awk -v k="$1" '$1 == k { $1 = ""; sub(/^ /, ""); print; exit }'; }
 {% endif %}
 {% if 'swap_active' in agent_host_reporting_settings_ids %}
@@ -25,7 +26,7 @@ swap_active() {
 {% if 'ssh_rollback_idle' in agent_host_reporting_settings_ids %}
 rollback_idle() {
   for u in agent-host-sshd-rollback agent-host-ufw-rollback; do
-    [ "$(systemctl is-active "$u.timer" 2>/dev/null || true)" = inactive ] || return 1
+    [ "$(timeout 10 systemctl is-active "$u.timer" 2>/dev/null || true)" = inactive ] || return 1
   done
 }
 {% endif %}
@@ -63,13 +64,13 @@ check ssh_guard_intact test "$(sha256sum "$root/etc/ssh/sshd_config.d/00-no-pass
 check ssh_rollback_idle rollback_idle
 {% endif %}
 {% if 'mosh_installed' in agent_host_reporting_settings_ids %}
-check mosh_installed test "$(dpkg-query -W -f='${Status}' mosh 2>/dev/null)" = 'install ok installed'
+check mosh_installed test "$(timeout 10 dpkg-query -W -f='${Status}' mosh 2>/dev/null)" = 'install ok installed'
 {% endif %}
 {% if 'limits_nofile' in agent_host_reporting_settings_ids %}
 check limits_nofile grep -qxF {{ (agent_host_user ~ ' soft nofile ' ~ agent_host_limits_nofile_soft) | quote }} "$root/etc/security/limits.d/60-agent-host.conf"
 {% endif %}
 {% if 'linger' in agent_host_reporting_settings_ids %}
-check linger test "$(loginctl show-user {{ agent_host_user | quote }} -p Linger --value 2>/dev/null)" = yes
+check linger test "$(timeout 10 loginctl show-user {{ agent_host_user | quote }} -p Linger --value 2>/dev/null)" = yes
 {% endif %}
 {
   printf '%s\n' '# HELP agent_host_settings_run_timestamp_seconds Unix time of the last settings check.' '# TYPE agent_host_settings_run_timestamp_seconds gauge'

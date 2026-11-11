@@ -218,6 +218,21 @@
         - "{{ agent_host_reporting_settings_script }}"
         - "{{ agent_host_reporting_settings_prom }}"
 
+    - name: Look for leftover settings gauge temp files
+      find:
+        paths: "{{ agent_host_textfile_dir }}"
+        patterns: ".agent_host_settings.*"
+        hidden: true
+      register: agent_host_settings_leftovers
+
+    - name: Remove leftover settings gauge temp files
+      file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ agent_host_settings_leftovers.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
     - name: Reload systemd after removing the settings gauge units
       systemd:
         daemon_reload: true

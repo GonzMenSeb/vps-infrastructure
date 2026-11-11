@@ -3,6 +3,7 @@ Description=Write the settings drift gauge for the node_exporter textfile collec
 
 [Service]
 Type=oneshot
+TimeoutStartSec=60
 ExecStart={{ agent_host_reporting_settings_script }}
 Nice=10
 NoNewPrivileges=true
