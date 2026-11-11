@@ -208,17 +208,24 @@ describe("pages", () => {
       expect(s2).toBe(s1);
     });
 
+    const settle = async (store: Store) => {
+      for (const name of store.names()) await store.refresh(name);
+    };
+
     test("with agent data the w1 ETag rolls over each minute even if nothing else changed; other hosts keep theirs", async () => {
-      const { app } = await rig(undefined, [live()]);
+      const { app, store } = await rig(undefined, [live()]);
       const t0 = Math.floor(Date.now() / 60_000) * 60_000 + 1000;
       try {
         setSystemTime(new Date(t0));
+        await settle(store);
         const cookie = await signIn(app);
         const tag = async (p: string) => (await app.request(p, { headers: { cookie } })).headers.get("etag");
         const [w1, vps] = [await tag("/hosts/w1"), await tag("/hosts/vps")];
         setSystemTime(new Date(t0 + 30_000));
+        await settle(store);
         expect(await tag("/hosts/w1")).toBe(w1);
         setSystemTime(new Date(t0 + 61_000));
+        await settle(store);
         expect(await tag("/hosts/w1")).not.toBe(w1);
         expect(await tag("/hosts/vps")).toBe(vps);
       } finally {
@@ -227,13 +234,15 @@ describe("pages", () => {
     });
 
     test("without agent data the w1 ETag does not depend on the clock", async () => {
-      const { app } = await rig();
+      const { app, store } = await rig();
       const t0 = Math.floor(Date.now() / 60_000) * 60_000 + 1000;
       try {
         setSystemTime(new Date(t0));
+        await settle(store);
         const cookie = await signIn(app);
         const before = (await app.request("/hosts/w1", { headers: { cookie } })).headers.get("etag");
         setSystemTime(new Date(t0 + 61_000));
+        await settle(store);
         expect((await app.request("/hosts/w1", { headers: { cookie } })).headers.get("etag")).toBe(before);
       } finally {
         setSystemTime();
