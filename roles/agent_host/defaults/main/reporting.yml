@@ -5,3 +5,22 @@ agent_host_reporting_gauge_dir: /usr/local/lib/agent-host
 agent_host_reporting_gauge_script: "{{ agent_host_reporting_gauge_dir }}/reboot-gauge.sh"
 agent_host_reporting_gauge_prom: "{{ agent_host_textfile_dir }}/agent_host_reboot.prom"
 agent_host_reporting_gauge_interval: 5min
+
+agent_host_reporting_settings_enabled: true
+agent_host_reporting_settings_script: "{{ agent_host_reporting_gauge_dir }}/settings-gauge.sh"
+agent_host_reporting_settings_prom: "{{ agent_host_textfile_dir }}/agent_host_settings.prom"
+agent_host_reporting_settings_interval_seconds: 120
+agent_host_reporting_settings_ids: >-
+  {{ ((['congestion_control'] if agent_host_sysctl_enabled | bool else [])
+  + (['inotify_watches'] if agent_host_sysctl_enabled | bool and 'fs.inotify.max_user_watches' in agent_host_sess_sysctl else [])
+  + (['inotify_instances'] if agent_host_sysctl_enabled | bool and 'fs.inotify.max_user_instances' in agent_host_sess_sysctl else [])
+  + (['swap_active'] if agent_host_memory_enabled | bool and agent_host_mem_state == 'present' and agent_host_mem_swap_enabled | bool else [])
+  + (['zswap'] if agent_host_memory_enabled | bool and agent_host_mem_state == 'present' and agent_host_mem_zswap_enabled | bool else [])
+  + (['ssh_publickey_only'] if agent_host_ssh_enabled | bool and 'AuthenticationMethods' in agent_host_ssh_auth else [])
+  + (['ssh_password_off', 'ssh_guard_intact'] if agent_host_ssh_enabled | bool else [])
+  + (['ssh_keepalive'] if agent_host_ssh_enabled | bool and agent_host_ssh_transport_enabled | bool else [])
+  + (['ssh_rollback_idle'] if agent_host_ssh_enabled | bool or agent_host_firewall_enabled | bool else [])
+  + (['mosh_installed'] if agent_host_network_enabled | bool and agent_host_mosh_enabled | bool else [])
+  + (['limits_nofile'] if agent_host_limits_enabled | bool else [])
+  + (['linger'] if agent_host_session_enabled | bool else []))
+  if agent_host_reporting_settings_enabled | bool else [] }}

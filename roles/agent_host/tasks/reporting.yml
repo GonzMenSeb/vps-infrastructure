@@ -3,26 +3,27 @@
   stat:
     path: "{{ agent_host_textfile_dir }}"
   register: agent_host_textfile_stat
-  when: agent_host_reporting_gauge_enabled | bool
+  when: (agent_host_reporting_gauge_enabled | bool) or (agent_host_reporting_settings_enabled | bool)
 
 - name: Require the node_exporter textfile directory
   assert:
     that: agent_host_textfile_stat.stat.isdir | default(false)
     fail_msg: "{{ agent_host_textfile_dir }} is missing, run the host_agent role first"
     quiet: true
-  when: agent_host_reporting_gauge_enabled | bool
+  when: (agent_host_reporting_gauge_enabled | bool) or (agent_host_reporting_settings_enabled | bool)
+
+- name: Create the helper directory
+  file:
+    path: "{{ agent_host_reporting_gauge_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: (agent_host_reporting_gauge_enabled | bool) or (agent_host_reporting_settings_enabled | bool)
 
 - name: Install the reboot gauge
   when: agent_host_reporting_gauge_enabled | bool
   block:
-    - name: Create the helper directory
-      file:
-        path: "{{ agent_host_reporting_gauge_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0755"
-
     - name: Install the reboot gauge script
       copy:
         src: agent-host-reboot-gauge.sh
@@ -82,6 +83,83 @@
       when: not ansible_check_mode
       tags: [agent_host_live]
 
+- name: Install the settings gauge
+  when: agent_host_reporting_settings_enabled | bool
+  block:
+    - name: Require a sane settings gauge interval
+      assert:
+        that:
+          - agent_host_reporting_settings_interval_seconds is match('^[0-9]+$')
+          - agent_host_reporting_settings_interval_seconds | int >= 30
+        fail_msg: agent_host_reporting_settings_interval_seconds must be a whole number of seconds, 30 or more
+        quiet: true
+
+    - name: Install the settings gauge script
+      template:
+        src: agent-host-settings-gauge.sh.j2
+        dest: "{{ agent_host_reporting_settings_script }}"
+        owner: root
+        group: root
+        mode: "0755"
+      register: agent_host_settings_script
+
+    - name: Install the settings gauge service
+      template:
+        src: agent-host-settings-gauge.service.j2
+        dest: /etc/systemd/system/agent-host-settings-gauge.service
+        owner: root
+        group: root
+        mode: "0644"
+      register: agent_host_settings_service
+
+    - name: Install the settings gauge timer
+      template:
+        src: agent-host-settings-gauge.timer.j2
+        dest: /etc/systemd/system/agent-host-settings-gauge.timer
+        owner: root
+        group: root
+        mode: "0644"
+      register: agent_host_settings_timer
+
+    - name: Look for the installed settings gauge timer unit
+      stat:
+        path: /etc/systemd/system/agent-host-settings-gauge.timer
+      register: agent_host_settings_unit
+
+    - name: Enable the settings gauge timer
+      systemd:
+        name: agent-host-settings-gauge.timer
+        enabled: true
+        state: "{{ 'restarted' if (agent_host_settings_timer is changed or agent_host_settings_service is changed) else 'started' }}"
+        daemon_reload: true
+      when: agent_host_settings_unit.stat.exists
+      tags: [agent_host_live]
+
+    - name: Look for the settings gauge file
+      stat:
+        path: "{{ agent_host_reporting_settings_prom }}"
+      register: agent_host_settings_prom
+
+    - name: Generate the settings gauge file now
+      systemd:
+        name: agent-host-settings-gauge.service
+        state: started
+      when:
+        - agent_host_settings_unit.stat.exists
+        - >-
+          not agent_host_settings_prom.stat.exists
+          or agent_host_settings_script is changed
+          or agent_host_settings_service is changed
+          or agent_host_settings_timer is changed
+      tags: [agent_host_live]
+
+    - name: Wait for the first settings gauge file
+      wait_for:
+        path: "{{ agent_host_reporting_settings_prom }}"
+        timeout: 30
+      when: not ansible_check_mode
+      tags: [agent_host_live]
+
 - name: Remove the reboot gauge
   when: not (agent_host_reporting_gauge_enabled | bool)
   block:
@@ -112,4 +190,36 @@
       systemd:
         daemon_reload: true
       when: agent_host_gauge_unit.stat.exists
+      tags: [agent_host_live]
+
+- name: Remove the settings gauge
+  when: not (agent_host_reporting_settings_enabled | bool)
+  block:
+    - name: Look for the installed settings gauge timer unit
+      stat:
+        path: /etc/systemd/system/agent-host-settings-gauge.timer
+      register: agent_host_settings_unit
+
+    - name: Stop the settings gauge timer
+      systemd:
+        name: agent-host-settings-gauge.timer
+        enabled: false
+        state: stopped
+      when: agent_host_settings_unit.stat.exists
+      tags: [agent_host_live]
+
+    - name: Remove the settings gauge files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/agent-host-settings-gauge.timer
+        - /etc/systemd/system/agent-host-settings-gauge.service
+        - "{{ agent_host_reporting_settings_script }}"
+        - "{{ agent_host_reporting_settings_prom }}"
+
+    - name: Reload systemd after removing the settings gauge units
+      systemd:
+        daemon_reload: true
+      when: agent_host_settings_unit.stat.exists
       tags: [agent_host_live]

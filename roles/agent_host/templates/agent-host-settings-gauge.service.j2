@@ -1,0 +1,11 @@
+[Unit]
+Description=Write the settings drift gauge for the node_exporter textfile collector
+
+[Service]
+Type=oneshot
+ExecStart={{ agent_host_reporting_settings_script }}
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths={{ agent_host_textfile_dir }}
