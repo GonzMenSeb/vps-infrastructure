@@ -1,5 +1,5 @@
 import type { DiskUsage, DockerContainer } from "../src/collectors/docker";
-import type { ContainerMetrics, HostMetrics, HostSeries } from "../src/collectors/prometheus";
+import type { AgentHost, ContainerMetrics, HostMetrics, HostSeries } from "../src/collectors/prometheus";
 import { parseManifest, type Manifest } from "../src/manifest";
 import type { Snapshot } from "../src/store";
 import type { Sources, ViewInput } from "../src/views/model";
@@ -141,6 +141,32 @@ export const series: HostSeries[] = ["jenkins", "vps", "w1"].map((host) => ({
   tcpRetrans: line(301, (i) => (host === "w1" ? 0.1 + (i % 4) * 0.05 : 0)), filesOpen: line(301, (i) => (host === "w1" ? 2000 + i * 3 : 0)),
 }));
 
+export const FIXTURE_NOW_MS = 1_800_000_000_000;
+
+export const AGENT_IDS = [
+  "congestion_control", "inotify_watches", "inotify_instances", "swap_active", "zswap", "ssh_publickey_only", "ssh_password_off",
+  "ssh_keepalive", "ssh_guard_intact", "ssh_rollback_idle", "mosh_installed", "limits_nofile", "linger",
+] as const;
+
+export const agentHost = (o: Partial<AgentHost> = {}): AgentHost => ({
+  host: "w1",
+  settings: AGENT_IDS.map((id) => ({ id, ok: true })),
+  runTimestampSec: FIXTURE_NOW_MS / 1000 - 60,
+  rebootRequired: false,
+  kernelRunning: "6.8.0-110-generic",
+  kernelNewest: "6.8.0-110-generic",
+  swapInBps: 4096,
+  swapOutBps: 8192,
+  memPressurePct: 0.35,
+  tcpRetransPct: 0.12,
+  filesOpen: 2048,
+  tcpEstablished: 37,
+  oomKills24h: 0,
+  ...o,
+});
+
+export const agent: AgentHost[] = [agentHost()];
+
 export const df: DiskUsage = {
   containers: [
     { name: "judicabot", sizeRw: 2e6, sizeRootFs: null, volumes: [] },
@@ -176,17 +202,19 @@ export function fullSources(): Sources {
     hosts: snap(hosts),
     containers: snap(containers),
     series: snap(series),
+    agent: snap(agent),
     docker: snap(docker),
     df: snap(df),
   };
 }
 
-export const input = (sources: Sources = fullSources()): ViewInput => ({ manifest, sources });
+export const input = (sources: Sources = fullSources()): ViewInput => ({ manifest, sources, nowMs: FIXTURE_NOW_MS });
 
 export const emptySources = (): Sources => ({
   hosts: snap<HostMetrics[]>(undefined),
   containers: snap<ContainerMetrics[]>(undefined),
   series: snap<HostSeries[]>(undefined),
+  agent: snap<AgentHost[]>(undefined),
   docker: snap<DockerContainer[]>(undefined),
   df: snap<DiskUsage>(undefined),
 });
@@ -197,6 +225,7 @@ export const downSources = (): Sources => {
     hosts: snap<HostMetrics[]>(undefined, err),
     containers: snap<ContainerMetrics[]>(undefined, err),
     series: snap<HostSeries[]>(undefined, err),
+    agent: snap<AgentHost[]>(undefined, err),
     docker: snap(docker, { lastError: "docker /containers/json: HTTP 500", ageMs: 90_000 }),
     df: null,
   };

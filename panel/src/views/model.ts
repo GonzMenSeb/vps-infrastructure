@@ -2,6 +2,7 @@ import { DOCKER_SOURCES, DOCKER_TTL, type DiskUsage, type DockerContainer, type 
 import {
   PROM_SOURCES,
   PROM_TTL,
+  type AgentHost,
   type ContainerMetrics,
   type HostMetrics,
   type HostSeries,
@@ -10,6 +11,7 @@ import { hourLabels } from "../lib/charts";
 import { squarify } from "../lib/treemap";
 import { indexManifest, type Manifest, type ManifestIndex, type Service, type ServiceHost } from "../manifest";
 import type { Snapshot, Store } from "../store";
+import { agentAttention, buildAgent, type AgentVM } from "./agent-model";
 import { buildServiceActions, type ServiceActionsVM, type ServiceView } from "./service-actions-model";
 import { buildAuthTab, type AuthTabVM, type SecretsView } from "./auth-model";
 import { buildServiceDatabases, type ServiceDatabasesVM } from "./databases-model";
@@ -24,12 +26,13 @@ export const TOP_TILES = 7;
 export const TINY_WIDTH_PCT = 5;
 export const DEFAULT_TIME_ZONE = "UTC";
 
-export type SourceKey = "hosts" | "containers" | "series" | "docker" | "df";
+export type SourceKey = "hosts" | "containers" | "series" | "agent" | "docker" | "df";
 
 const SOURCE_META: Record<SourceKey, { name: string; label: string; ttlMs: number }> = {
   hosts: { name: PROM_SOURCES.hosts, label: "Prometheus", ttlMs: PROM_TTL.instantMs },
   containers: { name: PROM_SOURCES.containers, label: "Prometheus", ttlMs: PROM_TTL.instantMs },
   series: { name: PROM_SOURCES.series, label: "Prometheus", ttlMs: PROM_TTL.seriesMs },
+  agent: { name: PROM_SOURCES.agent, label: "Prometheus", ttlMs: PROM_TTL.instantMs },
   docker: { name: DOCKER_SOURCES.containers, label: "Docker", ttlMs: DOCKER_TTL.containersMs },
   df: { name: DOCKER_SOURCES.df, label: "Docker disk usage", ttlMs: DOCKER_TTL.dfMs },
 };
@@ -38,6 +41,7 @@ export interface Sources {
   hosts: Snapshot<HostMetrics[]> | null;
   containers: Snapshot<ContainerMetrics[]> | null;
   series: Snapshot<HostSeries[]> | null;
+  agent: Snapshot<AgentHost[]> | null;
   docker: Snapshot<DockerContainer[]> | null;
   df: Snapshot<DiskUsage> | null;
 }
@@ -49,6 +53,7 @@ export function readSources(store: Store): Sources {
     hosts: get("hosts"),
     containers: get("containers"),
     series: get("series"),
+    agent: get("agent"),
     docker: get("docker"),
     df: get("df"),
   };
@@ -322,6 +327,7 @@ export interface HostsVM {
   metric: UsageMetric;
   card: HostCardVM;
   charts: ChartsVM;
+  agent: AgentVM | null;
   treemap: TreemapVM;
   up: UpVM;
 }
@@ -357,6 +363,7 @@ export interface ServiceVM {
 export interface ViewInput {
   manifest: Manifest;
   sources: Sources;
+  nowMs?: number;
   timeZone?: string;
   csrf?: string;
   jenkins?: JenkinsView;
@@ -383,6 +390,8 @@ class Ctx {
   docker: Map<string, DockerContainer> | null;
   metrics: Map<string, ContainerMetrics>;
   hostMetrics: Map<string, HostMetrics>;
+  agent: Map<string, AgentHost>;
+  nowMs: number;
   disk: Map<string, number> | null;
   middlewareKinds: Map<string, string>;
   status: Record<SourceKey, SourceStatus>;
@@ -396,12 +405,15 @@ class Ctx {
       hosts: sourceStatus("hosts", s.hosts),
       containers: sourceStatus("containers", s.containers),
       series: sourceStatus("series", s.series),
+      agent: sourceStatus("agent", s.agent),
       docker: sourceStatus("docker", s.docker),
       df: sourceStatus("df", s.df),
     };
     this.docker = s.docker?.data ? new Map(s.docker.data.map((c) => [c.name, c])) : null;
     this.metrics = new Map((s.containers?.data ?? []).map((m) => [`${m.host}/${m.name}`, m]));
     this.hostMetrics = new Map((s.hosts?.data ?? []).map((h) => [h.host, h]));
+    this.agent = new Map((s.agent?.data ?? []).map((a) => [a.host, a]));
+    this.nowMs = input.nowMs ?? Date.now();
     this.disk = s.df?.data ? containerDisk(s.df.data) : null;
     this.middlewareKinds = new Map();
     for (const c of s.docker?.data ?? []) {
@@ -587,6 +599,11 @@ class Ctx {
     return { host, role: HOST_ROLE[host], metrics: this.hostMetrics.get(host) ?? null, status: this.status.hosts };
   }
 
+  agentVM(host: ServiceHost): AgentVM | null {
+    const data = this.agent.get(host);
+    return data ? buildAgent(host, data, this.status.agent, this.nowMs) : null;
+  }
+
   promStatus(): SourceStatus {
     const order: SourceState[] = ["off", "error", "loading", "stale", "fresh"];
     const both = [this.status.hosts, this.status.containers];
@@ -739,7 +756,7 @@ function treemap(ctx: Ctx, host: ServiceHost, metric: UsageMetric, compact: bool
 function attention(ctx: Ctx): AttentionVM[] {
   const out: AttentionVM[] = [];
   const seen = new Set<string>();
-  for (const k of ["hosts", "containers", "docker", "df"] as SourceKey[]) {
+  for (const k of ["hosts", "containers", "docker", "df", "agent"] as SourceKey[]) {
     const s = ctx.status[k];
     if ((s.state === "error" || s.state === "stale") && !seen.has(s.label)) {
       seen.add(s.label);
@@ -776,6 +793,10 @@ function attention(ctx: Ctx): AttentionVM[] {
         href: `/hosts/${host}?metric=disk`,
       });
     }
+  }
+  for (const host of HOSTS) {
+    const agent = ctx.agentVM(host);
+    if (agent) out.push(...agentAttention(agent));
   }
   for (const svc of ctx.input.manifest.services) {
     const s = ctx.summary(svc);
@@ -863,6 +884,7 @@ export function buildHosts(input: ViewInput, query: { host?: string; metric?: st
       dataSince: since,
       status: ctx.status.series,
     },
+    agent: ctx.agentVM(host),
     treemap: treemap(ctx, host, metric, false),
     up: ctx.up(),
   };
