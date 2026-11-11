@@ -127,15 +127,16 @@ const hm = (o: Partial<HostMetrics> & { host: string }): HostMetrics => ({
 export const hosts: HostMetrics[] = [
   hm({ host: "jenkins", cores: null, memTotal: 4e9, memUsed: 2e9, swapTotal: 1e9, swapUsed: 1e8, diskTotal: 50e9, diskUsed: 20e9, containers: 9, uptimeSec: null }),
   hm({ host: "vps", diskUsed: 80e9 }),
+  hm({ host: "w1", cores: 8, memTotal: 16e9, memUsed: 6e9, diskTotal: 200e9, diskUsed: 30e9, containers: null, os: "Ubuntu 24.04.3 LTS" }),
 ];
 
 const line = (n: number, f: (i: number) => number) => Array.from({ length: n }, (_, i) => f(i));
 export const SERIES_START = 1_800_000_000 - 24 * 3600;
 
-export const series: HostSeries[] = ["jenkins", "vps"].map((host) => ({
+export const series: HostSeries[] = ["jenkins", "vps", "w1"].map((host) => ({
   host, startSec: SERIES_START, stepSec: 288, dataStartSec: host === "vps" ? SERIES_START : SERIES_START + 3600,
   cpu: line(301, (i) => 20 + (i % 7)), mem: line(301, () => 40), rx: line(301, (i) => 1e5 * (1 + (i % 3))),
-  tx: line(301, () => 5e4), load: line(301, () => 0.7), containers: line(301, () => (host === "vps" ? 19 : 9)),
+  tx: line(301, () => 5e4), load: line(301, () => 0.7), containers: line(301, () => (host === "vps" ? 19 : host === "jenkins" ? 9 : 0)),
 }));
 
 export const df: DiskUsage = {

@@ -1,0 +1,13 @@
+---
+- name: Install unzip
+  apt:
+    name: unzip
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Include node_exporter tasks
+  include_tasks: node_exporter.yml
+
+- name: Include Alloy tasks
+  include_tasks: alloy.yml

@@ -128,7 +128,7 @@ export function OverviewPage({ chrome, vm }: { chrome: Chrome; vm: OverviewVM })
   return (
     <Layout title="Overview" login={chrome.login} csrf={chrome.csrf} current="overview" up={vm.up} refresh={true}>
       <h1>Overview</h1>
-      <p class="lede">Both hosts, every service, and whatever is building right now.</p>
+      <p class="lede">Every host, every service, and whatever is building right now.</p>
       <OverviewFrame vm={vm} />
     </Layout>
   );

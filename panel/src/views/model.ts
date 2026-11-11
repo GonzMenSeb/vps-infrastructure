@@ -15,9 +15,9 @@ import { buildAuthTab, type AuthTabVM, type SecretsView } from "./auth-model";
 import { buildServiceDatabases, type ServiceDatabasesVM } from "./databases-model";
 import type { DatabasesView, DnsView, RegistryView } from "./phase4-input";
 
-export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins"];
+export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins", "w1"];
 export const DOCKER_HOST: ServiceHost = "vps";
-export const HOST_ROLE: Record<ServiceHost, string> = { vps: "Public web host", jenkins: "CI/CD host" };
+export const HOST_ROLE: Record<ServiceHost, string> = { vps: "Public web host", jenkins: "CI/CD host", w1: "Claude Code host" };
 export const STALE_TTL_FACTOR = 3;
 export const DISK_WARN_RATIO = 0.75;
 export const TOP_TILES = 7;

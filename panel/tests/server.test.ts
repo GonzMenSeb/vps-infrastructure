@@ -65,6 +65,8 @@ const PAGES = [
   "/",
   "/hosts/vps",
   "/hosts/jenkins?metric=cpu",
+  "/hosts/w1",
+  "/hosts/w1?metric=disk",
   "/hosts/vps?metric=disk",
   "/services",
   ...manifest.services.flatMap((s) => ["summary", "config", "auth", "builds", "db"].map((t) => `/services/${s.id}?tab=${t}`)),
@@ -110,6 +112,9 @@ describe("pages", () => {
     expect(r.headers.get("location")).toBe("/hosts/vps");
     const q = await app.request("/hosts?host=jenkins&metric=cpu", { headers: { cookie } });
     expect(q.headers.get("location")).toBe("/hosts/jenkins?metric=cpu");
+    expect((await app.request("/hosts/w1", { headers: { cookie } })).status).toBe(200);
+    const w = await app.request("/hosts?host=w1", { headers: { cookie } });
+    expect(w.headers.get("location")).toBe("/hosts/w1");
   });
 
   test("ETag answers 304 until the snapshot changes", async () => {
@@ -263,7 +268,7 @@ describe("rail", () => {
     const cookie = await signIn(app);
     for (const path of ["/", "/hosts/vps", "/services", "/services/judicabot"]) {
       const frame = await (await app.request(path, { headers: { cookie, "turbo-frame": "live" } })).text();
-      expect(frame).toMatch(/<span hidden="" data-rail-state="true" data-note="2 hosts · \d+\/7 services up" data-services="7" data-jobs=""><\/span>/);
+      expect(frame).toMatch(/<span hidden="" data-rail-state="true" data-note="3 hosts · \d+\/7 services up" data-services="7" data-jobs=""><\/span>/);
     }
     const page = await (await app.request("/services", { headers: { cookie } })).text();
     expect(page).toContain('<span class="count" data-rail="services">7</span>');

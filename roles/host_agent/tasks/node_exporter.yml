@@ -1,0 +1,58 @@
+---
+- name: Create node_exporter user
+  user:
+    name: node_exporter
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Create node_exporter version directory
+  file:
+    path: "{{ host_agent_node_exporter_dir }}/{{ host_agent_node_exporter_version }}"
+    state: directory
+    mode: "0755"
+
+- name: Download node_exporter
+  get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ host_agent_node_exporter_version }}/node_exporter-{{ host_agent_node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "{{ host_agent_node_exporter_dir }}/{{ host_agent_node_exporter_version }}/node_exporter-{{ host_agent_node_exporter_version }}.linux-amd64.tar.gz"
+    checksum: "sha256:https://github.com/prometheus/node_exporter/releases/download/v{{ host_agent_node_exporter_version }}/sha256sums.txt"
+    mode: "0644"
+
+- name: Extract node_exporter
+  unarchive:
+    src: "{{ host_agent_node_exporter_dir }}/{{ host_agent_node_exporter_version }}/node_exporter-{{ host_agent_node_exporter_version }}.linux-amd64.tar.gz"
+    dest: "{{ host_agent_node_exporter_dir }}/{{ host_agent_node_exporter_version }}"
+    remote_src: true
+    extra_opts: ["--strip-components=1"]
+    creates: "{{ host_agent_node_exporter_dir }}/{{ host_agent_node_exporter_version }}/node_exporter"
+
+- name: Link node_exporter to the pinned version
+  file:
+    src: "{{ host_agent_node_exporter_dir }}/{{ host_agent_node_exporter_version }}/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    state: link
+    force: true
+  notify: restart node_exporter
+
+- name: Ensure node_exporter textfile directory exists
+  file:
+    path: "{{ host_agent_node_exporter_textfile_dir }}"
+    state: directory
+    owner: node_exporter
+    group: node_exporter
+    mode: "0755"
+
+- name: Install node_exporter systemd service
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: "0644"
+  notify: restart node_exporter
+
+- name: Enable node_exporter
+  systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+    daemon_reload: true

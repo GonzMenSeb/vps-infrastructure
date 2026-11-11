@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const host = z.enum(["vps", "jenkins"]);
+const host = z.enum(["vps", "jenkins", "w1"]);
 
 const service = z.object({
   id: z.string().min(1),

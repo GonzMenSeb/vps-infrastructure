@@ -49,6 +49,14 @@ describe("manifest", () => {
     }
   });
 
+  test("accepts w1 as a host and still rejects an unknown one", () => {
+    const r = raw();
+    r.services[0].host = "w1";
+    expect(parseManifest(r).services[0]!.host).toBe("w1");
+    r.services[0].host = "w2";
+    expect(() => parseManifest(r)).toThrow(/invalid services manifest/);
+  });
+
   test("env auth without env_keys is rejected", () => {
     const r = raw();
     r.services[1].auth.env_keys = [];
