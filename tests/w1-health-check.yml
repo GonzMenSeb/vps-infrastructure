@@ -99,6 +99,26 @@
       delay: 10
       when: w1_gauge_unit.rc == 0
 
+    - name: Read whether the settings gauge timer exists on w1
+      command: systemctl cat agent-host-settings-gauge.timer
+      register: w1_settings_unit
+      changed_when: false
+      failed_when: false
+
+    - name: Verify the settings gauge reaches the main VPS's Prometheus
+      uri:
+        url: 'http://127.0.0.1:9090/api/v1/query?query=agent_host_setting_ok%7Bhost%3D%22w1%22%7D'
+        return_content: true
+      register: remote_settings_query
+      delegate_to: vps
+      become: true
+      until: >
+        remote_settings_query.status == 200 and
+        (remote_settings_query.json.data.result | length > 0)
+      retries: 12
+      delay: 10
+      when: w1_settings_unit.rc == 0
+
     - name: Health check summary
       debug:
         msg: "All w1 health checks passed for {{ inventory_hostname }}"
