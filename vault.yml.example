@@ -114,6 +114,8 @@ vault_strava_client_secret: ""
 vault_main_vps_ip: "CHANGE_ME"      # e.g. 203.0.113.10
 vault_jenkins_vps_ip: "CHANGE_ME"   # e.g. 203.0.113.11
 vault_w1_ip: "CHANGE_ME"            # e.g. 203.0.113.12
+vault_w1_root_password: "CHANGE_ME"   # w1 root console password (not an ssh login: password auth is off)
+vault_w1_vnc_password: "CHANGE_ME"    # w1 provider VNC password
 vault_domain: "CHANGE_ME"            # e.g. example.com
 vault_acme_email: "CHANGE_ME"       # email used for Let's Encrypt registration
 
