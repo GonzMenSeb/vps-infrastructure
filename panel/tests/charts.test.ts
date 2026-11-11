@@ -74,6 +74,33 @@ describe("chart", () => {
     expect(chart({ ...base, series: [{ name: "x", c: "cpu", data: [1, NaN, 3] }] })).not.toContain("NaN");
   });
 
+  test("a non-finite sample lifts the pen: the line and its area restart after the gap", () => {
+    const html = chart({ ...base, series: [{ name: "x", c: "cpu", data: [1, 2, NaN, NaN, 5, 6] }] });
+    const line = /<path d="([^"]+)" fill="none"/.exec(html)![1]!;
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line.match(/L/g)).toHaveLength(2);
+    expect(/opacity="\.13"/.test(html)).toBe(true);
+    const area = /<path d="([^"]+)" fill="var\(--cpu\)" opacity="\.13"/.exec(html)![1]!;
+    expect(area.match(/Z/g)).toHaveLength(2);
+    expect(html).toContain("<td>x</td><td>6%</td><td>4%</td><td>1%</td><td>6%</td>");
+  });
+
+  test("a trailing gap is not drawn as the previous value and the end marker sits on the last real sample", () => {
+    const withTail = chart({ ...base, series: [{ name: "x", c: "cpu", data: [1, 2, NaN, NaN] }] });
+    const plain = chart({ ...base, series: [{ name: "x", c: "cpu", data: [1, 2] }] });
+    expect(withTail.match(/<circle cx="([\d.]+)"/)![1]).not.toBe(plain.match(/<circle cx="([\d.]+)"/)![1]);
+    expect(withTail).toContain("<td>x</td><td>—</td><td>2%</td><td>1%</td><td>2%</td>");
+    expect(withTail).not.toContain("NaN");
+  });
+
+  test("data with no finite sample renders the empty state, not a zero line", () => {
+    const html = chart({ ...base, series: [{ name: "x", c: "cpu", data: [NaN, NaN, NaN] }] });
+    expect(html).toContain("No data");
+    expect(html).not.toContain("<svg");
+    expect(chart({ ...base, series: [{ name: "x", c: "cpu", data: [NaN, 3, 4] }], from: 1 })).toContain("<svg");
+    expect(chart({ ...base, series: [{ name: "x", c: "cpu", data: [5, NaN, NaN] }], from: 1 })).toContain("No data");
+  });
+
   test("only the first series gets an area fill", () => {
     const html = chart({
       ...base,

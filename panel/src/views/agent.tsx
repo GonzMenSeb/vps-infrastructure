@@ -11,8 +11,8 @@ function StatusLine({ vm }: { vm: AgentVM }) {
       {total === 0 ? (
         <Chip tone="">No settings reported</Chip>
       ) : (
-        <Chip tone={drifted > 0 ? "bad" : "ok"}>
-          {vm.inPlace} of {total} settings in place
+        <Chip tone={!report.reporting ? (drifted > 0 ? "warn" : "") : drifted > 0 ? "bad" : "ok"}>
+          {vm.inPlace} of {total} settings in place{report.reporting ? "" : " · last known"}
         </Chip>
       )}
       {reboot.pending ? (
@@ -30,6 +30,7 @@ function StatusLine({ vm }: { vm: AgentVM }) {
 }
 
 function Settings({ vm }: { vm: AgentVM }) {
+  const live = vm.report.reporting;
   if (vm.settings.length === 0) {
     return (
       <div class="body empty">
@@ -50,21 +51,25 @@ function Settings({ vm }: { vm: AgentVM }) {
           {vm.settings.map((s) => (
             <tr>
               <td>
-                {s.name}
-                {s.known ? null : (
+                {s.known ? (
+                  s.name
+                ) : (
                   <>
-                    {" "}
-                    <span class="muted">unknown setting</span>
+                    <bdi>{s.name}</bdi> <span class="muted">unknown setting</span>
                   </>
                 )}
               </td>
               <td>
-                <Chip tone={s.ok ? "ok" : "bad"}>{s.ok ? "In place" : "Drifted"}</Chip>
+                <Chip tone={live ? (s.ok ? "ok" : "bad") : s.ok ? "" : "warn"}>
+                  {s.ok ? "In place" : "Drifted"}
+                  {live ? "" : " · last known"}
+                </Chip>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {vm.settingsDropped > 0 ? <p class="muted">{vm.settingsDropped} more settings are reported and not shown.</p> : null}
     </div>
   );
 }

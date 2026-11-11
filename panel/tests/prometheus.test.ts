@@ -14,6 +14,7 @@ import {
   seriesQuery,
 } from "../src/collectors/prometheus";
 import { Store } from "../src/store";
+import { AGENT_IDS } from "./views-fixtures";
 import hostsFixture from "./fixtures/prometheus-hosts.json";
 import containersFixture from "./fixtures/prometheus-containers.json";
 import seriesFixture from "./fixtures/prometheus-series.json";
@@ -87,7 +88,7 @@ describe("queries", () => {
     const part = (metric: string, expr: string) => `label_replace(${expr}, "metric", "${metric}", "", "")`;
     const w = NODE_RATE_WINDOW_SEC;
     expect(q.split(" or ")).toEqual([
-      part("setting", "max by (host, setting) (agent_host_setting_ok)"),
+      part("setting", "min by (host, setting) (agent_host_setting_ok)"),
       part("runTs", "max by (host) (last_over_time(agent_host_settings_run_timestamp_seconds[24h]))"),
       part("kernel", "max by (host, running, newest) (agent_host_kernel_info)"),
       part("reboot", "max by (host) (agent_host_reboot_required)"),
@@ -249,8 +250,7 @@ describe("fetchHostSeries", () => {
     expect(v!.mem.every((x) => x === 50)).toBe(true);
     expect(v!.rx.every((x) => x === 0)).toBe(true);
     for (const k of ["swapUsed", "memPressure", "tcpRetrans", "filesOpen"] as const) {
-      expect(v![k]).toHaveLength(301);
-      expect(v![k].every((x) => x === 0)).toBe(true);
+      expect(v![k]).toEqual([]);
     }
     expect(j!.cpu.slice(0, 5)).toEqual([5, 5, 5, 6, 6]);
     expect(j!.cpu[300]).toBe(9);
@@ -265,7 +265,7 @@ describe("fetchHostSeries: agent host series", () => {
   const start = Math.floor(nowMs / 1000 / step) * step - 86400;
   const pt = (i: number, v: number | string) => [start + i * step, String(v)];
 
-  test("swap used, memory pressure, TCP retransmits and open files are filled like the other series", async () => {
+  test("swap used, memory pressure, TCP retransmits and open files keep gaps as gaps and an absent series as empty", async () => {
     handler = () =>
       mat([
         { metric: { host: "w1", metric: "swapUsed" }, values: [pt(1, 100), pt(3, 300)] },
@@ -274,11 +274,27 @@ describe("fetchHostSeries: agent host series", () => {
         { metric: { host: "w1", metric: "filesOpen" }, values: [pt(0, 1000), pt(300, 2000)] },
       ]);
     const [w1] = await fetchHostSeries(client, undefined, nowMs);
-    expect(w1!.swapUsed.slice(0, 5)).toEqual([100, 100, 100, 300, 300]);
-    expect(w1!.memPressure.every((x) => x === 0.5)).toBe(true);
-    expect(w1!.tcpRetrans.every((x) => x === 0.25)).toBe(true);
-    expect([w1!.filesOpen[0], w1!.filesOpen[299], w1!.filesOpen[300]]).toEqual([1000, 1000, 2000]);
+    expect(w1!.swapUsed).toHaveLength(301);
+    expect(w1!.swapUsed.slice(0, 5)).toEqual([NaN, 100, NaN, 300, NaN]);
+    expect(w1!.memPressure[0]).toBe(0.5);
+    expect(w1!.memPressure.slice(1).every(Number.isNaN)).toBe(true);
+    expect(w1!.tcpRetrans.filter(Number.isFinite)).toEqual([0.25]);
+    expect([w1!.filesOpen[0], w1!.filesOpen[299], w1!.filesOpen[300]]).toEqual([1000, NaN, 2000]);
     expect(w1!.dataStartSec).toBe(start);
+  });
+
+  test("an absent agent series is empty, not a zero line, and a non-finite sample is a gap", async () => {
+    handler = () =>
+      mat([
+        { metric: { host: "w1", metric: "cpu" }, values: [pt(0, 1)] },
+        { metric: { host: "w1", metric: "tcpRetrans" }, values: [pt(0, 0.4), pt(1, "NaN")] },
+      ]);
+    const [w1] = await fetchHostSeries(client, undefined, nowMs);
+    expect(w1!.memPressure).toEqual([]);
+    expect(w1!.swapUsed).toEqual([]);
+    expect(w1!.cpu.every((x) => x === 1)).toBe(true);
+    expect(w1!.tcpRetrans[0]).toBe(0.4);
+    expect(w1!.tcpRetrans.slice(1).every(Number.isNaN)).toBe(true);
   });
 
   test("the series query asks for all ten series in one range query", () => {
@@ -324,7 +340,9 @@ describe("fetchAgentHosts", () => {
           { id: "congestion_control", ok: true },
           { id: "zswap", ok: false },
         ],
+        settingsDropped: 0,
         runTimestampSec: 1_800_000_000,
+        runTimestampInvalid: false,
         rebootRequired: true,
         kernelRunning: "6.8.0-100-generic",
         kernelNewest: "6.8.0-110-generic",
@@ -360,7 +378,7 @@ describe("fetchAgentHosts", () => {
     handler = () => vec([row("w1", "kernel", 1, { running: "6.8.0-100-generic", newest: "6.8.0-100-generic" })]);
     const [h] = await fetchAgentHosts(client);
     expect(h).toEqual({
-      host: "w1", settings: [], runTimestampSec: null, rebootRequired: null, kernelRunning: "6.8.0-100-generic",
+      host: "w1", settings: [], settingsDropped: 0, runTimestampSec: null, runTimestampInvalid: false, rebootRequired: null, kernelRunning: "6.8.0-100-generic",
       kernelNewest: "6.8.0-100-generic", swapInBps: null, swapOutBps: null, memPressurePct: null, tcpRetransPct: null,
       filesOpen: null, tcpEstablished: null, oomKills24h: null,
     });
@@ -436,6 +454,76 @@ describe("fetchAgentHosts", () => {
         row("w1", "kernel", 1, { running: "6.8.0-9-generic", newest: "6.8.0-10-generic" }),
       ]);
     expect((await fetchAgentHosts(client))[0]).toMatchObject({ kernelNewest: "6.8.0-10-generic" });
+  });
+
+  test("only the known hosts are read, however many host labels are pushed", async () => {
+    handler = () =>
+      vec([
+        ...Array.from({ length: 5000 }, (_, i) => setting(`h${i}`, "zswap", 1)),
+        setting("w1", "zswap", 1),
+        row("jenkins", "runTs", 1_800_000_000),
+        row("w2", "runTs", 1_800_000_000),
+      ]);
+    const hosts = await fetchAgentHosts(client);
+    expect(hosts.map((h) => h.host)).toEqual(["jenkins", "w1"]);
+  });
+
+  test("an oversized host label is ignored", async () => {
+    handler = () => vec([setting("w".repeat(121), "zswap", 1), setting("w1", "zswap", 1)]);
+    expect((await fetchAgentHosts(client)).map((h) => h.host)).toEqual(["w1"]);
+  });
+
+  test("settings per host are capped, the known ids always survive and drifted unknown ids come first", async () => {
+    const flood = Array.from({ length: 20000 }, (_, i) => setting("w1", `aaa_${String(i).padStart(6, "0")}`, 1));
+    handler = () => vec([...flood, setting("w1", "ssh_password_off", 0), setting("w1", "zswap", 1), setting("w1", "zzz_drift", 0)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h!.settings).toHaveLength(64);
+    const ids = h!.settings.map((s) => s.id);
+    expect(ids).toContain("ssh_password_off");
+    expect(ids).toContain("zswap");
+    expect(ids).toContain("zzz_drift");
+    expect(h!.settings.find((s) => s.id === "ssh_password_off")!.ok).toBe(false);
+    expect(h!.settingsDropped).toBe(20003 - 64);
+  });
+
+  test("a full set of known ids plus a handful of others is not truncated", async () => {
+    handler = () => vec([...AGENT_IDS.map((id) => setting("w1", id, 1)), setting("w1", "extra_one", 1)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(h!.settings).toHaveLength(14);
+    expect(h!.settingsDropped).toBe(0);
+  });
+
+  test("kernel pairs collapse to the newest one per host", async () => {
+    const kernels = Array.from({ length: 5000 }, (_, i) => row("w1", "kernel", 1, { running: `6.8.0-${i}-generic`, newest: `6.8.0-${i}-generic` }));
+    handler = () => vec([...kernels, row("vps", "kernel", 1, { running: "5.15.0-1-generic", newest: "5.15.0-2-generic" })]);
+    const hosts = await fetchAgentHosts(client);
+    expect(hosts.map((h) => [h.host, h.kernelNewest])).toEqual([
+      ["vps", "5.15.0-2-generic"],
+      ["w1", "6.8.0-4999-generic"],
+    ]);
+  });
+
+  test("oversized kernel labels are ignored", async () => {
+    handler = () => vec([row("w1", "kernel", 1, { running: "k".repeat(81), newest: "6.8.0-1-generic" }), setting("w1", "zswap", 1)]);
+    expect((await fetchAgentHosts(client))[0]!.kernelRunning).toBeNull();
+  });
+
+  test("duplicate series for one setting fail closed: a 0 beats a 1 in any order", async () => {
+    handler = () => vec([setting("w1", "ssh_password_off", 0), setting("w1", "ssh_password_off", 1), setting("w1", "x_dup", 1), setting("w1", "x_dup", 0)]);
+    const [h] = await fetchAgentHosts(client);
+    expect(Object.fromEntries(h!.settings.map((s) => [s.id, s.ok]))).toEqual({ ssh_password_off: false, x_dup: false });
+    handler = () => vec([setting("w1", "ssh_password_off", 1), setting("w1", "ssh_password_off", 0)]);
+    expect((await fetchAgentHosts(client))[0]!.settings).toEqual([{ id: "ssh_password_off", ok: false }]);
+  });
+
+  test("a run timestamp that is not a plausible time is invalid, never a reporting host", async () => {
+    for (const v of ["NaN", "+Inf", "-Inf", 0, -5, 1e300, 9_999_999_999, 4_102_444_801]) {
+      handler = () => vec([row("w1", "runTs", v)]);
+      const [h] = await fetchAgentHosts(client);
+      expect(h).toMatchObject({ host: "w1", runTimestampSec: null, runTimestampInvalid: true });
+    }
+    handler = () => vec([row("w1", "runTs", 4_102_444_800)]);
+    expect((await fetchAgentHosts(client))[0]).toMatchObject({ runTimestampSec: 4_102_444_800, runTimestampInvalid: false });
   });
 
   test("an empty answer is an empty list and errors surface", async () => {

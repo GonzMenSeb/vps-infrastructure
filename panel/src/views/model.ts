@@ -9,7 +9,7 @@ import {
 } from "../collectors/prometheus";
 import { hourLabels } from "../lib/charts";
 import { squarify } from "../lib/treemap";
-import { indexManifest, type Manifest, type ManifestIndex, type Service, type ServiceHost } from "../manifest";
+import { HOST_IDS, indexManifest, type Manifest, type ManifestIndex, type Service, type ServiceHost } from "../manifest";
 import type { Snapshot, Store } from "../store";
 import { agentAttention, buildAgent, type AgentVM } from "./agent-model";
 import { buildServiceActions, type ServiceActionsVM, type ServiceView } from "./service-actions-model";
@@ -17,7 +17,7 @@ import { buildAuthTab, type AuthTabVM, type SecretsView } from "./auth-model";
 import { buildServiceDatabases, type ServiceDatabasesVM } from "./databases-model";
 import type { DatabasesView, DnsView, RegistryView } from "./phase4-input";
 
-export const HOSTS: readonly ServiceHost[] = ["vps", "jenkins", "w1"];
+export const HOSTS: readonly ServiceHost[] = HOST_IDS;
 export const DOCKER_HOST: ServiceHost = "vps";
 export const HOST_ROLE: Record<ServiceHost, string> = { vps: "Public web host", jenkins: "CI/CD host", w1: "Claude Code host" };
 export const STALE_TTL_FACTOR = 3;

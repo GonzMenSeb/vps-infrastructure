@@ -66,6 +66,7 @@ const manifestSchema = z
     });
   });
 
+export const HOST_IDS = host.options;
 export type ServiceHost = z.infer<typeof host>;
 export type Service = z.infer<typeof service>;
 export type Manifest = z.infer<typeof manifestSchema>;

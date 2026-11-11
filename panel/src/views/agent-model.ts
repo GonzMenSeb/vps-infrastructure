@@ -1,26 +1,19 @@
 import type { AgentHost } from "../collectors/prometheus";
+import { AGENT_SETTINGS_MAX, AGENT_SETTING_NAMES, isKnownSetting, validRunTimestamp } from "../lib/agent-contract";
 import type { ServiceHost } from "../manifest";
 import { fmtAge, fmtRate, type AttentionVM, type SourceStatus } from "./model";
 
 export const AGENT_STALE_SEC = 600;
 export const AGENT_ATTENTION_NAMES = 4;
 const NA = "—";
+const BLANK_ID = "(blank id)";
+const INVISIBLE = /[\p{Cc}\p{Cf}\u2028\u2029]/gu;
 
-export const AGENT_SETTING_NAMES: Readonly<Record<string, string>> = {
-  congestion_control: "TCP congestion control",
-  inotify_watches: "inotify watches",
-  inotify_instances: "inotify instances",
-  swap_active: "Swap file active",
-  zswap: "zswap on",
-  ssh_publickey_only: "ssh: public key only",
-  ssh_password_off: "ssh: passwords off",
-  ssh_keepalive: "ssh: keepalive",
-  ssh_guard_intact: "ssh: password guard file intact",
-  ssh_rollback_idle: "ssh: no rollback timer armed",
-  mosh_installed: "mosh installed",
-  limits_nofile: "Open-file limit for logins",
-  linger: "User services survive logout",
-};
+export function cleanLabel(s: string): string {
+  return s.replace(INVISIBLE, "");
+}
+
+export { AGENT_SETTING_NAMES };
 
 const KNOWN_ORDER = Object.keys(AGENT_SETTING_NAMES);
 
@@ -40,9 +33,10 @@ export interface AgentVM {
   host: ServiceHost;
   status: SourceStatus;
   settings: AgentSettingVM[];
+  settingsDropped: number;
   inPlace: number;
   reboot: { known: boolean; pending: boolean; running: string | null; newest: string | null };
-  report: { reporting: boolean; ageMs: number | null; text: string };
+  report: { reporting: boolean; invalid: boolean; ageMs: number | null; text: string };
   stats: AgentStatVM[];
 }
 
@@ -61,18 +55,29 @@ function orderSettings(h: AgentHost): AgentSettingVM[] {
   };
   return [...h.settings]
     .sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id))
+    .slice(0, AGENT_SETTINGS_MAX)
     .map((s) => {
-      const name = Object.hasOwn(AGENT_SETTING_NAMES, s.id) ? AGENT_SETTING_NAMES[s.id]! : null;
-      return { id: s.id, name: name ?? s.id, known: name !== null, ok: s.ok };
+      const known = isKnownSetting(s.id);
+      const shown = known ? AGENT_SETTING_NAMES[s.id]! : cleanLabel(s.id) || BLANK_ID;
+      return { id: known ? s.id : shown, name: shown, known, ok: s.ok };
     });
 }
 
 function reportOf(h: AgentHost, status: SourceStatus, nowMs: number): AgentVM["report"] {
-  if (h.runTimestampSec === null) return { reporting: false, ageMs: null, text: "Not reporting" };
+  const ts = h.runTimestampSec;
+  if (h.runTimestampInvalid || (ts !== null && !validRunTimestamp(ts, nowMs))) {
+    return { reporting: false, invalid: true, ageMs: null, text: "Not reporting · report time not valid" };
+  }
+  if (ts === null) return { reporting: false, invalid: false, ageMs: null, text: "Not reporting" };
   const asOf = status.state === "stale" && status.ageMs !== null ? nowMs - status.ageMs : nowMs;
-  const ageMs = Math.max(0, asOf - h.runTimestampSec * 1000);
+  const ageMs = Math.max(0, asOf - ts * 1000);
   const reporting = ageMs <= AGENT_STALE_SEC * 1000;
-  return { reporting, ageMs, text: reporting ? `Last report ${fmtAge(ageMs)}` : `Not reporting · last report ${fmtAge(ageMs)}` };
+  return {
+    reporting,
+    invalid: false,
+    ageMs,
+    text: reporting ? `Last report ${fmtAge(ageMs)}` : `Not reporting · last report ${fmtAge(ageMs)}`,
+  };
 }
 
 export function buildAgent(host: ServiceHost, h: AgentHost, status: SourceStatus, nowMs: number): AgentVM {
@@ -81,12 +86,13 @@ export function buildAgent(host: ServiceHost, h: AgentHost, status: SourceStatus
     host,
     status,
     settings,
+    settingsDropped: h.settingsDropped + Math.max(h.settings.length - AGENT_SETTINGS_MAX, 0),
     inPlace: settings.filter((s) => s.ok).length,
     reboot: {
       known: h.rebootRequired !== null,
       pending: h.rebootRequired === true,
-      running: h.kernelRunning,
-      newest: h.kernelNewest,
+      running: cleanLabel(h.kernelRunning ?? "") || null,
+      newest: cleanLabel(h.kernelNewest ?? "") || null,
     },
     report: reportOf(h, status, nowMs),
     stats: [
@@ -106,7 +112,7 @@ export function agentAttention(vm: AgentVM): AttentionVM[] {
   const href = `/hosts/${encodeURIComponent(vm.host)}`;
   const drifted = vm.settings.filter((s) => !s.ok);
   if (drifted.length) {
-    const shown = drifted.slice(0, AGENT_ATTENTION_NAMES).map((s) => s.name);
+    const shown = drifted.slice(0, AGENT_ATTENTION_NAMES).map((s) => (s.known ? s.name : `${s.name} (unknown setting)`));
     const more = drifted.length - shown.length;
     out.push({
       tone: "bad",
@@ -126,12 +132,20 @@ export function agentAttention(vm: AgentVM): AttentionVM[] {
       href,
     });
   }
-  if (vm.report.ageMs !== null && !vm.report.reporting) {
+  if (vm.report.invalid) {
+    out.push({
+      tone: "warn",
+      tag: "Silent",
+      title: `${vm.host} reports a settings time that is not valid`,
+      detail: "It counts as not reporting until the host sends a usable time.",
+      href,
+    });
+  } else if (vm.report.ageMs !== null && !vm.report.reporting) {
     out.push({
       tone: "warn",
       tag: "Silent",
       title: `${vm.host} has stopped reporting its settings`,
-      detail: `Last report ${fmtAge(vm.report.ageMs)}; the host sends one every 2 minutes.`,
+      detail: `No settings report arrived for more than ${AGENT_STALE_SEC / 60} minutes. Last report ${fmtAge(vm.report.ageMs)}.`,
       href,
     });
   }

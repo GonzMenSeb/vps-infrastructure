@@ -118,10 +118,26 @@ describe("overview view", () => {
         tone: "warn",
         tag: "Silent",
         title: "w1 has stopped reporting its settings",
-        detail: "Last report 14 min ago; the host sends one every 2 minutes.",
+        detail: "No settings report arrived for more than 10 minutes. Last report 14 min ago.",
         href: "/hosts/w1",
       });
       expect(items(agentHost({ runTimestampSec: null }))).toEqual([]);
+    });
+
+    test("a timestamp that is not valid raises a warning of its own and is never a quiet host", () => {
+      for (const ts of [nowSec + 301, 1e300, 9_999_999_999]) {
+        expect(items(agentHost({ runTimestampSec: ts }))).toEqual([
+          {
+            tone: "warn",
+            tag: "Silent",
+            title: "w1 reports a settings time that is not valid",
+            detail: "It counts as not reporting until the host sends a usable time.",
+            href: "/hosts/w1",
+          },
+        ]);
+      }
+      expect(items(agentHost({ runTimestampSec: null, runTimestampInvalid: true })).map((a) => a.tag)).toEqual(["Silent"]);
+      expect(items(agentHost({ runTimestampSec: nowSec + 100 }))).toEqual([]);
     });
 
     test("all three can stack, and hosts outside the list or without agent data add nothing", () => {

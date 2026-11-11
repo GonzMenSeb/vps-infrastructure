@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import type { AgentHost, HostSeries } from "../src/collectors/prometheus";
 import { AGENT_SETTING_NAMES, AGENT_STALE_SEC, buildAgent, fmtFinePct } from "../src/views/agent-model";
 import { HostsFrame, agentChartsHtml } from "../src/views/hosts";
-import { buildHosts, fmtBytes, sourceStatus } from "../src/views/model";
+import { buildHosts, buildOverview, fmtBytes, sourceStatus } from "../src/views/model";
 import {
   AGENT_IDS,
   FIXTURE_NOW_MS,
@@ -80,7 +80,53 @@ describe("agent host model", () => {
     expect(at(601)).toMatchObject({ reporting: false, text: "Not reporting · last report 10 min ago" });
     expect(at(3 * 3600)).toMatchObject({ reporting: false, text: "Not reporting · last report 3 h ago" });
     expect(at(-120)).toMatchObject({ reporting: true, ageMs: 0 });
-    expect(vmOf({ runTimestampSec: null }).report).toEqual({ reporting: false, ageMs: null, text: "Not reporting" });
+    expect(vmOf({ runTimestampSec: null }).report).toEqual({ reporting: false, invalid: false, ageMs: null, text: "Not reporting" });
+  });
+
+  test("report: a timestamp more than 300 s ahead of the panel clock, out of range or flagged invalid is never reporting", () => {
+    const text = "Not reporting · report time not valid";
+    expect(vmOf({ runTimestampSec: nowSec + 100 }).report).toMatchObject({ reporting: true, invalid: false, ageMs: 0 });
+    expect(vmOf({ runTimestampSec: nowSec + 300 }).report).toMatchObject({ reporting: true, invalid: false });
+    for (const ts of [nowSec + 301, nowSec + 3600, 1e300, 9_999_999_999, 4_102_444_801]) {
+      expect(vmOf({ runTimestampSec: ts }).report).toEqual({ reporting: false, invalid: true, ageMs: null, text });
+    }
+    expect(vmOf({ runTimestampSec: null, runTimestampInvalid: true }).report).toEqual({ reporting: false, invalid: true, ageMs: null, text });
+    expect(vmOf({ runTimestampSec: Number.POSITIVE_INFINITY }).report.reporting).toBe(false);
+    expect(vmOf({ runTimestampSec: -5 }).report.reporting).toBe(false);
+  });
+
+  test("the future limit is measured against the panel clock, not the snapshot age", () => {
+    const sources = { ...fullSources(), agent: snap([agentHost({ runTimestampSec: nowSec + 200 })], { lastError: "down", ageMs: 20 * 60_000 }) };
+    expect(vmOf({}, sources).report).toMatchObject({ reporting: true, invalid: false });
+  });
+
+  test("setting ids lose control, zero-width and bidi characters for display and stay unknown", () => {
+    const vm = vmOf({
+      settings: [
+        { id: "ssh_password_off\u200b", ok: true },
+        { id: "\u202egnittes\u202c", ok: false },
+        { id: "\u0000\u200b\u202e", ok: true },
+        { id: "a\u0007b\u2066c\u2069d\ufeffe\u061cf\u2028g", ok: true },
+        { id: "linger", ok: true },
+      ],
+    });
+    const byName = Object.fromEntries(vm.settings.map((s) => [s.name, s]));
+    expect(Object.keys(byName).sort()).toEqual(["(blank id)", "User services survive logout", "abcdefg", "gnittes", "ssh_password_off"].sort());
+    expect(byName["ssh_password_off"]!.known).toBe(false);
+    expect(byName["User services survive logout"]!.known).toBe(true);
+    for (const s of vm.settings) expect(s.name).not.toMatch(/[\p{Cc}\p{Cf}\u2028\u2029]/u);
+  });
+
+  test("kernel strings lose the same characters", () => {
+    const vm = vmOf({ rebootRequired: true, kernelRunning: "6.8.0\u202e-1", kernelNewest: "\u200b\u0000" });
+    expect(vm.reboot).toMatchObject({ running: "6.8.0-1", newest: null });
+  });
+
+  test("more than 64 settings are cut to 64 rows and counted as dropped", () => {
+    const many = Array.from({ length: 80 }, (_, i) => ({ id: `s_${i}`, ok: true }));
+    const vm = vmOf({ settings: many, settingsDropped: 5 });
+    expect(vm.settings).toHaveLength(64);
+    expect(vm.settingsDropped).toBe(5 + 16);
   });
 
   test("a stale Prometheus snapshot does not make the host look silent", () => {
@@ -147,7 +193,6 @@ describe("agent host section", () => {
           rebootRequired: true,
           kernelRunning: "6.8.0-100-generic",
           kernelNewest: "6.8.0-110-generic",
-          runTimestampSec: nowSec - 11 * 60,
         }),
       ),
     );
@@ -155,7 +200,6 @@ describe("agent host section", () => {
     expect((html.match(/>Drifted</g) ?? []).length).toBe(2);
     expect(html).toMatch(/<td>zswap on<\/td><td><span class="chip bad"><span class="lamp"><\/span>Drifted<\/span><\/td>/);
     expect(html).toContain("Reboot pending · running 6.8.0-100-generic · newest 6.8.0-110-generic");
-    expect(html).toContain("Not reporting · last report 11 min ago");
   });
 
   test("no timestamp and no settings read as not reporting with an empty table", async () => {
@@ -216,6 +260,46 @@ describe("agent host section", () => {
   });
 });
 
+describe("agent host section limits and absent series", () => {
+  test("a flood of settings renders at most 64 rows, a one line note and a small page", async () => {
+    const flood = Array.from({ length: 5000 }, (_, i) => ({ id: `flood_${i}_${"x".repeat(100)}`, ok: i % 2 === 0 }));
+    const html = await w1(withAgent(agentHost({ settings: [...flood, ...AGENT_IDS.map((id) => ({ id, ok: true }))], settingsDropped: 40 })));
+    const table = html.slice(html.indexOf("<th>Setting</th>"), html.indexOf("</table>", html.indexOf("<th>Setting</th>")));
+    expect((table.match(/<tr>/g) ?? []).length).toBe(64);
+    for (const name of Object.values(AGENT_SETTING_NAMES)) expect(html).toContain(`<td>${name}</td>`);
+    expect(html).toContain("4989 more settings are reported and not shown.");
+    expect(html.length).toBeLessThan(200_000);
+  });
+
+  test("no note when nothing was dropped", async () => {
+    expect(await w1()).not.toContain("not shown");
+  });
+
+  test("an unknown id keeps its marker in the Overview detail, cleaned of invisible characters", () => {
+    const [a] = buildOverview(input(withAgent(agentHost({ settings: [{ id: "ssh_password_off\u202e\u200b", ok: false }, { id: "zswap", ok: false }] }))))
+      .attention.filter((x) => x.tag === "Drift");
+    expect(a!.detail).toBe("zswap on, ssh_password_off (unknown setting)");
+    expect(a!.detail).not.toMatch(/[\u200b\u202e]/);
+  });
+
+  test("a bidi override in an id is isolated and stripped in the table", async () => {
+    const html = await w1(withAgent(agentHost({ settings: [{ id: "\u202eevil\u202e", ok: true }] })));
+    expect(html).toContain("<bdi>evil</bdi> <span");
+    expect(html).not.toMatch(/[\u202e\u200b]/);
+  });
+
+  test("an agent series that is absent for the host shows the chart empty state, not a zero line", async () => {
+    const base = fullSources();
+    const series = base.series!.data!.map((s) => (s.host === "w1" ? { ...s, memPressure: [], tcpRetrans: s.tcpRetrans.map((v, i) => (i > 150 ? NaN : v)) } : s));
+    const html = await w1({ ...base, series: snap(series) });
+    const block = (title: string) => html.split('<div class="chart">').find((b) => b.includes(`<div class="t">${title}</div>`))!;
+    expect(block("Memory pressure")).toContain("No data");
+    expect(block("Memory pressure")).not.toContain("<svg");
+    expect(block("TCP retransmits").match(/<path d="M[^"]*" fill="none"/)![0].split("M").length).toBe(2);
+    expect(block("Swap used")).toContain("<svg");
+  });
+});
+
 describe("agent host section tones and plotted data", () => {
   const chip = (html: string, text: string) => html.match(new RegExp(`<span class="chip([^"]*)"><span class="lamp"></span>${text}</span>`))?.[1]?.trim();
 
@@ -240,7 +324,7 @@ describe("agent host section tones and plotted data", () => {
         }),
       ),
     );
-    expect(chip(html, "12 of 13 settings in place")).toBe("bad");
+    expect(chip(html, "12 of 13 settings in place · last known")).toBe("warn");
     expect(chip(html, "Reboot pending · running 6.8.0-100-generic · newest 6.8.0-110-generic")).toBe("warn");
     expect(chip(html, "Not reporting · last report 11 min ago")).toBe("warn");
     expect(html).not.toMatch(/chip ok"><span class="lamp"><\/span>(Last report|No reboot)/);
@@ -249,7 +333,28 @@ describe("agent host section tones and plotted data", () => {
   test("a host with no timestamp is amber even when every setting is in place", async () => {
     const html = await w1(withAgent(agentHost({ runTimestampSec: null })));
     expect(chip(html, "Not reporting")).toBe("warn");
-    expect(chip(html, "13 of 13 settings in place")).toBe("ok");
+    expect(chip(html, "13 of 13 settings in place · last known")).toBe("");
+    expect(html).not.toContain("chip ok\"><span class=\"lamp\"></span>13 of 13");
+  });
+
+  test("a report older than the stale limit, or one that is not valid, never shows a green settings chip or green rows", async () => {
+    for (const ts of [nowSec - 3 * 3600, nowSec - 601, nowSec + 301, 1e300, 9_999_999_999, null]) {
+      for (const ok of [true, false]) {
+        const html = await w1(withAgent(agentHost({ runTimestampSec: ts, runTimestampInvalid: ts === 1e300, settings: [{ id: "zswap", ok }, { id: "linger", ok: true }] })));
+        expect(html).toContain("Not reporting");
+        expect(html).toContain("· last known");
+        expect(html).not.toMatch(/chip ok"><span class="lamp"><\/span>(\d+ of \d+ settings|In place)/);
+        expect((html.match(/>In place · last known</g) ?? []).length).toBe(ok ? 2 : 1);
+        expect((html.match(/>Drifted · last known</g) ?? []).length).toBe(ok ? 0 : 1);
+        expect(html).not.toMatch(/chip bad"><span class="lamp"><\/span>(Drifted|\d+ of)/);
+      }
+    }
+  });
+
+  test("a fresh report keeps the live tones and none of the last known wording", async () => {
+    const html = await w1(withAgent(agentHost({ runTimestampSec: nowSec + 100, settings: [{ id: "zswap", ok: false }, { id: "linger", ok: true }] })));
+    expect(html).not.toContain("last known");
+    expect(chip(html, "1 of 2 settings in place")).toBe("bad");
   });
 
   test("table chips follow each setting's own state", async () => {
@@ -297,7 +402,7 @@ describe("agent host section escaping", () => {
     expect(html).not.toContain('"><img');
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
     expect(html).toContain("&quot;&gt;&lt;img src=x onerror=alert(1)&gt;");
-    expect(html).toMatch(/<td>&lt;script&gt;alert\(1\)&lt;\/script&gt; <span class="muted">unknown setting<\/span><\/td>/);
+    expect(html).toMatch(/<td><bdi>&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/bdi> <span class="muted">unknown setting<\/span><\/td>/);
     expect((html.match(/unknown setting/g) ?? []).length).toBe(1);
     expect(html).toContain("1 of 2 settings in place");
     expect(styleAttrs(html)).toEqual([]);

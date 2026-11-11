@@ -43,18 +43,17 @@ const B = 26;
 const pw = W - L - R;
 const ph = H - T - B;
 
-const num = (v: number) => (Number.isFinite(v) ? v : 0);
-
 export function chart(o: ChartOptions): string {
   const { title, series, fmt, xLabels, legend } = o;
   const n = series[0]?.data.length ?? 0;
   const t = esc(title);
   if (n === 0) return `<div class="chart"><div class="t">${t}</div><p class="empty">No data</p></div>`;
   const f = Math.min(Math.max(Math.floor(o.from ?? 0), 0), n - 1);
-  const all = series.flatMap((s) => s.data.slice(f).map(num));
+  const all = series.flatMap((s) => s.data.slice(f).filter(Number.isFinite));
+  if (all.length === 0) return `<div class="chart"><div class="t">${t}</div><p class="empty">No data</p></div>`;
   const max = o.fixedMax || niceMax(Math.max(...all) * 1.05);
   const X = (i: number) => L + (i / Math.max(n - 1, 1)) * pw;
-  const Y = (v: number) => T + ph - (num(v) / max) * ph;
+  const Y = (v: number) => T + ph - (v / max) * ph;
   let g = "";
   for (let k = 0; k <= 4; k++) {
     const y = T + ph * (1 - k / 4);
@@ -67,27 +66,49 @@ export function chart(o: ChartOptions): string {
   });
   series.forEach((s, j) => {
     const c = esc(s.c);
-    const d = s.data
-      .slice(f)
-      .map((v, k) => `${k ? "L" : "M"}${X(f + k).toFixed(1)} ${Y(v).toFixed(1)}`)
-      .join("");
-    if (j === 0) {
-      g += `<path d="${d}L${X(n - 1).toFixed(1)} ${T + ph}L${X(f).toFixed(1)} ${T + ph}Z" fill="var(--${c})" opacity=".13"/>`;
-    }
-    const lastV = s.data[s.data.length - 1] ?? 0;
-    g += `<path d="${d}" fill="none" stroke="var(--${c})" stroke-width="1.4" stroke-linejoin="round"/><circle cx="${X(s.data.length - 1).toFixed(1)}" cy="${Y(lastV).toFixed(1)}" r="3.2" fill="var(--${c})"/>`;
+    let d = "";
+    let area = "";
+    let run = -1;
+    let lastFinite = -1;
+    const close = (end: number) => {
+      if (run >= 0 && j === 0) area += `L${X(end).toFixed(1)} ${T + ph}L${X(run).toFixed(1)} ${T + ph}Z`;
+      run = -1;
+    };
+    s.data.slice(f).forEach((v, k) => {
+      const i = f + k;
+      if (!Number.isFinite(v)) {
+        close(i - 1);
+        return;
+      }
+      if (run < 0) run = i;
+      d += `${run === i ? "M" : "L"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`;
+      if (j === 0) area += `${run === i ? "M" : "L"}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`;
+      lastFinite = i;
+    });
+    close(s.data.length - 1);
+    if (lastFinite < 0) return;
+    if (j === 0) g += `<path d="${area}" fill="var(--${c})" opacity=".13"/>`;
+    g += `<path d="${d}" fill="none" stroke="var(--${c})" stroke-width="1.4" stroke-linejoin="round"/><circle cx="${X(lastFinite).toFixed(1)}" cy="${Y(s.data[lastFinite]!).toFixed(1)}" r="3.2" fill="var(--${c})"/>`;
   });
   const stat = (a: readonly number[]) => {
-    const v = a.slice(f).map(num);
-    return { now: v[v.length - 1] ?? 0, avg: v.reduce((x, y) => x + y, 0) / (v.length || 1), min: Math.min(...v), max: Math.max(...v) };
+    const tail = a.slice(f);
+    const v = tail.filter(Number.isFinite);
+    const now = tail[tail.length - 1];
+    return {
+      now: now !== undefined && Number.isFinite(now) ? now : null,
+      avg: v.length ? v.reduce((x, y) => x + y, 0) / v.length : null,
+      min: v.length ? Math.min(...v) : null,
+      max: v.length ? Math.max(...v) : null,
+    };
   };
+  const cell = (v: number | null) => (v === null ? "—" : esc(fmt(v)));
   const legendHtml = legend
     ? `<div class="legend">${series.map((s) => `<span class="c-${esc(s.c)}"><i></i>${esc(s.name)}</span>`).join("")}</div>`
     : "";
   const rows = series
     .map((s) => {
       const z = stat(s.data);
-      return `<tr><td>${esc(s.name)}</td><td>${esc(fmt(z.now))}</td><td>${esc(fmt(z.avg))}</td><td>${esc(fmt(z.min))}</td><td>${esc(fmt(z.max))}</td></tr>`;
+      return `<tr><td>${esc(s.name)}</td><td>${cell(z.now)}</td><td>${cell(z.avg)}</td><td>${cell(z.min)}</td><td>${cell(z.max)}</td></tr>`;
     })
     .join("");
   return `<div class="chart"><div class="t">${t}</div>${legendHtml}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${t}, last 24 hours">${g}</svg><details data-k="${t}"><summary>Show the numbers</summary><table><thead><tr><th></th><th>Now</th><th>Avg</th><th>Min</th><th>Max</th></tr></thead><tbody>${rows}</tbody></table></details></div>`;

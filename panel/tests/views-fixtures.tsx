@@ -151,7 +151,9 @@ export const AGENT_IDS = [
 export const agentHost = (o: Partial<AgentHost> = {}): AgentHost => ({
   host: "w1",
   settings: AGENT_IDS.map((id) => ({ id, ok: true })),
+  settingsDropped: 0,
   runTimestampSec: FIXTURE_NOW_MS / 1000 - 60,
+  runTimestampInvalid: false,
   rebootRequired: false,
   kernelRunning: "6.8.0-110-generic",
   kernelNewest: "6.8.0-110-generic",
